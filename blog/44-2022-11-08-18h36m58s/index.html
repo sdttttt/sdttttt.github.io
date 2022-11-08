@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Log 14</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Log 14</h1>
+    
+    <p class="secondary">2 March, 2021</p>
+    
+    <div class="space"></div>
+    <p>最近不想让服务器多余的资源吃灰, 就在服务器上做了种, 提供一些下载资源的速度.
+不过带宽确实是太小了, 这个玩意总共就1m带宽, 如果边做种我再边用RSS的话,
+这个速度我都怀疑这玩意是不是done了?</p>
+<p>所以平时白天做种的速度只能限制再<code>100KB/s</code>以下, 不如RSS的速度真的太感人.
+晚上的话, 龟速模式就会解除, 做种速度能提升大概3-4倍的样子.</p>
+<p>如果有机会还是想白嫖带宽大一点的服务器锕.</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

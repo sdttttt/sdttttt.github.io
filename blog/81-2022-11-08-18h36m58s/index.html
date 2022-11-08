@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | About the Blog</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>About the Blog</h1>
+    
+    <p class="secondary">3 April, 2020</p>
+    
+    <div class="space"></div>
+    <p><code>blog</code>里的文章并非全部原创，有一部分是经过修改后整理出<code>要点</code>，集中一起写到这里面。也包涵了一些我对整个软件行业的想法。</p>
+<hr />
+<p>这个<code>blog</code>是用<code>Hugo</code>构建的，Theme 使用的是<code>rocinante</code>,live2D 的纸片人是我自己加的.(不是主题里自带的).</p>
+<p>我之前还使用过<code>Vuepress</code>做为静态网站生成器，不过自定义程度很低，也不是很复合我的审美。（我希望是旁边不要出现目录栏）</p>
+<p>后面我就转战<code>Hugo</code>,优点：用 Go 编写，生成快。生态圈也比较良好。我第一个使用的 Theme 是<code>book</code>，不得不说，配置复杂，我就马上丢弃了，后面又使用了<code>Ezhi</code>，由于我不是很喜欢红色，就又扔了。</p>
+<p>然后就使用了现在这个 Theme，还是比较满意的，很极简。后面也加了<code>utteranc</code>做为评论模块，选择 utteranc 的理由很简单，最初<code>Hugo</code>是自带<code>Disqus</code>做为评论模块的，但是无奈这个<code>Disqus</code>在国外，而且还是被墙的！</p>
+<p>后来暂时搁了一段时间，才找到<code>utteranc</code>，优点就是结合<code>Github issues</code>无需翻墙，使用的 UI 也是 Github 的（Github 使用的 UI 是 Bootstrap 库），而且零配置，授权一下 App，改一下 JS 的 tag 马上就可以用。</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

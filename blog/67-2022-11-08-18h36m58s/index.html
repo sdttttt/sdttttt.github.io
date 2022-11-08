@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Rails ENV</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Rails ENV</h1>
+    
+    <div class="space"></div>
+    <h1 id="rails-env">Rails ENV</h1>
+<p>环境配置参考 Ruby China 社区的 Wiki</p>
+<h3 id="windows-10">Windows 10</h3>
+<p>在 Windowns 10 的环境下和Linux上差不多，不过不需要RVM</p>
+<ul>
+<li>首先在Ruby官方网站下载好安装包</li>
+<li>之后使用RubyChina提供的Source替换Gem的Source</li>
+<li>之后使用Gem下载 Bundler 和 Rails</li>
+<li>创建Rails项目运行即可</li>
+</ul>
+<p>有一个软件叫做 <code>RailsInstaller</code> 可以直接帮你省下1和3步也就是直接帮你安装好了Ruby和Rails还有Gem，bundler。
+但是🙅我目前使用的Railsinstaller有点问题。他的Ruby版本是2.3，rails版本是5，rails5依赖的是 &gt;= 2.4版本的ruby，这就有问题了。我也没接着用这个软件了。</p>
+<p>在rails6中加入了<code>Webpacker</code>的打包工具，运行之前需要先安装webpacker不然会报错。 <code>$ rails webpacker:install</code></p>
+<p>注意在上面可能会有点问题，Gem创建Rails项目的时候会下载各种依赖，这些依赖有可能会在Windows的环境上出现问题，比如我遇到的 SQLite3,所以Ruby最好还是不要在Windowns上运行。</p>
+<p>还有Rails 是要依赖 Yarn和 nodejs 最好是10版本以上</p>
+<h2 id="development-note">Development Note</h2>
+<p>花了很长时间去吧Rails和一些大前端的框架合二为一，最后以失败而告终。
+Rails终究是个全栈式的Web框架，老老实实用简单的就行。</p>
+<ul>
+<li>Bootstrap Configuration</li>
+</ul>
+<pre data-lang="ruby" style="background-color:#2b303b;color:#c0c5ce;" class="language-ruby "><code class="language-ruby" data-lang="ruby"><span style="color:#65737e;"># =&gt; 首先在 Gemfile 中加入
+</span><span style="color:#8fa1b3;">gem </span><span>&#39;</span><span style="color:#a3be8c;">bootstrap</span><span>&#39;</span><span style="color:#8fa1b3;">, </span><span>&#39;</span><span style="color:#a3be8c;">~&gt; 4.3.1</span><span>&#39;
+</span><span style="color:#8fa1b3;">gem </span><span>&#39;</span><span style="color:#a3be8c;">jquery-rails</span><span>&#39;
+</span></code></pre>
+<p>之后将<code>app\assets\stylesheets\application.css</code> 改为 scss</p>
+<p>删掉所有的东西包括注释</p>
+<p>加入<code>@import &quot;bootstrap&quot;;</code></p>
+<hr />
+<h2 id="ruby-note-todo">Ruby Note Todo</h2>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>Error running &#39;requirements_debian_libs_install g++ gcc autoconf automake bison libc6-dev libffi-dev libgdbm-dev libncurses5-dev libsqlite3-dev libtool libyaml-dev make pkg-config sqlite3 zlib1g-dev libgmp-dev libreadline-dev libssl-dev&#39;,
+</span><span>please read /home/sdttttt/.rvm/log/1573869340/package_install_g++_gcc_autoconf_automake_bison_libc6-dev_libffi-dev_libgdbm-dev_libncurses5-dev_libsqlite3-dev_libtool_libyaml-dev_make_pkg-config_sqlite3_zlib1g-dev_libgmp-dev_libreadline-dev_libssl-dev.log
+</span><span>Requirements installation failed with status: 100.
+</span></code></pre>
+<p>碰到这种错误不需要紧张，<code>rvm requirements</code> command 的原理就是会使用你系统的包管理工具去下载这些依赖，所以原因很简单，你的源里找不到这些依赖就会报出100的错误。
+是Ubuntu的话下面我提供了源</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>#添加阿里源
+</span><span>deb http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
+</span><span>deb http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse
+</span><span>deb http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse
+</span><span>deb http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse
+</span><span>deb http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multiverse
+</span><span>deb-src http://mirrors.aliyun.com/ubuntu/ bionic main restricted universe multiverse
+</span><span>deb-src http://mirrors.aliyun.com/ubuntu/ bionic-security main restricted universe multiverse
+</span><span>deb-src http://mirrors.aliyun.com/ubuntu/ bionic-updates main restricted universe multiverse
+</span><span>deb-src http://mirrors.aliyun.com/ubuntu/ bionic-proposed main restricted universe multiverse
+</span><span>deb-src http://mirrors.aliyun.com/ubuntu/ bionic-backports main restricted universe multiverse
+</span></code></pre>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

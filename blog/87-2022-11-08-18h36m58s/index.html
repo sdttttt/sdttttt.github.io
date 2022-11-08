@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | 关于前端构建的碎碎念</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>关于前端构建的碎碎念</h1>
+    
+    <div class="space"></div>
+    <p>稍微谈一下现在的前端构建学到的一些东西.</p>
+<h2 id="da-bao-qi">打包器</h2>
+<p>这个东西本身的功能是比较单纯的, 就是将工程的整个依赖图画出来, 然后打包到单个文件里面去.</p>
+<p>比较主流的就是 Webpack, 其他还有 sonwnpack, rollup(这个稍微有点特别), Parcel, 最后还有最近新出现的 vite.</p>
+<p><code>优化</code>: 例如压缩 Js, CSS, HTML, 摇树, 调整图像大小, 以及分包等机制.所有的优化基本都是为了能在打开网站时更快的载入页面.</p>
+<p><code>扩展</code>: 前端的技术鱼龙混杂, 光开发语言的衍生亚种就非常多, 打包器就需要能支持这些语言的编译器. 部分代码优化也在这里完成. 扩展性基本决定了一个打包器的命运和社区发展.</p>
+<p>这两点基本所有的打包器都支持. 接下来说一些有差异化的地方.</p>
+<h3 id="webpack">Webpack</h3>
+<p>究极老牌的打包器了, Webpack 在 5 版本之前是出了名的重和慢还有繁, 扩展性和社区都极佳, 基本所有的前端技术你都能在 wp 上找到对应的 loader 或者 plugin. 也是目前最流行的打包器了. Webpack5 出现了之后速度提升了很多. <code>webpack-chain</code>和<code>webpack-merge</code>使用这两个第三方包配合可以做到大部分的配置复用. 但是配置依然很重和繁琐这一点, 一直都没有很好的方案.</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#b48ead;">var </span><span style="color:#bf616a;">webpack </span><span>= </span><span style="color:#96b5b4;">require</span><span>(&quot;</span><span style="color:#a3be8c;">webpack</span><span>&quot;);
+</span><span>module.exports = {
+</span><span>	entry: &quot;</span><span style="color:#a3be8c;">./entry.js</span><span>&quot;, </span><span style="color:#65737e;">//入口文件
+</span><span>	output: {
+</span><span>		</span><span style="color:#65737e;">//node.js中__dirname变量获取当前模块文件所在目录的完整绝对路径
+</span><span>		path: &quot;</span><span style="color:#a3be8c;">dist</span><span>&quot;, </span><span style="color:#65737e;">//输出位置
+</span><span>		filename: &quot;</span><span style="color:#a3be8c;">bundle.js</span><span>&quot;, </span><span style="color:#65737e;">//输入文件
+</span><span>	},
+</span><span>	module: {
+</span><span>		loaders: [
+</span><span>			{
+</span><span>				test: /</span><span style="color:#96b5b4;">\.css</span><span style="color:#b48ead;">$</span><span>/, </span><span style="color:#65737e;">//支持正则
+</span><span>				loader: &quot;</span><span style="color:#a3be8c;">style-loader!css-loader</span><span>&quot;,
+</span><span>			},
+</span><span>
+</span><span>			{
+</span><span>				test: /</span><span style="color:#96b5b4;">\.vue</span><span style="color:#b48ead;">$</span><span>/,
+</span><span>				loader: &quot;</span><span style="color:#a3be8c;">vue-loader</span><span>&quot;,
+</span><span>			},
+</span><span>		],
+</span><span>	},
+</span><span>	</span><span style="color:#65737e;">//其他解决方案配置
+</span><span>	resolve: {
+</span><span>		extensions: [&quot;&quot;, &quot;</span><span style="color:#a3be8c;">.js</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">.json</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">.css</span><span>&quot;, &quot;</span><span style="color:#a3be8c;">vue</span><span>&quot;], </span><span style="color:#65737e;">//添加在此的后缀所对应的文件可以省略后缀
+</span><span>	},
+</span><span>	</span><span style="color:#65737e;">//插件
+</span><span>	plugins: [new webpack.BannerPlugin(&quot;</span><span style="color:#a3be8c;">This file is created by ly</span><span>&quot;)],
+</span><span>};
+</span></code></pre>
+<h3 id="parcel">Parcel</h3>
+<p>继 Webpack 之后新出现的打包器, 解决了 Webpack 的一个非常大的痛点, Parcel 可以做到零配置启动.
+自身就集成了 parcel 所有的东西, 你只需呀一个小小的 index.html 作为入口, 其他的全部解析都交给 Parcel,
+Parcel 内部还集成了一个 Js 编译器, 并且由于该编译器使用的是 Rust 语言编写它的执行速度非常快.
+理论上应该比 esbuild 还要快.
+Parcel 刚出现的时候风评并不好, 因为不支持 source-map, 并且摇树还有 bug..</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span>
+</span></code></pre>
+<h3 id="sonwnpack">Sonwnpack</h3>
+<p>时代在发展, 渐渐的浏览器也开始支持 ESM 了, Sonwnpack 就是坐上了这个风口的打包器.
+有了 ESM, 你所有的 JS 模块都可以懒加载的方式载入到页面中. 并且你的第一次开发服务器启动也不需要编译所有依赖的 JS 代码.
+顺势的, Sonwnpack 中就出现了一个<code>HMR(热模块替换)</code>的概念</p>
+<blockquote>
+<p>热模块替换 (HMR) 是一种在不触发整个页面刷新的情况下将文件更新推送到浏览器的能力。想象一下更改一些 CSS，点击保存，然后立即看到您的更改反映在页面上而无需刷新。那是 HMR。然而，Snowpack 利用 ESM 进行非捆绑开发的能力引入了近乎即时的单个文件构建，只需 10-25 毫秒即可在浏览器中加载和更新。</p>
+</blockquote>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#65737e;">/** </span><span style="color:#b48ead;">@type </span><span style="color:#65737e;">{import(&quot;snowpack&quot;).SnowpackUserConfig } */
+</span><span>module.exports = {
+</span><span>	mount: {
+</span><span>		test: { url: &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;, static: </span><span style="color:#d08770;">true </span><span>},
+</span><span>		public: { url: &quot;</span><span style="color:#a3be8c;">/</span><span>&quot;, static: </span><span style="color:#d08770;">true </span><span>},
+</span><span>		src: { url: &quot;</span><span style="color:#a3be8c;">/_dist_</span><span>&quot; },
+</span><span>	},
+</span><span>	plugins: [
+</span><span>		&quot;</span><span style="color:#a3be8c;">@snowpack/plugin-webpack</span><span>&quot;,
+</span><span>		&quot;</span><span style="color:#a3be8c;">@snowpack/plugin-vue</span><span>&quot;,
+</span><span>		&quot;</span><span style="color:#a3be8c;">@snowpack/plugin-sass</span><span>&quot;,
+</span><span>		&quot;</span><span style="color:#a3be8c;">@snowpack/plugin-dotenv</span><span>&quot;,
+</span><span>		</span><span style="color:#65737e;">// [&quot;@snowpack/plugin-build-script&quot;, { &quot;cmd&quot;: &quot;postcss&quot;, &quot;input&quot;: [&quot;.css&quot;], &quot;output&quot;: [&quot;.css&quot;] }]//,
+</span><span>	],
+</span><span>};
+</span></code></pre>
+<h3 id="vite">Vite</h3>
+<p>vite 的起步还比较晚, 它的部分开发灵感来自 Sonwnpack, 同时 vite 也支持 HMR.
+比较特别的是 Vite 自带的编译器是 ESBuild, 在官方 banner 上速度<strong>极其夸张的一个编译器</strong>.
+配置文件时 vite 的优点,大部分的插件即插即用, 以及配置文件的写法修复了很多以前打包器的缺点, 可以非常灵活.
+目前 Vite 的扩展现在还比较少, 以后可以期待一下.</p>
+<blockquote>
+<p>ESBuild 的官方宣称: 基准测试通过将 three.js 库复制 10 次并从头开始构建单个包来近似大型 JavaScript 代码库，而无需任何缓存. Webpack5 = 41.53s, rollup + terser = 34.95s, parcel2 = 32.48s, esbuild = 0.33s. 这个速度是传统打包器的 100 倍.</p>
+</blockquote>
+<blockquote>
+<p>然而在实测中, 我在当前的 Webpack 中引入了 esbuild, 来代替以前的 babel 和 tsc, 时间也只省下了 5-10s, 并没有那么夸张, 可能是 Webpack 的 loader 调用导致的瓶颈.</p>
+</blockquote>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#65737e;">// vite.config.js
+</span><span style="color:#b48ead;">import </span><span>{ </span><span style="color:#bf616a;">defineConfig </span><span>} </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">vite</span><span>&quot;;
+</span><span style="color:#b48ead;">import </span><span style="color:#bf616a;">react </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">@vitejs/plugin-react</span><span>&quot;;
+</span><span>
+</span><span style="color:#b48ead;">export default </span><span style="color:#8fa1b3;">defineConfig</span><span>({
+</span><span>	plugins: [</span><span style="color:#8fa1b3;">react</span><span>()],
+</span><span>});
+</span></code></pre>
+<h3 id="rollup">Rollup</h3>
+<p>Rollup 是个非传统意义上的打包器, 它主要面向的是类库的前端开发者. Rollup 的配置文件的繁琐程度比较折中.
+Rollup 似乎没有对分包的支持, 理念就是将小块代码打包成大块的复杂代码,放在一个文件中.
+Rollup 自带的功能也非常少, 甚至不支持 node 模块解析. 大部分都需要依赖插件完成.</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#65737e;">// rollup.config.js
+</span><span style="color:#b48ead;">import </span><span style="color:#bf616a;">json </span><span style="color:#b48ead;">from </span><span>&quot;</span><span style="color:#a3be8c;">rollup-plugin-json</span><span>&quot;;
+</span><span>
+</span><span style="color:#b48ead;">export default </span><span>{
+</span><span>	input: &quot;</span><span style="color:#a3be8c;">src/main.js</span><span>&quot;,
+</span><span>	output: {
+</span><span>		file: &quot;</span><span style="color:#a3be8c;">bundle.js</span><span>&quot;,
+</span><span>		format: &quot;</span><span style="color:#a3be8c;">cjs</span><span>&quot;,
+</span><span>	},
+</span><span>	plugins: [</span><span style="color:#8fa1b3;">json</span><span>()],
+</span><span>};
+</span></code></pre>
+<h2 id="guan-yu-bian-yi-qi">关于编译器</h2>
+<p>目前大部分前端的编译器非常混杂, 基本是各做各的, JS 的编译器的 Babel 是不二之选, 所有 ES 标准以及 Typescript 甚至 Flow 和 coffeescript,Babel 都能编译.
+也支持一些<code>async do {}</code>这种奇怪的语法糖. ESBuild 和兴起的 SWC 是针对速度进行优化. 这里也没什么好说的.</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

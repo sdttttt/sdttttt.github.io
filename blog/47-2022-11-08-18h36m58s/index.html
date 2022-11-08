@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Log 17</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Log 17</h1>
+    
+    <p class="secondary">22 March, 2021</p>
+    
+    <div class="space"></div>
+    <p>最近工作虽然忙，但是强摸还是能摸出一些时间来，GRC又有了新的需求，要增加GPG的提交签名。</p>
+<p>一开始我以为很简单，因为看起来我原本使用的<code>git2-rs</code>这个库提供了签名的实现，有一个<code>commit_sign</code>方法。</p>
+<p>实际这个方法里面没有实现签名的生成，没办法只好去开源社区里找找了，issue里有有好心人提供了链接，我大概看了看，</p>
+<p>最后把目光转向到了<code>gpgme</code>这个库上，但是这个玩意是一个对FFI的包装库，并不是原生实现，编译的时候需要依赖一些C/C++的链接库。我佛了。</p>
+<p>这就意味这在Windows上的运行会出现麻烦。后来又找了别的库，但是都很底层，API文档看的我一脸愣逼。
+这个问题，还真的得拖一段时间。</p>
+<p>希望有带佬能搞一个Rust原生又方便的GPG签名库. 如果实在没有，我亲自上也不是不行...emmmm (逃)</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

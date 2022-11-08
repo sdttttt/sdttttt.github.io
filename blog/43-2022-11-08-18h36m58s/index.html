@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Log 13</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Log 13</h1>
+    
+    <p class="secondary">21 December, 2020</p>
+    
+    <div class="space"></div>
+    <p>粗且谈一下关于新的主机的想法.</p>
+<p><strong>i5 10400F</strong> 这块U不带核显, 这倒是无所谓, 是i5里目前第一块6core12thread的U. 性能接近i7 8700. CPU实际上无所谓.</p>
+<p><strong>24G RAM</strong> 24G也是我想过之后才选择的内存大小, 32嫌大, 16嫌小, 只能这样了.</p>
+<p><strong>W240</strong> 散热是一个W240的水冷, 只有一个风扇. 虽然是W240, 但感觉很可能是个丐中丐.</p>
+<p><strong>ASUS B460-K</strong> 丐中丐主板, 用i5 10400F这U还是没有问题的. 这主板设计也有问题. SATA接口在显卡散热口的下面就离谱.</p>
+<p><strong>NVME M.2 250G</strong> 固态硬盘, 就这样吧, 速度倒是无所谓, 容量小了点, 导致我后面又追加了一个1T的PMR.</p>
+<p><strong>ASUS TUF RX5600XT 6G EVO-GAMING</strong> 嘶...这显卡就比较尴尬了. 先说参数. 频率比公版高一点. TUF是个丐版, 三风扇, 其他没有问题的. 性能基本上和2060并肩,甚至更高.能超到2060S的水平. 这玩意为什么尴尬呢, 因为这块卡稍微加一两百就能到5700, 屁股后面又是RX590. 说这玩意是智商检测卡也没什么问题. 最后这块卡打全境2 全高 2560*1080居然不能稳定60FPS??? 太蒂蒂了</p>
+<p>周末基本上就是打游戏了. 还有追加了个硬盘. 硬盘的SATA线穿过显卡风扇. 看起来十分诡异. 这个SATA接口就不能长外面么???</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

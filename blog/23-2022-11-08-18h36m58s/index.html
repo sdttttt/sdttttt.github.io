@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | File Upload</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>File Upload</h1>
+    
+    <p class="secondary">12 April, 2020</p>
+    
+    <div class="space"></div>
+    <p>DVWA File upload 过关秘籍.</p>
+<h3 id="low">LOW</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_POST[ &#39;Upload&#39; ] ) ) {
+</span><span>    // Where are we going to be writing to?
+</span><span>    $target_path  = DVWA_WEB_PAGE_TO_ROOT . &quot;hackable/uploads/&quot;;
+</span><span>    $target_path .= basename( $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ] );
+</span><span>
+</span><span>    // Can we move the file to the upload folder?
+</span><span>    // 完全没做过滤.
+</span><span>    // 上传一个PHP文件也是可以的.
+</span><span>    if( !move_uploaded_file( $_FILES[ &#39;uploaded&#39; ][ &#39;tmp_name&#39; ], $target_path ) ) {
+</span><span>        // No
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>    else {
+</span><span>        // Yes!
+</span><span>        echo &quot;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;{$target_path} succesfully uploaded!&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&quot;;
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h3 id="medium">Medium</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_POST[ &#39;Upload&#39; ] ) ) {
+</span><span>    // Where are we going to be writing to?
+</span><span>    $target_path  = DVWA_WEB_PAGE_TO_ROOT . &quot;hackable/uploads/&quot;;
+</span><span>    $target_path .= basename( $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ] );
+</span><span>
+</span><span>    // File information
+</span><span>    $uploaded_name = $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ];
+</span><span>    $uploaded_type = $_FILES[ &#39;uploaded&#39; ][ &#39;type&#39; ];
+</span><span>    $uploaded_size = $_FILES[ &#39;uploaded&#39; ][ &#39;size&#39; ];
+</span><span>
+</span><span>    // Is it an image?
+</span><span>    // // 开始做了一些过滤
+</span><span>
+</span><span>    // 下面是官方对$_FILES 函数的描述
+</span><span>    //  [name] =&gt; MyFile.txt (comes from the browser, so treat as tainted)
+</span><span>    //         [type] =&gt; text/plain  (not sure where it gets this from - assume the browser, so treat as tainted)
+</span><span>    //         [tmp_name] =&gt; /tmp/php/php1h4j1o (could be anywhere on your system, depending on your config        settings, but the user has no control, so this isn&#39;t tainted)
+</span><span>    //         [error] =&gt; UPLOAD_ERR_OK  (= 0)
+</span><span>    //         [size] =&gt; 123   (the size in bytes)
+</span><span>    
+</span><span>    // 其中对name和type的description的描述都是 `treat as tainted`(被污染的)
+</span><span>    // 这意味着它有可能会被修改 unsafe
+</span><span>    
+</span><span>    // 我们可以尝试上传一个PHP文件，使用一些拦截请求工具，修改即将发出的请求.
+</span><span>    // 来达到修改`name`中的后缀名和`type`中的媒体类型.
+</span><span>    if( ( $uploaded_type == &quot;image/jpeg&quot; || $uploaded_type == &quot;image/png&quot; ) &amp;&amp;
+</span><span>        ( $uploaded_size &lt; 100000 ) ) {
+</span><span>
+</span><span>        // Can we move the file to the upload folder?
+</span><span>        if( !move_uploaded_file( $_FILES[ &#39;uploaded&#39; ][ &#39;tmp_name&#39; ], $target_path ) ) {
+</span><span>            // No
+</span><span>            echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>        }
+</span><span>        else {
+</span><span>            // Yes!
+</span><span>            echo &quot;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;{$target_path} succesfully uploaded!&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&quot;;
+</span><span>        }
+</span><span>    }
+</span><span>    else {
+</span><span>        // Invalid file
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded. We can only accept JPEG or PNG images.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h3 id="high">High</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_POST[ &#39;Upload&#39; ] ) ) {
+</span><span>    // Where are we going to be writing to?
+</span><span>    $target_path  = DVWA_WEB_PAGE_TO_ROOT . &quot;hackable/uploads/&quot;;
+</span><span>    $target_path .= basename( $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ] );
+</span><span>
+</span><span>    // File information
+</span><span>    $uploaded_name = $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ];
+</span><span>        // jpg
+</span><span>    $uploaded_ext  = substr( $uploaded_name, strrpos( $uploaded_name, &#39;.&#39; ) + 1);
+</span><span>    
+</span><span>    // file size
+</span><span>    $uploaded_size = $_FILES[ &#39;uploaded&#39; ][ &#39;size&#39; ];
+</span><span>    
+</span><span>    // tmp_name 是临时副本的名字
+</span><span>    $uploaded_tmp  = $_FILES[ &#39;uploaded&#39; ][ &#39;tmp_name&#39; ];
+</span><span>
+</span><span>    // Is it an image?
+</span><span>    // 和上面的比起来多个一个文件后缀名的判断.
+</span><span>    // strtolower 转小写
+</span><span>    // 扩展名只要满足jpeg,png或者jpg就行
+</span><span>    if( ( strtolower( $uploaded_ext ) == &quot;jpg&quot; || strtolower( $uploaded_ext ) == &quot;jpeg&quot; || strtolower( $uploaded_ext ) == &quot;png&quot; ) &amp;&amp;
+</span><span>        ( $uploaded_size &lt; 100000 ) &amp;&amp;
+</span><span>        // getimagesize 获取图像信息
+</span><span>        // 这个函数保证你穿的一定得是个图像
+</span><span>        // 可以用图片木马绕过
+</span><span>        getimagesize( $uploaded_tmp ) ) {
+</span><span>
+</span><span>        // Can we move the file to the upload folder?
+</span><span>        if( !move_uploaded_file( $uploaded_tmp, $target_path ) ) {
+</span><span>            // No
+</span><span>            echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>        }
+</span><span>        else {
+</span><span>            // Yes!
+</span><span>            echo &quot;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;{$target_path} succesfully uploaded!&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&quot;;
+</span><span>        }
+</span><span>    }
+</span><span>    else {
+</span><span>        // Invalid file
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded. We can only accept JPEG or PNG images.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h3 id="high-1">High</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_POST[ &#39;Upload&#39; ] ) ) {
+</span><span>    // Where are we going to be writing to?
+</span><span>    $target_path  = DVWA_WEB_PAGE_TO_ROOT . &quot;hackable/uploads/&quot;;
+</span><span>    $target_path .= basename( $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ] );
+</span><span>
+</span><span>    // File information
+</span><span>    $uploaded_name = $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ];
+</span><span>    $uploaded_ext  = substr( $uploaded_name, strrpos( $uploaded_name, &#39;.&#39; ) + 1);
+</span><span>    $uploaded_size = $_FILES[ &#39;uploaded&#39; ][ &#39;size&#39; ];
+</span><span>    $uploaded_tmp  = $_FILES[ &#39;uploaded&#39; ][ &#39;tmp_name&#39; ];
+</span><span>
+</span><span>    // Is it an image?
+</span><span>    // 对比上面多验证了文件的后缀名
+</span><span>    if( ( strtolower( $uploaded_ext ) == &quot;jpg&quot; || strtolower( $uploaded_ext ) == &quot;jpeg&quot; || strtolower( $uploaded_ext ) == &quot;png&quot; ) &amp;&amp;
+</span><span>        ( $uploaded_size &lt; 100000 ) &amp;&amp;
+</span><span>
+</span><span>        
+</span><span>       
+</span><span>        // 函数会通过读取文件头，返回图片的长、宽等信息，如果没有相关的图片文件头，函数会报错
+</span><span>        getimagesize( $uploaded_tmp ) ) {
+</span><span>
+</span><span>        // 可以看到，High级别的代码读取文件名中最后一个”.”后的字符串，期望通过文件名来限制文件类型
+</span><span>        // 因此要求上传文件名形式必须是”*.jpg”、”*.jpeg” 、”*.png”之一
+</span><span>        // 同时，getimagesize函数更是限制了上传文件的文件头必须为图像类型
+</span><span>
+</span><span>        // Can we move the file to the upload folder?
+</span><span>        if( !move_uploaded_file( $uploaded_tmp, $target_path ) ) {
+</span><span>            // No
+</span><span>            echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>        }
+</span><span>        else {
+</span><span>            // Yes!
+</span><span>            echo &quot;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;{$target_path} succesfully uploaded!&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&quot;;
+</span><span>        }
+</span><span>    }
+</span><span>    else {
+</span><span>        // Invalid file
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded. We can only accept JPEG or PNG images.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<h3 id="impossible">Impossible</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_POST[ &#39;Upload&#39; ] ) ) {
+</span><span>    // Check Anti-CSRF token
+</span><span>    checkToken( $_REQUEST[ &#39;user_token&#39; ], $_SESSION[ &#39;session_token&#39; ], &#39;index.php&#39; );
+</span><span>
+</span><span>    // File information
+</span><span>    $uploaded_name = $_FILES[ &#39;uploaded&#39; ][ &#39;name&#39; ];
+</span><span>    $uploaded_ext  = substr( $uploaded_name, strrpos( $uploaded_name, &#39;.&#39; ) + 1);
+</span><span>    $uploaded_size = $_FILES[ &#39;uploaded&#39; ][ &#39;size&#39; ];
+</span><span>    $uploaded_type = $_FILES[ &#39;uploaded&#39; ][ &#39;type&#39; ];
+</span><span>    $uploaded_tmp  = $_FILES[ &#39;uploaded&#39; ][ &#39;tmp_name&#39; ];
+</span><span>
+</span><span>    // Where are we going to be writing to?
+</span><span>    $target_path   = DVWA_WEB_PAGE_TO_ROOT . &#39;hackable/uploads/&#39;;
+</span><span>    //$target_file   = basename( $uploaded_name, &#39;.&#39; . $uploaded_ext ) . &#39;-&#39;;
+</span><span>
+</span><span>    // MD5 加密
+</span><span>    $target_file   =  md5( uniqid() . $uploaded_name ) . &#39;.&#39; . $uploaded_ext;
+</span><span>    $temp_file     = ( ( ini_get( &#39;upload_tmp_dir&#39; ) == &#39;&#39; ) ? ( sys_get_temp_dir() ) : ( ini_get( &#39;upload_tmp_dir&#39; ) ) );
+</span><span>    $temp_file    .= DIRECTORY_SEPARATOR . md5( uniqid() . $uploaded_name ) . &#39;.&#39; . $uploaded_ext;
+</span><span>
+</span><span>    // Is it an image?
+</span><span>    if( ( strtolower( $uploaded_ext ) == &#39;jpg&#39; || strtolower( $uploaded_ext ) == &#39;jpeg&#39; || strtolower( $uploaded_ext ) == &#39;png&#39; ) &amp;&amp;
+</span><span>        ( $uploaded_size &lt; 100000 ) &amp;&amp;
+</span><span>        ( $uploaded_type == &#39;image/jpeg&#39; || $uploaded_type == &#39;image/png&#39; ) &amp;&amp;
+</span><span>        getimagesize( $uploaded_tmp ) ) {
+</span><span>
+</span><span>        // Strip any metadata, by re-encoding image (Note, using php-Imagick is recommended over php-GD)
+</span><span>        if( $uploaded_type == &#39;image/jpeg&#39; ) {
+</span><span>            $img = imagecreatefromjpeg( $uploaded_tmp );
+</span><span>            imagejpeg( $img, $temp_file, 100);
+</span><span>        }
+</span><span>        else {
+</span><span>            $img = imagecreatefrompng( $uploaded_tmp );
+</span><span>            imagepng( $img, $temp_file, 9);
+</span><span>        }
+</span><span>        imagedestroy( $img );
+</span><span>
+</span><span>        // Can we move the file to the web root from the temp folder?
+</span><span>        if( rename( $temp_file, ( getcwd() . DIRECTORY_SEPARATOR . $target_path . $target_file ) ) ) {
+</span><span>            // Yes!
+</span><span>            echo &quot;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;&lt;</span><span style="color:#bf616a;">a </span><span style="color:#d08770;">href</span><span>=&#39;</span><span style="color:#a3be8c;">${target_path}${target_file}</span><span>&#39;&gt;${target_file}&lt;/</span><span style="color:#bf616a;">a</span><span>&gt; succesfully uploaded!&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&quot;;
+</span><span>        }
+</span><span>        else {
+</span><span>            // No
+</span><span>            echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>        }
+</span><span>
+</span><span>        // Delete any temp files
+</span><span>        if( file_exists( $temp_file ) )
+</span><span>            unlink( $temp_file );
+</span><span>    }
+</span><span>    else {
+</span><span>        // Invalid file
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Your image was not uploaded. We can only accept JPEG or PNG images.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span>// Generate Anti-CSRF token
+</span><span>generateSessionToken();
+</span></code></pre>
+<h3 id="extension">Extension</h3>
+<p><strong>00%截断</strong></p>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>$is_upload = false;
+</span><span>$msg = null;
+</span><span>if(isset($_POST[&#39;submit&#39;])){
+</span><span>    // 白名单
+</span><span>    $ext_arr = array(&#39;jpg&#39;,&#39;png&#39;,&#39;gif&#39;);
+</span><span>    $file_ext = substr($_FILES[&#39;upload_file&#39;][&#39;name&#39;],strrpos($_FILES[&#39;upload_file&#39;][&#39;name&#39;],&quot;.&quot;)+1);
+</span><span>    if(in_array($file_ext,$ext_arr)){
+</span><span>        $temp_file = $_FILES[&#39;upload_file&#39;][&#39;tmp_name&#39;];
+</span><span>        // 注意这个位置
+</span><span>        // 最后拼接的储存路径，是由用户提交上的数据来做为路径
+</span><span>        $img_path = $_POST[&#39;save_path&#39;].&quot;/&quot;.rand(10, 99).date(&quot;YmdHis&quot;).&quot;.&quot;.$file_ext;
+</span><span>
+</span><span>        if(move_uploaded_file($temp_file,$img_path)){
+</span><span>            $is_upload = true;
+</span><span>        } else {
+</span><span>            $msg = &quot;上传失败&quot;;
+</span><span>        }
+</span><span>    } else {
+</span><span>        $msg = &quot;只允许上传.jpg|.png|.gif类型文件！&quot;;
+</span><span>    }
+</span><span>}
+</span></code></pre>
+<p>代码采用的白名单校验，只允许上传图片格式，理论上这个上传是不好绕过的。</p>
+<p>但是后面采用保存文件的时候，是路径拼接的形式，而路径又是从前端获取，所以我们可以在路径上做手脚。</p>
+<p>如下上传，显示文件路径中有个空格，这并不是真正意义上的空格，而是%00截断后显示成的空格。</p>
+<blockquote>
+<p>在url中%00表示ascll码中的0 ，而ascii中0作为特殊字符保留，表示字符串结束，所以当url中出现%00时就会认为读取已结束 (php版本要小于5.3.4，5.3.4及以上已经修复该问题)</p>
+</blockquote>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

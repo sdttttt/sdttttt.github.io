@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Go的map是怎么工作的。">
+    <title> | Go的map的个什么结构</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Go的map的个什么结构</h1>
+    
+    <p class="secondary">13 November, 2020</p>
+    
+    <div class="space"></div>
+    <p>实际上<code>Go</code>的<code>map</code>和<code>Java7</code>之前的<code>HashMap</code>, 非常相似。都是<code>Array</code> + <code>LinkedTable</code>的结构。</p>
+<h3 id="jie-gou">结构</h3>
+<p><code>map</code>数据结构由<code>runtime/map.go/hmap</code>定义:</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span>
+</span><span style="color:#b48ead;">type </span><span>hmap </span><span style="color:#b48ead;">struct </span><span>{
+</span><span> </span><span style="color:#bf616a;">count     </span><span style="color:#b48ead;">int </span><span style="color:#65737e;">// 当前保存的元素个数
+</span><span> ...
+</span><span> </span><span style="color:#bf616a;">B         </span><span style="color:#b48ead;">uint8  </span><span style="color:#65737e;">// 指示bucket数组的大小
+</span><span> ...
+</span><span> </span><span style="color:#bf616a;">buckets    unsafe</span><span>.</span><span style="color:#b48ead;">Pointer </span><span style="color:#65737e;">// bucket数组指针，数组的大小为2^B
+</span><span> ...
+</span><span>}
+</span><span>
+</span></code></pre>
+<p><code>bucket</code>数据结构由<code>runtime/map.go/bmap</code>定义：</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span>
+</span><span style="color:#b48ead;">type </span><span>bmap </span><span style="color:#b48ead;">struct </span><span>{
+</span><span> </span><span style="color:#bf616a;">tophash </span><span>[</span><span style="color:#d08770;">8</span><span>]</span><span style="color:#b48ead;">uint8 </span><span style="color:#65737e;">//存储哈希值的高8位
+</span><span> </span><span style="color:#bf616a;">data    </span><span style="color:#b48ead;">byte</span><span>[</span><span style="color:#d08770;">1</span><span>]  </span><span style="color:#65737e;">//key value数据:key/key/key/.../value/value/value...
+</span><span> </span><span style="color:#bf616a;">overflow </span><span>*</span><span style="color:#b48ead;">bmap   </span><span style="color:#65737e;">//溢出bucket的地址
+</span><span>}
+</span><span>
+</span></code></pre>
+<p>这里使用的数组对齐方式来存放数据。<code>overflow</code>指向下一个<code>bucket</code>.</p>
+<h3 id="gong-zuo-liu-cheng">工作流程</h3>
+<p>首先通过<code>key</code>计算Hash值，通过Hash的低位，计算出该元素需要存放在<code>buckets</code>中的哪一个<code>bucket</code>.
+如果Hash冲突，也就是当前<code>bucket</code>已经有人进去了。那么就使用该<code>bucket</code>的<code>overflow</code>指向自己的<code>bucket</code>.</p>
+<p>查找元素也是大同小异。</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

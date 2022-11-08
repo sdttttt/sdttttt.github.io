@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Azure Pipelines</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Azure Pipelines</h1>
+    
+    <div class="space"></div>
+    <p>Azure Pipelines是一种云服务，可用于自动构建和测试您的代码项目并将其提供给其他用户。它几乎适用于任何语言或项目类型。</p>
+<p>Azure Pipelines将持续集成（CI）和持续交付（CD）相结合，以持续不断地测试和构建您的代码并将其交付给任何目标。</p>
+<p>Azure Pipelines 支持非常多的语言。</p>
+<h4 id="price">Price</h4>
+<p>如果使用公共项目，则Azure Pipelines是免费的。如果您使用私人项目，则每月可以免费运行多达1800分钟（30小时）的管道作业。了解有关基于并行作业定价的更多信息。</p>
+<p>是不是非常的棒呢 o(<em>////▽////</em>)q</p>
+<p><strong>请遵循以下基本步骤：</strong></p>
+<ul>
+<li>配置Azure Pipelines以使用您的Git存储库。</li>
+<li>编辑azure-pipelines.yml文件以定义构建。</li>
+<li>将您的代码推送到版本控制存储库。此操作将启动默认触发器以构建和部署，然后监视结果。</li>
+</ul>
+<h2 id="ruby">Ruby</h2>
+<pre data-lang="yaml" style="background-color:#2b303b;color:#c0c5ce;" class="language-yaml "><code class="language-yaml" data-lang="yaml"><span style="color:#65737e;"># Ruby
+</span><span style="color:#65737e;"># Package your Ruby project.
+</span><span style="color:#65737e;"># Add steps that install rails, analyze code, save build artifacts, deploy, and more:
+</span><span style="color:#65737e;"># https://docs.microsoft.com/azure/devops/pipelines/languages/ruby
+</span><span>
+</span><span style="color:#bf616a;">trigger</span><span>:
+</span><span>  </span><span style="color:#bf616a;">branches</span><span>:
+</span><span>    </span><span style="color:#65737e;"># 只有以下分支提交才会触发CICD
+</span><span>    </span><span style="color:#bf616a;">include</span><span>:
+</span><span>      - </span><span style="color:#a3be8c;">master
+</span><span>      - </span><span style="color:#a3be8c;">sdtttttt
+</span><span>      - </span><span style="color:#a3be8c;">CICD
+</span><span>      - </span><span style="color:#a3be8c;">depend*
+</span><span>  </span><span style="color:#bf616a;">paths</span><span>:
+</span><span>    </span><span style="color:#65737e;"># 只有以下文件提交时不触发CICD
+</span><span>    </span><span style="color:#bf616a;">exclude</span><span>:
+</span><span>      - </span><span style="color:#a3be8c;">README.md
+</span><span>      - </span><span style="color:#a3be8c;">appveyor.yml
+</span><span>
+</span><span style="color:#bf616a;">pool</span><span>:
+</span><span>  </span><span style="color:#bf616a;">vmImage</span><span>: &#39;</span><span style="color:#a3be8c;">ubuntu-18.04</span><span>&#39;
+</span><span>
+</span><span style="color:#bf616a;">steps</span><span>:
+</span><span>- </span><span style="color:#bf616a;">task</span><span>: </span><span style="color:#a3be8c;">UseRubyVersion@0
+</span><span>  </span><span style="color:#bf616a;">inputs</span><span>:
+</span><span>  </span><span style="color:#65737e;"># 天杀的，微软提供的Ubuntu 镜像已经不支持 Ruby2.6.3
+</span><span>    </span><span style="color:#bf616a;">versionSpec</span><span>: &#39;</span><span style="color:#a3be8c;">&gt;= 2.6.3</span><span>&#39;
+</span><span>
+</span><span style="color:#65737e;"># Rails 内置数据库 SQLite3 需要依赖以下工具
+</span><span>- </span><span style="color:#bf616a;">script</span><span>: </span><span style="color:#a3be8c;">sudo apt-get -yqq install libsqlite3-dev libpq-dev
+</span><span>  </span><span style="color:#bf616a;">displayName</span><span>: </span><span style="color:#a3be8c;">install sqlite3
+</span><span>
+</span><span>- </span><span style="color:#bf616a;">script</span><span>: </span><span style="color:#b48ead;">|
+</span><span style="color:#a3be8c;">    gem install bundler
+</span><span style="color:#a3be8c;">    bundle install --retry=3 --jobs=4
+</span><span>  </span><span style="color:#bf616a;">displayName</span><span>: &#39;</span><span style="color:#a3be8c;">bundle install</span><span>&#39;
+</span><span>
+</span><span>- </span><span style="color:#bf616a;">script</span><span>: </span><span style="color:#a3be8c;">bundle exec rake
+</span><span>  </span><span style="color:#bf616a;">displayName</span><span>: &#39;</span><span style="color:#a3be8c;">bundle exec rake</span><span>&#39;
+</span></code></pre>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

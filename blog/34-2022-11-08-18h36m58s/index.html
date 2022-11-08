@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | 节流与防抖</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>节流与防抖</h1>
+    
+    <p class="secondary">18 January, 2021</p>
+    
+    <div class="space"></div>
+    <p>闲来无事在网上翻一些关于 Javascript 的一些搞基技巧，就发现了节流与防抖这两种设计模式。</p>
+<p>上个星期在编写搜索框的时候就已经写过类似的代码 <em>（搜索框输入关键词会实时去服务器上搜索，考虑到服务器压力就把代码加了限制，每 500ms 最多搜索一次，实际上这就是类似防抖的设计，只是我还不知道这个叫防抖...）</em></p>
+<p>下面是搜索框的限制代码：</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#8fa1b3;">watch</span><span>(</span><span style="color:#bf616a;">searchText</span><span>, (</span><span style="color:#bf616a;">newVal</span><span>) </span><span style="color:#b48ead;">=&gt; </span><span>{
+</span><span>    </span><span style="color:#96b5b4;">clearTimeout</span><span>(</span><span style="color:#bf616a;">searchTimer</span><span>);
+</span><span>    </span><span style="color:#bf616a;">searchTimer </span><span>= </span><span style="color:#96b5b4;">setTimeout</span><span>(
+</span><span>        () </span><span style="color:#b48ead;">=&gt; </span><span style="color:#65737e;">//...需要限制的逻辑
+</span><span>            ),
+</span><span>        </span><span style="color:#d08770;">500
+</span><span>    );
+</span><span>});
+</span></code></pre>
+<p>原理非常简单，通过定时器实现，一旦现有状态改变就说明有新的输入，然后清除老的定时器，新设置定时器。</p>
+<hr />
+<p>今天在网上冲浪又学到了一种新的设计：<strong>节流</strong></p>
+<p>直接看代码吧：</p>
+<pre data-lang="javascript" style="background-color:#2b303b;color:#c0c5ce;" class="language-javascript "><code class="language-javascript" data-lang="javascript"><span style="color:#8fa1b3;">watch</span><span>(</span><span style="color:#bf616a;">searchText</span><span>, (</span><span style="color:#bf616a;">newVal</span><span>) </span><span style="color:#b48ead;">=&gt; </span><span>{
+</span><span>
+</span><span>    </span><span style="color:#b48ead;">if</span><span>(</span><span style="color:#bf616a;">isStop</span><span>) {
+</span><span>        </span><span style="color:#b48ead;">return
+</span><span>    }
+</span><span>
+</span><span>    </span><span style="color:#bf616a;">isStop </span><span>= </span><span style="color:#d08770;">true</span><span>;
+</span><span>
+</span><span>    </span><span style="color:#96b5b4;">setTimeout</span><span>(
+</span><span>        () </span><span style="color:#b48ead;">=&gt; </span><span>{
+</span><span>            </span><span style="color:#65737e;">//...需要限制的逻辑
+</span><span>            </span><span style="color:#bf616a;">isStop </span><span>= </span><span style="color:#d08770;">false
+</span><span>        }
+</span><span>    ),
+</span><span>    </span><span style="color:#d08770;">500
+</span><span>);
+</span></code></pre>
+<p>emmm，一开始看了半天，实际上看懂之后节流比防抖更加简单 <em>（好吧，看了几遍其实发现差不多）</em></p>
+<p>原理还是一样简单，计数器结束将标志位设置为 false，这样新来的计时器就能通过，如果没到限制时间就进入这个函数会被标志位拦住，直接返回。</p>
+<p>节流主要作用就是限制执行频率。</p>
+<p>硬要说防抖和节流的区别。。。emm我也说不上来，看应用场景吧。</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

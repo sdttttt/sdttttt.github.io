@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="这篇文章会讲解关于Rust中impl和dyn这两个关键词的作用. 帮助你更好的编写Rust程序.">
+    <title> | Impl and Dyn on Rust</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Impl and Dyn on Rust</h1>
+    
+    <p class="secondary">12 November, 2020</p>
+    
+    <div class="space"></div>
+    <p>我们先来看这样一段代码:</p>
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span>
+</span><span style="color:#b48ead;">impl </span><span>View </span><span style="color:#b48ead;">for </span><span>Button { ... }
+</span><span>
+</span><span style="color:#b48ead;">impl </span><span>View </span><span style="color:#b48ead;">for </span><span>Text { ... }
+</span><span>
+</span></code></pre>
+<p>我们看到<code>Button</code>和<code>Text</code>都实现了<code>View</code>属性, 抽象是一种不错的设计程序的方法, 帮助我们透明化的使用外部提供的API. 然后我们可能会下意识的写出下面的代码:</p>
+<pre data-lang="Rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-Rust "><code class="language-Rust" data-lang="Rust"><span>
+</span><span style="color:#65737e;">/// 这种代码实际上会让人感到疑惑. View究竟是个特性还是一个对象.
+</span><span style="color:#65737e;">/// 这里的View是一个类型, 所以我们需要写成 `impl View`.
+</span><span style="color:#65737e;">/// 不过`impl View` 不能用于多个trait实现的返回. 但是可以作为入参.
+</span><span style="color:#b48ead;">pub fn </span><span style="color:#8fa1b3;">something</span><span>() -&gt; View {
+</span><span>    </span><span style="color:#b48ead;">if </span><span>... {
+</span><span>        Button { ... }
+</span><span>    } </span><span style="color:#b48ead;">else </span><span>{
+</span><span>        Text { ... }
+</span><span>    }
+</span><span>}
+</span><span>
+</span></code></pre>
+<p>这段代码无法通过编译, 原因就是返回值<code>View</code>需要在编译器确认大小. 我们需要把它装成一个胖指针.</p>
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span>
+</span><span style="color:#b48ead;">pub fn </span><span style="color:#8fa1b3;">something</span><span>() -&gt; Box&lt;View&gt; {...}
+</span><span>
+</span></code></pre>
+<p>嗯,这样就好很多. 但是编译器会爆种, 提出一个警告, 希望你把<code>Box&lt;View&gt;</code>改为<code>Box&lt;dyn View&gt;</code>.</p>
+<p>这又是什么意思?</p>
+<p><code>dyn</code> 是动态的缩写, 意义其实很明显. 使用<code>dyn</code>修饰的类型, 会在程序执行期动态分发. 会有一定的RUNTIME开销.</p>
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span>
+</span><span style="color:#b48ead;">pub fn </span><span style="color:#8fa1b3;">something</span><span>() -&gt; Box&lt;dyn View&gt; {...}
+</span><span>
+</span></code></pre>
+<p>现在我们把代码改成这样, 好多了.</p>
+<p>接下来说说<code>impl</code>, 这个语法是个语法糖其实.怎么个语法糖呢?</p>
+<pre data-lang="rust" style="background-color:#2b303b;color:#c0c5ce;" class="language-rust "><code class="language-rust" data-lang="rust"><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">something</span><span>&lt;T: View&gt;(</span><span style="color:#bf616a;">v</span><span>: T) { ... }
+</span><span>
+</span><span style="color:#65737e;">// ------------- 用 impl 之后 ------------------
+</span><span>
+</span><span style="color:#b48ead;">fn </span><span style="color:#8fa1b3;">something</span><span>(</span><span style="color:#bf616a;">v</span><span>: impl View) { ... }
+</span><span>
+</span></code></pre>
+<p>真的就这么简单.</p>
+<p>第二次说一遍, 这种<code>T(泛型)</code>写法在入参可以这么做, 但是返回值不行. 除非你的返回值只返回一个<code>T</code>实现. 两种以上请<code>重载 (我乱说的,rust可能不支持)</code>或者使用<code>dyn</code>.</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

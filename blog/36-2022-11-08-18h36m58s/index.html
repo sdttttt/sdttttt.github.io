@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Kratos 初始化流程源码解析</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Kratos 初始化流程源码解析</h1>
+    
+    <p class="secondary">31 March, 2020</p>
+    
+    <div class="space"></div>
+    <p><strong>Kratos</strong> 是bilibili开源的一套Go微服务框架，包含大量微服务相关框架及工具。</p>
+<blockquote>
+<p>名字来源于:《战神》游戏以希腊神话为背景，讲述由凡人成为战神的奎托斯（Kratos）成为战神并展开弑神屠杀的冒险历程。</p>
+</blockquote>
+<p>好！开始吧！</p>
+<p><em>小提示：阅读源码时请保持清醒。</em></p>
+<p>首先是按照Kratos tool 生产的工程目录。</p>
+<pre style="background-color:#2b303b;color:#c0c5ce;"><code><span>├── CHANGELOG.md 
+</span><span>├── OWNERS
+</span><span>├── README.md
+</span><span>├── api                     # api目录为对外保留的proto文件及生成的pb.go文件
+</span><span>│   ├── api.bm.go
+</span><span>│   ├── api.pb.go           # 通过go generate生成的pb.go文件
+</span><span>│   ├── api.proto
+</span><span>│   └── client.go
+</span><span>├── cmd
+</span><span>│   └── main.go             # cmd目录为main所在
+</span><span>├── configs                 # configs为配置文件目录
+</span><span>│   ├── application.toml    # 应用的自定义配置文件，可能是一些业务开关如：useABtest = true
+</span><span>│   ├── db.toml             # db相关配置
+</span><span>│   ├── grpc.toml           # grpc相关配置
+</span><span>│   ├── http.toml           # http相关配置
+</span><span>│   ├── memcache.toml       # memcache相关配置
+</span><span>│   └── redis.toml          # redis相关配置
+</span><span>├── go.mod
+</span><span>├── go.sum
+</span><span>└── internal                # internal为项目内部包，包括以下目录：
+</span><span>│   ├── dao                 # dao层，用于数据库、cache、MQ、依赖某业务grpc|http等资源访问
+</span><span>│   │   ├── dao.bts.go
+</span><span>│   │   ├── dao.go
+</span><span>│   │   ├── db.go
+</span><span>│   │   ├── mc.cache.go
+</span><span>│   │   ├── mc.go
+</span><span>│   │   └── redis.go
+</span><span>│   ├── di                  # 依赖注入层 采用wire静态分析依赖
+</span><span>│   │   ├── app.go
+</span><span>│   │   ├── wire.go         # wire 声明
+</span><span>│   │   └── wire_gen.go     # go generate 生成的代码
+</span><span>│   ├── model               # model层，用于声明业务结构体
+</span><span>│   │   └── model.go
+</span><span>│   ├── server              # server层，用于初始化grpc和http server
+</span><span>│   │   ├── grpc            # grpc层，用于初始化grpc server和定义method
+</span><span>│   │   │   └── server.go
+</span><span>│   │   └── http            # http层，用于初始化http server和声明handler
+</span><span>│   │       └── server.go
+</span><span>│   └── service             # service层，用于业务逻辑处理，且为方便http和grpc共用方法，建议入参和出参保持grpc风格，且使用pb文件生成代码
+</span><span>│       └── service.go
+</span><span>└── test                    # 测试资源层 用于存放测试相关资源数据 如docker-compose配置 数据库初始化语句等
+</span><span>    └── docker-compose.yaml
+</span></code></pre>
+<h2 id="entry">Entry</h2>
+<p>入口在<code>cmd/main.go</code>下，我们进去看看。</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">main</span><span>() {
+</span><span>    </span><span style="color:#65737e;">// 没什么好说的，参数解析
+</span><span>	</span><span style="color:#bf616a;">flag</span><span>.</span><span style="color:#bf616a;">Parse</span><span>()
+</span><span>	</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Init</span><span>(</span><span style="color:#d08770;">nil</span><span>) </span><span style="color:#65737e;">// debug flag: log.dir={path}
+</span><span>	</span><span style="color:#b48ead;">defer </span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Close</span><span>()
+</span><span>	</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Info</span><span>(&quot;</span><span style="color:#a3be8c;">kratos-demo start</span><span>&quot;)
+</span><span>	</span><span style="color:#65737e;">// -conf 参数的解析
+</span><span>    </span><span style="color:#bf616a;">paladin</span><span>.</span><span style="color:#bf616a;">Init</span><span>()
+</span><span>	</span><span style="color:#65737e;">// 这里是 `深坑的入口`
+</span><span>	</span><span style="color:#65737e;">// 一会分析
+</span><span>	</span><span style="color:#bf616a;">_</span><span>, </span><span style="color:#bf616a;">closeFunc</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">di</span><span>.</span><span style="color:#bf616a;">InitApp</span><span>()
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#96b5b4;">panic</span><span>(</span><span style="color:#bf616a;">err</span><span>)
+</span><span>    }
+</span><span>    </span><span style="color:#65737e;">// os.Signal 是一个系统信号接收channel
+</span><span>    </span><span style="color:#bf616a;">c </span><span>:= </span><span style="color:#96b5b4;">make</span><span>(</span><span style="color:#b48ead;">chan </span><span style="color:#bf616a;">os</span><span>.</span><span style="color:#b48ead;">Signal</span><span>, </span><span style="color:#d08770;">1</span><span>)
+</span><span>    </span><span style="color:#65737e;">// syscall 都是一些系统信号
+</span><span>	</span><span style="color:#bf616a;">signal</span><span>.</span><span style="color:#bf616a;">Notify</span><span>(</span><span style="color:#bf616a;">c</span><span>, </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGHUP</span><span>, </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGQUIT</span><span>, </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGTERM</span><span>, </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGINT</span><span>)
+</span><span>	</span><span style="color:#b48ead;">for </span><span>{
+</span><span>        </span><span style="color:#65737e;">// 一旦有信号进来了，看下面的代码逻辑，八成是关闭这个应用。
+</span><span>		</span><span style="color:#bf616a;">s </span><span>:= &lt;-</span><span style="color:#bf616a;">c
+</span><span>		</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Info</span><span>(&quot;</span><span style="color:#a3be8c;">get a signal </span><span style="color:#d08770;">%s</span><span>&quot;, </span><span style="color:#bf616a;">s</span><span>.</span><span style="color:#bf616a;">String</span><span>())
+</span><span>		</span><span style="color:#b48ead;">switch </span><span style="color:#bf616a;">s </span><span>{
+</span><span>		</span><span style="color:#b48ead;">case </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGQUIT</span><span>, </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGTERM</span><span>, </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGINT</span><span>:
+</span><span>			</span><span style="color:#bf616a;">closeFunc</span><span>()
+</span><span>			</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Info</span><span>(&quot;</span><span style="color:#a3be8c;">kratos-demo exit</span><span>&quot;)
+</span><span>			</span><span style="color:#bf616a;">time</span><span>.</span><span style="color:#bf616a;">Sleep</span><span>(</span><span style="color:#bf616a;">time</span><span>.</span><span style="color:#bf616a;">Second</span><span>)
+</span><span>			</span><span style="color:#b48ead;">return
+</span><span>		</span><span style="color:#b48ead;">case </span><span style="color:#bf616a;">syscall</span><span>.</span><span style="color:#bf616a;">SIGHUP</span><span>:
+</span><span>		</span><span style="color:#b48ead;">default</span><span>:
+</span><span>			</span><span style="color:#b48ead;">return
+</span><span>		}
+</span><span>	}
+</span><span>}
+</span><span>
+</span></code></pre>
+<h2 id="initializer">Initializer</h2>
+<p>接下来我们去看<code>di.InitApp()</code>里做了什么。</p>
+<p>这个方法是通过<code>github.com/google/wire</code>来生成.</p>
+<p>如果你不知道<code>wire</code>可以参考下面的官方原话：</p>
+<blockquote>
+<p>Wire is a code generation tool that automates connecting components using dependency injection. Dependencies between components are represented in Wire as function parameters, encouraging explicit initialization instead of global variables. Because Wire operates without runtime state or reflection, code written to be used with Wire is useful even for hand-written initialization.</p>
+</blockquote>
+<blockquote>
+<p>简单来说就是Golang的依赖注入代码生成器, 它不使用反射.由Google提供.</p>
+</blockquote>
+<p>不过<code>Wire</code>不是我们的重点, 我们接着回到<code>di.InitApp()</code>去。</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#65737e;">// Injectors from wire.go:
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">InitApp</span><span>() (*</span><span style="color:#b48ead;">App</span><span>, </span><span style="color:#b48ead;">func</span><span>(), </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>
+</span><span>    </span><span style="color:#65737e;">// 基本上就是创建一个个实例，和善后它们的函数
+</span><span>    </span><span style="color:#65737e;">// 如果途中创建出问题就全体下葬（触发善后函数）.
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// Redis实例，善后函数
+</span><span>	</span><span style="color:#bf616a;">redis</span><span>, </span><span style="color:#bf616a;">cleanup</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">dao</span><span>.</span><span style="color:#bf616a;">NewRedis</span><span>()
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// memcache实例，善后函数
+</span><span>	</span><span style="color:#bf616a;">memcache</span><span>, </span><span style="color:#bf616a;">cleanup2</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">dao</span><span>.</span><span style="color:#bf616a;">NewMC</span><span>()
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 看起来只支持MySQL，善后函数
+</span><span>	</span><span style="color:#bf616a;">db</span><span>, </span><span style="color:#bf616a;">cleanup3</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">dao</span><span>.</span><span style="color:#bf616a;">NewDB</span><span>()
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 把上面所有的模型对象做一个DAO层封装
+</span><span>	</span><span style="color:#bf616a;">daoDao</span><span>, </span><span style="color:#bf616a;">cleanup4</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">dao</span><span>.</span><span style="color:#bf616a;">New</span><span>(</span><span style="color:#bf616a;">redis</span><span>, </span><span style="color:#bf616a;">memcache</span><span>, </span><span style="color:#bf616a;">db</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup3</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>    </span><span style="color:#65737e;">// 这个是个重点，`service`是你的gRPC服务.
+</span><span>	</span><span style="color:#65737e;">// 一会我们去分析他
+</span><span>	</span><span style="color:#bf616a;">serviceService</span><span>, </span><span style="color:#bf616a;">cleanup5</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">service</span><span>.</span><span style="color:#bf616a;">New</span><span>(</span><span style="color:#bf616a;">daoDao</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup4</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup3</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>	}
+</span><span>
+</span><span>    </span><span style="color:#65737e;">// 有人会好奇Kratos是怎么把gRPC和Gin融合在一起的
+</span><span>    </span><span style="color:#65737e;">//（没错Bilibili的web框架是Gin, 不过这个Gin的一部分核心代码已经被魔改过了， 在Engine初始化的时候会多加入一个链路追踪的Middleware, 还有一堆路由...）
+</span><span>    </span><span style="color:#65737e;">// 秘密就在这里，等会我们再看
+</span><span>	</span><span style="color:#bf616a;">engine</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">http</span><span>.</span><span style="color:#bf616a;">New</span><span>(</span><span style="color:#bf616a;">serviceService</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup5</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup4</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup3</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>    }
+</span><span>    
+</span><span>    </span><span style="color:#65737e;">// gRPC的初始化的常规操作
+</span><span>	</span><span style="color:#bf616a;">server</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">grpc</span><span>.</span><span style="color:#bf616a;">New</span><span>(</span><span style="color:#bf616a;">serviceService</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup5</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup4</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup3</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>    }
+</span><span>    
+</span><span>    </span><span style="color:#65737e;">// 把上面的服务，engine,gRPC服务,整一块
+</span><span>	</span><span style="color:#65737e;">// 善后函数
+</span><span>	</span><span style="color:#65737e;">// 后面稍微分析一下
+</span><span>	</span><span style="color:#bf616a;">app</span><span>, </span><span style="color:#bf616a;">cleanup6</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">NewApp</span><span>(</span><span style="color:#bf616a;">serviceService</span><span>, </span><span style="color:#bf616a;">engine</span><span>, </span><span style="color:#bf616a;">server</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">cleanup5</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup4</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup3</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>		</span><span style="color:#b48ead;">return </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#d08770;">nil</span><span>, </span><span style="color:#bf616a;">err
+</span><span>    }
+</span><span>    
+</span><span>    </span><span style="color:#65737e;">// 你可以走了.
+</span><span>	</span><span style="color:#b48ead;">return </span><span style="color:#bf616a;">app</span><span>, </span><span style="color:#b48ead;">func</span><span>() {
+</span><span>		</span><span style="color:#bf616a;">cleanup6</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup5</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup4</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup3</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup2</span><span>()
+</span><span>		</span><span style="color:#bf616a;">cleanup</span><span>()
+</span><span>	}, </span><span style="color:#d08770;">nil
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">//以上代码全是自动生成，冗余很正常
+</span></code></pre>
+<p>接下来我们首先看看<code>serviceService</code>是个什么东西.<em>(这是什么魔鬼命名)</em></p>
+<p>进到<code>Service.New(dao)</code></p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span>
+</span><span style="color:#65737e;">// Service service.
+</span><span style="color:#b48ead;">type </span><span>Service </span><span style="color:#b48ead;">struct </span><span>{
+</span><span>    </span><span style="color:#65737e;">// 配置文件映射的Map (这个命名就nm离谱)
+</span><span>    </span><span style="color:#bf616a;">ac  </span><span>*</span><span style="color:#bf616a;">paladin</span><span>.</span><span style="color:#b48ead;">Map
+</span><span>    </span><span style="color:#65737e;">// 字面意思
+</span><span>	</span><span style="color:#bf616a;">dao dao</span><span>.</span><span style="color:#b48ead;">Dao
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// New new a service and return.
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">New</span><span>(</span><span style="color:#bf616a;">d dao</span><span>.</span><span style="color:#b48ead;">Dao</span><span>) (</span><span style="color:#bf616a;">s </span><span>*</span><span style="color:#b48ead;">Service</span><span>, </span><span style="color:#bf616a;">cf </span><span style="color:#b48ead;">func</span><span>(), </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>    </span><span style="color:#65737e;">// 初始化～～～
+</span><span>	</span><span style="color:#bf616a;">s </span><span>= &amp;</span><span style="color:#bf616a;">Service</span><span>{
+</span><span>		</span><span style="color:#bf616a;">ac</span><span>:  &amp;</span><span style="color:#bf616a;">paladin</span><span>.</span><span style="color:#bf616a;">TOML</span><span>{},
+</span><span>		</span><span style="color:#bf616a;">dao</span><span>: </span><span style="color:#bf616a;">d</span><span>,
+</span><span>	}
+</span><span>    </span><span style="color:#65737e;">// 一个关闭的钩子
+</span><span>    </span><span style="color:#bf616a;">cf </span><span>= </span><span style="color:#bf616a;">s</span><span>.</span><span style="color:#bf616a;">Close
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 热加载 application.toml 配置文件
+</span><span>	</span><span style="color:#65737e;">// 原理是使用fsnotify监听文件变更
+</span><span>    </span><span style="color:#bf616a;">err </span><span>= </span><span style="color:#bf616a;">paladin</span><span>.</span><span style="color:#bf616a;">Watch</span><span>(&quot;</span><span style="color:#a3be8c;">application.toml</span><span>&quot;, </span><span style="color:#bf616a;">s</span><span>.</span><span style="color:#bf616a;">ac</span><span>)
+</span><span>	</span><span style="color:#b48ead;">return
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// -------------- 下面都是你的gRPC业务逻辑-------------
+</span><span>
+</span><span style="color:#65737e;">// SayHello grpc demo func.
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">s </span><span>*</span><span style="color:#b48ead;">Service</span><span>) </span><span style="color:#8fa1b3;">SayHello</span><span>(</span><span style="color:#bf616a;">ctx context</span><span>.</span><span style="color:#b48ead;">Context</span><span>, </span><span style="color:#bf616a;">req </span><span>*</span><span style="color:#bf616a;">pb</span><span>.</span><span style="color:#b48ead;">HelloReq</span><span>) (</span><span style="color:#bf616a;">reply </span><span>*</span><span style="color:#bf616a;">empty</span><span>.</span><span style="color:#b48ead;">Empty</span><span>, </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">reply </span><span>= </span><span style="color:#96b5b4;">new</span><span>(</span><span style="color:#bf616a;">empty</span><span>.</span><span style="color:#b48ead;">Empty</span><span>)
+</span><span>	</span><span style="color:#bf616a;">fmt</span><span>.</span><span style="color:#bf616a;">Printf</span><span>(&quot;</span><span style="color:#a3be8c;">hello </span><span style="color:#d08770;">%s</span><span>&quot;, </span><span style="color:#bf616a;">req</span><span>.</span><span style="color:#bf616a;">Name</span><span>)
+</span><span>	</span><span style="color:#b48ead;">return
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// SayHelloURL bm demo func.
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">s </span><span>*</span><span style="color:#b48ead;">Service</span><span>) </span><span style="color:#8fa1b3;">SayHelloURL</span><span>(</span><span style="color:#bf616a;">ctx context</span><span>.</span><span style="color:#b48ead;">Context</span><span>, </span><span style="color:#bf616a;">req </span><span>*</span><span style="color:#bf616a;">pb</span><span>.</span><span style="color:#b48ead;">HelloReq</span><span>) (</span><span style="color:#bf616a;">reply </span><span>*</span><span style="color:#bf616a;">pb</span><span>.</span><span style="color:#b48ead;">HelloResp</span><span>, </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">reply </span><span>= &amp;</span><span style="color:#bf616a;">pb</span><span>.</span><span style="color:#bf616a;">HelloResp</span><span>{
+</span><span>		</span><span style="color:#bf616a;">Content</span><span>: &quot;</span><span style="color:#a3be8c;">hello </span><span>&quot; + </span><span style="color:#bf616a;">req</span><span>.</span><span style="color:#bf616a;">Name</span><span>,
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">fmt</span><span>.</span><span style="color:#bf616a;">Printf</span><span>(&quot;</span><span style="color:#a3be8c;">hello url </span><span style="color:#d08770;">%s</span><span>&quot;, </span><span style="color:#bf616a;">req</span><span>.</span><span style="color:#bf616a;">Name</span><span>)
+</span><span>	</span><span style="color:#b48ead;">return
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// Ping ping the resource.
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">s </span><span>*</span><span style="color:#b48ead;">Service</span><span>) </span><span style="color:#8fa1b3;">Ping</span><span>(</span><span style="color:#bf616a;">ctx context</span><span>.</span><span style="color:#b48ead;">Context</span><span>, </span><span style="color:#bf616a;">e </span><span>*</span><span style="color:#bf616a;">empty</span><span>.</span><span style="color:#b48ead;">Empty</span><span>) (*</span><span style="color:#bf616a;">empty</span><span>.</span><span style="color:#b48ead;">Empty</span><span>, </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#b48ead;">return </span><span>&amp;</span><span style="color:#bf616a;">empty</span><span>.</span><span style="color:#bf616a;">Empty</span><span>{}, </span><span style="color:#bf616a;">s</span><span>.</span><span style="color:#bf616a;">dao</span><span>.</span><span style="color:#bf616a;">Ping</span><span>(</span><span style="color:#bf616a;">ctx</span><span>)
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// Close close the resource.
+</span><span style="color:#b48ead;">func </span><span>(</span><span style="color:#bf616a;">s </span><span>*</span><span style="color:#b48ead;">Service</span><span>) </span><span style="color:#8fa1b3;">Close</span><span>() {}
+</span></code></pre>
+<p>哇哦，现在我们知道了，<code>Service</code>是由一些<code>gRPC</code>方法，配置项，模型层组成的。</p>
+<p>好，乘胜追击我们再看一看<code>engine, err := http.New(serviceService)</code>做了什么。</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#b48ead;">var </span><span style="color:#bf616a;">svc pb</span><span>.</span><span style="color:#b48ead;">DemoServer
+</span><span>
+</span><span style="color:#65737e;">// New new a bm server.
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">New</span><span>(</span><span style="color:#bf616a;">s pb</span><span>.</span><span style="color:#b48ead;">DemoServer</span><span>) (</span><span style="color:#bf616a;">engine </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Engine</span><span>, </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#b48ead;">var </span><span>(
+</span><span>		</span><span style="color:#bf616a;">cfg bm</span><span>.</span><span style="color:#b48ead;">ServerConfig
+</span><span>		</span><span style="color:#bf616a;">ct  paladin</span><span>.</span><span style="color:#b48ead;">TOML
+</span><span>	)
+</span><span>	</span><span style="color:#65737e;">// 读取你的配置文件
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>= </span><span style="color:#bf616a;">paladin</span><span>.</span><span style="color:#bf616a;">Get</span><span>(&quot;</span><span style="color:#a3be8c;">http.toml</span><span>&quot;).</span><span style="color:#bf616a;">Unmarshal</span><span>(&amp;</span><span style="color:#bf616a;">ct</span><span>); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return
+</span><span>	}
+</span><span>	</span><span style="color:#65737e;">// 得到http.toml的Server字段
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>= </span><span style="color:#bf616a;">ct</span><span>.</span><span style="color:#bf616a;">Get</span><span>(&quot;</span><span style="color:#a3be8c;">Server</span><span>&quot;).</span><span style="color:#bf616a;">UnmarshalTOML</span><span>(&amp;</span><span style="color:#bf616a;">cfg</span><span>); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">svc </span><span>= </span><span style="color:#bf616a;">s
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 做一个新 engine 
+</span><span>	</span><span style="color:#65737e;">// (engine 是 Gin 里的模块，这里我就不分析Gin的源码了)
+</span><span>	</span><span style="color:#bf616a;">engine </span><span>= </span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#bf616a;">DefaultServer</span><span>(&amp;</span><span style="color:#bf616a;">cfg</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 将gRPC服务注册到engine, 这个代码注册代码是bm自己生成的
+</span><span>	</span><span style="color:#65737e;">// 一会我们分析
+</span><span>	</span><span style="color:#bf616a;">pb</span><span>.</span><span style="color:#bf616a;">RegisterDemoBMServer</span><span>(</span><span style="color:#bf616a;">engine</span><span>, </span><span style="color:#bf616a;">s</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 把你的路由搞进去
+</span><span>	</span><span style="color:#bf616a;">initRouter</span><span>(</span><span style="color:#bf616a;">engine</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 开始跑
+</span><span>	</span><span style="color:#bf616a;">err </span><span>= </span><span style="color:#bf616a;">engine</span><span>.</span><span style="color:#bf616a;">Start</span><span>()
+</span><span>	</span><span style="color:#b48ead;">return
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// 路由在这里登记！
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">initRouter</span><span>(</span><span style="color:#bf616a;">e </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Engine</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">e</span><span>.</span><span style="color:#bf616a;">Ping</span><span>(</span><span style="color:#bf616a;">ping</span><span>)
+</span><span>	</span><span style="color:#bf616a;">g </span><span>:= </span><span style="color:#bf616a;">e</span><span>.</span><span style="color:#bf616a;">Group</span><span>(&quot;</span><span style="color:#a3be8c;">/kratos-demo</span><span>&quot;)
+</span><span>	{
+</span><span>		</span><span style="color:#bf616a;">g</span><span>.</span><span style="color:#bf616a;">GET</span><span>(&quot;</span><span style="color:#a3be8c;">/start</span><span>&quot;, </span><span style="color:#bf616a;">howToStart</span><span>)
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">ping</span><span>(</span><span style="color:#bf616a;">ctx </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Context</span><span>) {
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">_</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">svc</span><span>.</span><span style="color:#bf616a;">Ping</span><span>(</span><span style="color:#bf616a;">ctx</span><span>, </span><span style="color:#d08770;">nil</span><span>); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Error</span><span>(&quot;</span><span style="color:#a3be8c;">ping error(</span><span style="color:#d08770;">%v</span><span style="color:#a3be8c;">)</span><span>&quot;, </span><span style="color:#bf616a;">err</span><span>)
+</span><span>		</span><span style="color:#bf616a;">ctx</span><span>.</span><span style="color:#bf616a;">AbortWithStatus</span><span>(</span><span style="color:#bf616a;">http</span><span>.</span><span style="color:#bf616a;">StatusServiceUnavailable</span><span>)
+</span><span>	}
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// example for http request handler.
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">howToStart</span><span>(</span><span style="color:#bf616a;">c </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Context</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">k </span><span>:= &amp;</span><span style="color:#bf616a;">model</span><span>.</span><span style="color:#bf616a;">Kratos</span><span>{
+</span><span>		</span><span style="color:#bf616a;">Hello</span><span>: &quot;</span><span style="color:#a3be8c;">Golang 大法好 !!!我好你个头！</span><span>&quot;,
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">JSON</span><span>(</span><span style="color:#bf616a;">k</span><span>, </span><span style="color:#d08770;">nil</span><span>)
+</span><span>}
+</span><span>
+</span></code></pre>
+<p>如果你使用过<code>gin</code>这个web框架, 上面的代码你一定很熟悉，对吧？
+<code>bm</code>就是<code>gin</code>，只是部分代码被Bilibili魔改了，整体架构是不变的。</p>
+<p>OK，我们看看<code>RegisterDemoBMServer</code>里做了什么.</p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#65737e;">// DemoBMServer is the server API for Demo service.
+</span><span style="color:#b48ead;">type </span><span>DemoBMServer </span><span style="color:#b48ead;">interface </span><span>{
+</span><span>	</span><span style="color:#8fa1b3;">Ping</span><span>(</span><span style="color:#bf616a;">ctx context</span><span>.</span><span style="color:#b48ead;">Context</span><span>, </span><span style="color:#bf616a;">req </span><span>*</span><span style="color:#bf616a;">google_protobuf1</span><span>.</span><span style="color:#b48ead;">Empty</span><span>) (</span><span style="color:#bf616a;">resp </span><span>*</span><span style="color:#bf616a;">google_protobuf1</span><span>.</span><span style="color:#b48ead;">Empty</span><span>, </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#8fa1b3;">SayHello</span><span>(</span><span style="color:#bf616a;">ctx context</span><span>.</span><span style="color:#b48ead;">Context</span><span>, </span><span style="color:#bf616a;">req </span><span>*</span><span style="color:#b48ead;">HelloReq</span><span>) (</span><span style="color:#bf616a;">resp </span><span>*</span><span style="color:#bf616a;">google_protobuf1</span><span>.</span><span style="color:#b48ead;">Empty</span><span>, </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>)
+</span><span>
+</span><span>	</span><span style="color:#8fa1b3;">SayHelloURL</span><span>(</span><span style="color:#bf616a;">ctx context</span><span>.</span><span style="color:#b48ead;">Context</span><span>, </span><span style="color:#bf616a;">req </span><span>*</span><span style="color:#b48ead;">HelloReq</span><span>) (</span><span style="color:#bf616a;">resp </span><span>*</span><span style="color:#b48ead;">HelloResp</span><span>, </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>)
+</span><span>}
+</span><span>
+</span><span style="color:#65737e;">// 我们写的gRPC服务
+</span><span style="color:#b48ead;">var </span><span style="color:#bf616a;">DemoSvc </span><span style="color:#b48ead;">DemoBMServer
+</span><span style="color:#65737e;">// ------------------------------------------------
+</span><span>
+</span><span style="color:#65737e;">// 我们仔细分析这些方法不难发现
+</span><span style="color:#65737e;">// 他们都会调用 `BindWith` 和对应的gRPC方法
+</span><span>
+</span><span style="color:#65737e;">// 先使用BindWith: 将request中的`Body` 转化为go中的 `struct`
+</span><span style="color:#65737e;">// 然后使用gRPC方法处理请求数据
+</span><span style="color:#65737e;">// 最后返回
+</span><span>
+</span><span style="color:#65737e;">// 本质就是通过http调用gRPC服务
+</span><span>
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">demoPing</span><span>(</span><span style="color:#bf616a;">c </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Context</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">p </span><span>:= </span><span style="color:#96b5b4;">new</span><span>(</span><span style="color:#bf616a;">google_protobuf1</span><span>.</span><span style="color:#b48ead;">Empty</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">BindWith</span><span>(</span><span style="color:#bf616a;">p</span><span>, </span><span style="color:#bf616a;">binding</span><span>.</span><span style="color:#bf616a;">Default</span><span>(</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">Request</span><span>.</span><span style="color:#bf616a;">Method</span><span>, </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">Request</span><span>.</span><span style="color:#bf616a;">Header</span><span>.</span><span style="color:#bf616a;">Get</span><span>(&quot;</span><span style="color:#a3be8c;">Content-Type</span><span>&quot;))); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">resp</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">DemoSvc</span><span>.</span><span style="color:#bf616a;">Ping</span><span>(</span><span style="color:#bf616a;">c</span><span>, </span><span style="color:#bf616a;">p</span><span>)
+</span><span>	</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">JSON</span><span>(</span><span style="color:#bf616a;">resp</span><span>, </span><span style="color:#bf616a;">err</span><span>)
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">demoSayHello</span><span>(</span><span style="color:#bf616a;">c </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Context</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">p </span><span>:= </span><span style="color:#96b5b4;">new</span><span>(</span><span style="color:#b48ead;">HelloReq</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">BindWith</span><span>(</span><span style="color:#bf616a;">p</span><span>, </span><span style="color:#bf616a;">binding</span><span>.</span><span style="color:#bf616a;">Default</span><span>(</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">Request</span><span>.</span><span style="color:#bf616a;">Method</span><span>, </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">Request</span><span>.</span><span style="color:#bf616a;">Header</span><span>.</span><span style="color:#bf616a;">Get</span><span>(&quot;</span><span style="color:#a3be8c;">Content-Type</span><span>&quot;))); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">resp</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">DemoSvc</span><span>.</span><span style="color:#bf616a;">SayHello</span><span>(</span><span style="color:#bf616a;">c</span><span>, </span><span style="color:#bf616a;">p</span><span>)
+</span><span>	</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">JSON</span><span>(</span><span style="color:#bf616a;">resp</span><span>, </span><span style="color:#bf616a;">err</span><span>)
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">demoSayHelloURL</span><span>(</span><span style="color:#bf616a;">c </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Context</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">p </span><span>:= </span><span style="color:#96b5b4;">new</span><span>(</span><span style="color:#b48ead;">HelloReq</span><span>)
+</span><span>	</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">BindWith</span><span>(</span><span style="color:#bf616a;">p</span><span>, </span><span style="color:#bf616a;">binding</span><span>.</span><span style="color:#bf616a;">Default</span><span>(</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">Request</span><span>.</span><span style="color:#bf616a;">Method</span><span>, </span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">Request</span><span>.</span><span style="color:#bf616a;">Header</span><span>.</span><span style="color:#bf616a;">Get</span><span>(&quot;</span><span style="color:#a3be8c;">Content-Type</span><span>&quot;))); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>		</span><span style="color:#b48ead;">return
+</span><span>	}
+</span><span>	</span><span style="color:#bf616a;">resp</span><span>, </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">DemoSvc</span><span>.</span><span style="color:#bf616a;">SayHelloURL</span><span>(</span><span style="color:#bf616a;">c</span><span>, </span><span style="color:#bf616a;">p</span><span>)
+</span><span>	</span><span style="color:#bf616a;">c</span><span>.</span><span style="color:#bf616a;">JSON</span><span>(</span><span style="color:#bf616a;">resp</span><span>, </span><span style="color:#bf616a;">err</span><span>)
+</span><span>}
+</span><span style="color:#65737e;">//-------------------------------------
+</span><span>
+</span><span style="color:#65737e;">// RegisterDemoBMServer Register the blademaster route
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">RegisterDemoBMServer</span><span>(</span><span style="color:#bf616a;">e </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Engine</span><span>, </span><span style="color:#bf616a;">server </span><span style="color:#b48ead;">DemoBMServer</span><span>) {
+</span><span>	</span><span style="color:#65737e;">// server 是我们之前编写的gRPC服务
+</span><span>	</span><span style="color:#bf616a;">DemoSvc </span><span>= </span><span style="color:#bf616a;">server
+</span><span>	
+</span><span>	</span><span style="color:#65737e;">// 将一些方法注册到路由里去 
+</span><span>	</span><span style="color:#bf616a;">e</span><span>.</span><span style="color:#bf616a;">GET</span><span>(&quot;</span><span style="color:#a3be8c;">/demo.service.v1.Demo/Ping</span><span>&quot;, </span><span style="color:#bf616a;">demoPing</span><span>)
+</span><span>	</span><span style="color:#bf616a;">e</span><span>.</span><span style="color:#bf616a;">GET</span><span>(&quot;</span><span style="color:#a3be8c;">/demo.service.v1.Demo/SayHello</span><span>&quot;, </span><span style="color:#bf616a;">demoSayHello</span><span>)
+</span><span>	</span><span style="color:#bf616a;">e</span><span>.</span><span style="color:#bf616a;">GET</span><span>(&quot;</span><span style="color:#a3be8c;">/kratos-demo/say_hello</span><span>&quot;, </span><span style="color:#bf616a;">demoSayHelloURL</span><span>)
+</span><span>}
+</span></code></pre>
+<p>哇，原来只是把一些gRPC的服务绑定到<code>gin</code>的路由里了呀。
+借用<code>gin</code>来调用gRPC.</p>
+<p><code>grpc.New()</code>就不分析了。</p>
+<p>然后是<code>AppNew()</code></p>
+<pre data-lang="go" style="background-color:#2b303b;color:#c0c5ce;" class="language-go "><code class="language-go" data-lang="go"><span style="color:#65737e;">//go:generate kratos tool wire
+</span><span style="color:#b48ead;">type </span><span>App </span><span style="color:#b48ead;">struct </span><span>{
+</span><span>	</span><span style="color:#bf616a;">svc  </span><span>*</span><span style="color:#bf616a;">service</span><span>.</span><span style="color:#b48ead;">Service
+</span><span>	</span><span style="color:#bf616a;">http </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Engine
+</span><span>	</span><span style="color:#bf616a;">grpc </span><span>*</span><span style="color:#bf616a;">warden</span><span>.</span><span style="color:#b48ead;">Server
+</span><span>}
+</span><span>
+</span><span style="color:#b48ead;">func </span><span style="color:#8fa1b3;">NewApp</span><span>(</span><span style="color:#bf616a;">svc </span><span>*</span><span style="color:#bf616a;">service</span><span>.</span><span style="color:#b48ead;">Service</span><span>, </span><span style="color:#bf616a;">h </span><span>*</span><span style="color:#bf616a;">bm</span><span>.</span><span style="color:#b48ead;">Engine</span><span>, </span><span style="color:#bf616a;">g </span><span>*</span><span style="color:#bf616a;">warden</span><span>.</span><span style="color:#b48ead;">Server</span><span>) (</span><span style="color:#bf616a;">app </span><span>*</span><span style="color:#b48ead;">App</span><span>, </span><span style="color:#bf616a;">closeFunc </span><span style="color:#b48ead;">func</span><span>(), </span><span style="color:#bf616a;">err </span><span style="color:#b48ead;">error</span><span>) {
+</span><span>	</span><span style="color:#bf616a;">app </span><span>= &amp;</span><span style="color:#bf616a;">App</span><span>{
+</span><span>		</span><span style="color:#bf616a;">svc</span><span>:  </span><span style="color:#bf616a;">svc</span><span>,
+</span><span>		</span><span style="color:#bf616a;">http</span><span>: </span><span style="color:#bf616a;">h</span><span>,
+</span><span>		</span><span style="color:#bf616a;">grpc</span><span>: </span><span style="color:#bf616a;">g</span><span>,
+</span><span>	}
+</span><span>
+</span><span>	</span><span style="color:#65737e;">// 一个关闭context的回调
+</span><span>	</span><span style="color:#bf616a;">closeFunc </span><span>= </span><span style="color:#b48ead;">func</span><span>() {
+</span><span>		</span><span style="color:#bf616a;">ctx</span><span>, </span><span style="color:#bf616a;">cancel </span><span>:= </span><span style="color:#bf616a;">context</span><span>.</span><span style="color:#bf616a;">WithTimeout</span><span>(</span><span style="color:#bf616a;">context</span><span>.</span><span style="color:#bf616a;">Background</span><span>(), </span><span style="color:#d08770;">35</span><span>*</span><span style="color:#bf616a;">time</span><span>.</span><span style="color:#bf616a;">Second</span><span>)
+</span><span>		</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">g</span><span>.</span><span style="color:#bf616a;">Shutdown</span><span>(</span><span style="color:#bf616a;">ctx</span><span>); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>			</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Error</span><span>(&quot;</span><span style="color:#a3be8c;">grpcSrv.Shutdown error(</span><span style="color:#d08770;">%v</span><span style="color:#a3be8c;">)</span><span>&quot;, </span><span style="color:#bf616a;">err</span><span>)
+</span><span>		}
+</span><span>		</span><span style="color:#b48ead;">if </span><span style="color:#bf616a;">err </span><span>:= </span><span style="color:#bf616a;">h</span><span>.</span><span style="color:#bf616a;">Shutdown</span><span>(</span><span style="color:#bf616a;">ctx</span><span>); </span><span style="color:#bf616a;">err </span><span>!= </span><span style="color:#d08770;">nil </span><span>{
+</span><span>			</span><span style="color:#bf616a;">log</span><span>.</span><span style="color:#bf616a;">Error</span><span>(&quot;</span><span style="color:#a3be8c;">httpSrv.Shutdown error(</span><span style="color:#d08770;">%v</span><span style="color:#a3be8c;">)</span><span>&quot;, </span><span style="color:#bf616a;">err</span><span>)
+</span><span>		}
+</span><span>		</span><span style="color:#bf616a;">cancel</span><span>()
+</span><span>	}
+</span><span>	</span><span style="color:#b48ead;">return
+</span><span>}
+</span></code></pre>
+<p>到这里初始化是结束了。</p>
+<h1 id="summary">Summary</h1>
+<p><code>kratos</code>的初始化流程:</p>
+<ul>
+<li>读取配置文件</li>
+<li>实例化Dao层</li>
+<li>实例化gRPC服务</li>
+<li>实例化gin的engine</li>
+<li>注册gPRC到engine</li>
+<li>启动engine</li>
+<li>启动gRPC服务端</li>
+<li>获得整个程序关闭的回调</li>
+</ul>
+<p>我分得应该还是比较细的。</p>
+<p>后面应该还会分析<code>warden</code>，它是<code>Kratos</code>在<code>grpc</code>原版上的一个封装版本。</p>
+<p>溜了溜了...</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

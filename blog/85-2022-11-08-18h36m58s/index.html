@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | About Gcr</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>About Gcr</h1>
+    
+    <div class="space"></div>
+    <p>十多天前, 我创建了 GCR 这个项目, 原因比较纯粹,
+我是个命令行工具爱好者, 我认为命令行能带来更好的工作效率以及收益,
+我平时编码, 也是遵守 Git 提交规范的,
+使用<code>Node.js</code>平台上的<code>git-cz</code>工具来格式化我的提交信息,
+不过由于它属于<code>Node.js</code>这个平台, 不可避免, 你需要安装 Node.js 的 runtime 环境.</p>
+<p>我想要一种更加方面快速的工具, 所以我建立了 GCR 这个项目,
+它是使用<code>Rust</code>编写的, 不需要安装任何环境, 比起 Node, 它会更快, 而且保留了跨平台的特性.
+在 GCR 中我还会加入一些比较个性化的元素. GCR 看起来可能会是一个更好用的<code>Git?</code>.</p>
+<p>这个项目可能还需要几个星期的时间, 请期待吧.</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

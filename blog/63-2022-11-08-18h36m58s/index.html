@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | Raft实现的思考</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>Raft实现的思考</h1>
+    
+    <p class="secondary">25 June, 2020</p>
+    
+    <div class="space"></div>
+    <p>比较Raft算法和Paxos算法之后,确实能感受到Raft算法更加接近正常人的思维逻辑, Paxos反而比较<code>专业?</code></p>
+<p>本文会说一些Raft算法实现上的一些考量, 我目前还没有正式开始开发Raft的实现.
+文中所有的内容仅供参考.</p>
+<p>Raft最基础分为三种状态: <strong>Leader</strong>, <strong>Follower</strong>, <strong>Candidate</strong>.
+整个Raft主体即是一个状态机.</p>
+<p>每个RaftNode都需要处理外部的事件.所以我们可以采用事件驱动模型.</p>
+<p>整体我们可以拆分为三个部分:</p>
+<ul>
+<li>RaftProcessor: 处理事件的处理器.</li>
+<li>EventDispatcher: 负责接收外部任务,发送给Raft本体, 或者接收Raft本体发来的事件,向外发布.</li>
+<li>LogSynchronizer: 同步LogBuffer中的日志到Raft本体.</li>
+</ul>
+<p>三个部分可以使用Channel来到达互相通信.</p>
+<p><img src="https://static01.imgkr.com/temp/4b34da085c8742018791aa36e4921210.jpg" alt="" /></p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>

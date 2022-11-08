@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <title> | The Framework a good design?</title>
+    
+    <link rel="stylesheet" href="https://sdttttt.github.io/style.css?h=a56f213afcf5d255b64918e7a9e0f468ef1d0ac2954b49f36003998666482371">
+    
+</head>
+<body>
+    
+<header class="space">
+    <a href="https:&#x2F;&#x2F;sdttttt.github.io">&LeftArrow; Home</a>
+</header>
+
+    
+<main>
+    <h1>The Framework a good design?</h1>
+    
+    <p class="secondary">6 April, 2020</p>
+    
+    <div class="space"></div>
+    <p>我第一次听到框架这个概念已经是在大学的时候了，当时我的老师和我提起。
+一开始我非常不习惯在我不熟悉的上下文中编写程序的感觉。只能用四个字来形容<code>寸步难行</code>。</p>
+<p>过了一段时间后，当你熟悉里这个框架提前为你所做的一切的时候，一切只能用四个字来形容<code>素巴拉细</code>（美妙）。</p>
+<p>后来，我接触了各种形形色色的框架，从PHP到Java.</p>
+<p>最让我惊叹的莫过于SpringBoot, 它几乎为你准备好了你所需要的一切，如果你需要其他的，也能非常容易的引入进来，
+任何框架以及库都能和Spring完美的结合在一起。Spring的可扩展性是我见过所有框架中最棒的！（它的核心理念就是IOC），不得不赞叹Spring是应用层的完美产物。（Spring无法被其他语言模仿和Java的<code>万物对象</code>的理念有很大关系）</p>
+<hr />
+<p>曾经的软件工程师没有这样的待遇，他们往往是从头构建起他们的应用。
+这使得成为软件工程师这一职业难以企及。</p>
+<p>由于如今软件行业的变化，软件工程师们已经不能仅仅只在底层工作了，应用层的发展也突飞猛进。
+各种软件架构的出现应接不暇。</p>
+<p>框架最初是为了解决重复而复杂的工作而诞生出来的产物。
+帮助我们不必再写重复的代码，只需要关心业务逻辑。</p>
+<p>框架可以说是为了应用层的软件工程师而设计的。他们往往不会关心更细粒度的工作。他们只追求稳定的应用和企业架构。</p>
+<p>To be continued...</p>
+
+</main>
+
+    <div class="dark-mode-buttons">
+        <button class="dark-mode-button" id="dark-mode-on"><img src="https://sdttttt.github.io/dark_mode.svg" width="24" height="24" alt="Dark mode" aria-label="dark mode toggle" title="Dark mode"></button>
+        <button class="dark-mode-button" id="dark-mode-off"><img src="https://sdttttt.github.io/light_mode.svg" width="24" height="24" alt="Light mode" aria-label="light mode toggle" title="Light mode"></button>
+    </div>
+    <script>
+        const cls = document.body.classList;
+        const getSessionTheme = sessionStorage.getItem("theme");
+        if (getSessionTheme === "dark") {
+            cls.toggle("dark-mode", true);
+        } else if (getSessionTheme === "light") {
+            cls.toggle("dark-mode", false);
+        } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            cls.toggle("dark-mode", true);
+        }
+
+        document.getElementById("dark-mode-on").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", true);
+            sessionStorage.setItem("theme", "dark");
+        });
+        document.getElementById("dark-mode-off").addEventListener("click", function(e) {
+            cls.toggle("dark-mode", false);
+            sessionStorage.setItem("theme", "light");
+        });
+    </script>
+    <noscript>
+        <style>
+            .dark-mode-buttons {
+                display: none;
+            }
+        </style>
+    </noscript>
+</body>
+</html>
