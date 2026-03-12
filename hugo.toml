@@ -26,3 +26,12 @@ theme = "paper"
 category = "categories"
 tag = "tags"
 series = "series"
+
+[params.giscus]
+  repo = 'sdttttt/sdttttt.github.io'
+  repoId = 'R_kgDOIWzItw'
+  category = 'General'
+  categoryId = 'DIC_kwDOIWzIt84CShml'
+  mapping = 'pathname'
+  theme = 'preferred_color_scheme'
+  lang = 'zh-CN'
