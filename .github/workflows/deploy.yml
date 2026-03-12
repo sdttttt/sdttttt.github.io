@@ -1,18 +1,29 @@
-name: Zola on GitHub Pages
+name: Hugo on GitHub Pages
 
-on: 
- push:
-  branches:
-   - master
+on:
+  push:
+    branches:
+      - master
 
 jobs:
-  build:
-    name: Publish site
+  build-deploy:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout main
-      uses: actions/checkout@v3.0.0
-    - name: Build and deploy
-      uses: shalzz/zola-deploy-action@v0.16.1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: Setup Hugo
+        uses: peaceiris/actions-hugo@v2
+        with:
+          hugo-version: 'latest'
+
+      - name: Build
+        run: hugo --minify
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./public
