@@ -1,0 +1,10 @@
+---
+title: "Log 7"
+date: 2020-10-28
+description: ""
+tags: ["Log"]
+author: sdttttt
+draft: false
+---
+
+尝试优化一下文章创建的脚本.
