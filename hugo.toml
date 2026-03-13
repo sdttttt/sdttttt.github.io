@@ -11,7 +11,7 @@ theme = "paper"
 
 [params]
   color = 'linen'
-  twitter = 'sdttttt'
+  twitter = ''
   github = 'sdttttt'
   avatar = ''
   name = 'sdttttt'
