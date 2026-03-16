@@ -48,7 +48,7 @@ git push
 ## 首次克隆
 
 ```bash
-git clone --recursive https://github.com/sdttttt/sdttttt.github.io.git
+git clone --recursive <repo-url>
 # 或已克隆后初始化 submodule
 git submodule update --init --recursive
 ```
@@ -58,6 +58,5 @@ git submodule update --init --recursive
 - 触发条件: 推送到 `master` 分支
 - 构建工具: GitHub Actions
 - 托管平台: GitHub Pages
-- 域名: https://sdttttt.online/
 
 部署状态查看: Actions 页面
