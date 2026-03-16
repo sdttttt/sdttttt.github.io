@@ -6,7 +6,7 @@ author: sdttttt
 draft: false
 ---
 
-****最近在研究TLS协议，了解到了TLS1.2时期使用CBC加密导致的 Padding Oracle 攻击（填充神谕攻击），这篇文章稍微讲一下，也顺便总结一下我的理解。
+最近在研究TLS协议，了解到了TLS1.2时期使用CBC加密导致的 Padding Oracle 攻击（填充神谕攻击），这篇文章稍微讲一下，也顺便总结一下我的理解。
 
 TLS这个协议本身常规的握手就不说了，核心在于他的加密方法CBC.
 
