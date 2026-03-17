@@ -1,7 +1,10 @@
 ---
+author: sdttttt
+date: 2020-04-06
 title: Rails Development
 tags: ["Rails"]
 ---
+author: sdttttt
 
 ### Webpacker
 

@@ -2,6 +2,7 @@
 title: "Database Storage"
 date: 2020-06-02
 author: sdttttt
+tags: []
 draft: false
 ---
 

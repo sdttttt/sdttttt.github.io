@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "File Inclusion"
 date: 2020-04-13
 tags: ["penetration test"]
 draft: true
 ---
+author: sdttttt
 
 DVWA File Inclusion 过关秘籍
 

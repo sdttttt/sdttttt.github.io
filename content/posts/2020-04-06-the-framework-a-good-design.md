@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "The Framework a good design?"
 date: 2020-04-06
 tags: ["Design"]
 draft: false
 ---
+author: sdttttt
 
 我第一次听到框架这个概念已经是在大学的时候了，当时我的老师和我提起。
 一开始我非常不习惯在我不熟悉的上下文中编写程序的感觉。只能用四个字来形容`寸步难行`。
@@ -16,6 +18,7 @@ draft: false
 任何框架以及库都能和Spring完美的结合在一起。Spring的可扩展性是我见过所有框架中最棒的！（它的核心理念就是IOC），不得不赞叹Spring是应用层的完美产物。（Spring无法被其他语言模仿和Java的`万物对象`的理念有很大关系）
 
 ---
+author: sdttttt
 
 曾经的软件工程师没有这样的待遇，他们往往是从头构建起他们的应用。
 这使得成为软件工程师这一职业难以企及。

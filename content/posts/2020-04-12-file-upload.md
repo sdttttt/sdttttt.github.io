@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "File Upload"
 date: 2020-04-12
 tags: ["penetration test"]
 draft: false
 ---
+author: sdttttt
 
 DVWA File upload 过关秘籍.
 

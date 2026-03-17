@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "SQL Injection"
 date: 2020-04-10
 tags: ["penetration test"]
 draft: false
 ---
+author: sdttttt
 
 DVWA SQL Injection 过关秘籍.
 

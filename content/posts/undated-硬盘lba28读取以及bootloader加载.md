@@ -2,6 +2,7 @@
 title: "硬盘LBA28读取以及BootLoader加载"
 date: 
 author: sdttttt
+tags: []
 draft: false
 ---
 

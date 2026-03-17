@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "DS and [address]"
 date: 2020-04-06
 tags: ["assembly"]
 draft: true
 ---
+author: sdttttt
 
 在8086PC 中要读取`内存单元`时，必须先知道它的地址，地址由段地址和偏移地址构成。
 
@@ -26,6 +28,7 @@ BS寄存器数据送入DS寄存器.
 AX从DS寄存器数据为段地址，读取偏移为0的地址的内存单元.
 
 ---
+author: sdttttt
 
 为什么不直接`mov ds, 1000H`呐？
 

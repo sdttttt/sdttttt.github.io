@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "Sql Injection Blind"
 date: 2020-04-10
 tags: ["penetration test"]
 draft: false
 ---
+author: sdttttt
 
 返回的结果集无法看到，只能通过一些页面显示或状态来判断。
 像瞎子一样。

@@ -1,9 +1,11 @@
 ---
+author: sdttttt
 title: "Red Black Tree"
 date: 2020-05-25
 tags: ["Data Structure"]
 draft: false
 ---
+author: sdttttt
 
 半年前在研究`HashMap`的时候已经学习过红黑树的规则原理了.
 不过现在又遇到就忘记是怎么实现的了.(只知道这玩意是用来平衡树的)
