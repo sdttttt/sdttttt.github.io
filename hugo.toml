@@ -28,6 +28,11 @@ theme = "paper"
     name = "About"
     url = "/about/"
     weight = 10
+  [[menu.main]]
+    identifier = "archives"
+    name = "Archives"
+    url = "/archives/"
+    weight = 5
 
 [taxonomies]
 category = "categories"

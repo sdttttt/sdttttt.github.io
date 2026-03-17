@@ -1,0 +1,20 @@
+{{- define "main" -}}
+
+<h1 class="mb-14">{{- .Title -}}</h1>
+
+{{- $pages := where site.RegularPages "Type" "in" (slice "posts") -}}
+{{- $yearGroup := $pages.GroupByDate "2006" -}}
+
+{{- range $yearGroup -}}
+<div class="mb-10">
+  <h2 class="mb-4 text-2xl font-medium opacity-70">{{ .Key }}</h2>
+  {{- range .Pages -}}
+  <section class="relative my-3 flex items-baseline">
+    <time class="w-20 shrink-0 text-xs opacity-60">{{- .Date | time.Format "01-02" -}}</time>
+    <a class="hover:underline" href="{{- .Permalink -}}">{{- .Title -}}</a>
+  </section>
+  {{- end -}}
+</div>
+{{- end -}}
+
+{{- end -}}
