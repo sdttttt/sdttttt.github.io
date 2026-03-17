@@ -2,7 +2,6 @@
 title: "第一个裸机程序"
 date: 
 author: sdttttt
-tags: []
 draft: false
 ---
 

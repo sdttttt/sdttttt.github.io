@@ -1,10 +1,7 @@
 ---
-author: sdttttt
-date: 2020-04-06
 title: Azure Pipelines
 tags: ["CICD"]
 ---
-author: sdttttt
 
 Azure Pipelines是一种云服务，可用于自动构建和测试您的代码项目并将其提供给其他用户。它几乎适用于任何语言或项目类型。
 

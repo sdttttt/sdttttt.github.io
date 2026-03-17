@@ -1,11 +1,9 @@
 ---
-author: sdttttt
 title: "MultiplexingIO"
 date: 2020-04-06
 tags: ['unix']
 draft: false
 ---
-author: sdttttt
 
 其实“I/O多路复用”这个坑爹翻译可能是这个概念在中文里面如此难理解的原因。所谓的I/O多路
 复用在英文中其实叫 I/O multiplexing. 如果你搜索multiplexing啥意思,基本上都会出这个图:
@@ -32,7 +30,6 @@ author: sdttttt
 谁有数据就拨向谁,然后调用相应的代码处理。
 
 ---
-author: sdttttt
 
 了解这个基本的概念以后,其他的就很好解释了。
 
@@ -63,7 +60,6 @@ unspecified.”
 简直就是神一样的存在了,select很长段时间已经满足需求。**
 
 ---
-author: sdttttt
 
 于是5年以后, 在2002, 大神 Davide Libenzi 实现了epoll.
 

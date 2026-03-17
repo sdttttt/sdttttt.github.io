@@ -1,11 +1,9 @@
 ---
-author: sdttttt
 title: "Command Injection"
 date: 2020-04-13
 tags: ["penetration test"]
 draft: true
 ---
-author: sdttttt
 
 ### LOW
 
