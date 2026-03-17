@@ -3,7 +3,8 @@ title: "Kanon"
 date: 2020-06-12
 author: sdttttt
 tags: ["GAL"]
-cover: "https://gitee.com/sdttttt/images/raw/master//EaNWc1iUcAA0hxM.png"
+cover:
+  image: "https://gitee.com/sdttttt/images/raw/master//EaNWc1iUcAA0hxM.png"
 draft: false
 ---
 

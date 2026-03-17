@@ -7,43 +7,60 @@ DefaultContentLanguage = "zh"
 enableInlineShortcodes = true
 ignoreErrors = ["error-remote-getjson"]
 
-theme = "paper"
+theme = "PaperMod"
 
 [params]
-  color = 'linen'
-  twitter = ''
-  github = 'sdttttt'
-  avatar = 'https://sdttttt.online/avatar.jpg'
-  name = 'sdttttt'
-  bio = '普通的魔法师'
+  defaultTheme = "auto"
+  ShowReadingTime = false
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowRssButtonInSectionTermList = true
+  UseHugoToc = true
 
-[markup]
-  [markup.goldmark]
-    [markup.goldmark.renderer]
-      unsafe = true
+  [params.homeInfoParams]
+    Title = "sdttttt"
+    Content = "普通的魔法师"
+
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/sdttttt"
+
+[params.assets]
+  favicon = "/favicon.ico"
+
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
 
 [menu]
-  [[menu.main]]
-    identifier = "about"
-    name = "About"
-    url = "/about/"
-    weight = 10
   [[menu.main]]
     identifier = "archives"
     name = "Archives"
     url = "/archives/"
     weight = 5
+  [[menu.main]]
+    identifier = "search"
+    name = "Search"
+    url = "/search/"
+    weight = 10
+  [[menu.main]]
+    identifier = "tags"
+    name = "Tags"
+    url = "/tags/"
+    weight = 15
+  [[menu.main]]
+    identifier = "about"
+    name = "About"
+    url = "/about/"
+    weight = 20
 
 [taxonomies]
 category = "categories"
 tag = "tags"
 series = "series"
 
-[params.giscus]
-  repo = 'sdttttt/sdttttt.github.io'
-  repoId = 'R_kgDOIWzItw'
-  category = 'General'
-  categoryId = 'DIC_kwDOIWzIt84CShml'
-  mapping = 'pathname'
-  theme = 'preferred_color_scheme'
-  lang = 'zh-CN'
+[markup]
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
