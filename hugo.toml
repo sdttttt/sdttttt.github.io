@@ -6,6 +6,8 @@ languageCode = "zh"
 DefaultContentLanguage = "zh"
 enableInlineShortcodes = true
 ignoreErrors = ["error-remote-getjson"]
+enableRobotsTXT = true
+enableGitInfo = true
 
 theme = "PaperMod"
 
@@ -18,6 +20,8 @@ theme = "PaperMod"
   ShowCodeCopyButtons = true
   ShowRssButtonInSectionTermList = true
   UseHugoToc = true
+  ShowWordCount = true
+  ShowLastMod = true
 
   [params.homeInfoParams]
     Title = "sdttttt"
