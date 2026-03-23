@@ -31,6 +31,7 @@ theme = "PaperMod"
   ShowLastMod = true
   ShowLoadingBar = true
   underlineLinks = true
+  externalLinksInNewTab = true
 
   [params.homeInfoParams]
     Title = "sdttttt"
