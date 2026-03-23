@@ -4,14 +4,20 @@ author = "sdttttt"
 copyright = "© 2026, sdttttt"
 languageCode = "zh"
 DefaultContentLanguage = "zh"
+hasCJKLanguage = true
 enableInlineShortcodes = true
 ignoreErrors = ["error-remote-getjson"]
 enableGitInfo = true
+summaryLength = 100
+rssLimit = 20
 
 theme = "PaperMod"
 
 [params]
+  description = "普通的魔法师"
+  keywords = ["网络日志"]
   defaultTheme = "auto"
+  DateFormat = "2006年01月02日"
   ShowReadingTime = false
   ShowShareButtons = false
   ShowPostNavLinks = true
@@ -35,6 +41,15 @@ theme = "PaperMod"
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
+
+[minify]
+  disableCSS = false
+  disableHTML = false
+  disableJS = false
+  disableJSON = false
+  disableSVG = false
+  disableXML = false
+  minifyOutput = true
 
 [menu]
   [[menu.main]]
