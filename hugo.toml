@@ -29,6 +29,8 @@ theme = "PaperMod"
   UseHugoToc = true
   ShowWordCount = true
   ShowLastMod = true
+  ShowLoadingBar = true
+  underlineLinks = true
 
   [params.homeInfoParams]
     Title = "sdttttt"
