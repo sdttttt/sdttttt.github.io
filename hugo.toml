@@ -88,7 +88,14 @@ series = "series"
     [markup.goldmark.renderer]
       unsafe = true
   [markup.highlight]
-    style = "github"
-    lineNos = false
+    anchorLineNos = false
     codeFences = true
     guessSyntax = true
+    hl_Lines = ""
+    lineAnchors = ""
+    lineNoStart = 1
+    lineNos = false
+    lineNumbersInTable = false
+    noClasses = true
+    style = "dracula"
+    tabWidth = 4
