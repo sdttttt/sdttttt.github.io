@@ -1,72 +1,75 @@
-/* GitHub 风格代码高亮 - 覆盖 PaperMod 默认 */
+/* Tokyo Night 代码高亮 */
 
-/* Background */
-.chroma { color: #1f2328 !important; background-color: #f6f8fa !important; }
+.chroma { color: #a9b1d6 !important; background-color: #1a1b26 !important; }
 
 /* Error */
-.chroma .err { color: #f6f8fa !important; background-color: #82071e !important; }
+.chroma .err { color: #f7768e !important; }
 
 /* Keyword */
-.chroma .k { color: #cf222e !important; }
-.chroma .kc { color: #0550ae !important; }
-.chroma .kd { color: #cf222e !important; }
-.chroma .kn { color: #cf222e !important; }
-.chroma .kp { color: #cf222e !important; }
-.chroma .kr { color: #cf222e !important; }
-.chroma .kt { color: #cf222e !important; }
+.chroma .k { color: #bb9af7 !important; }
+.chroma .kc { color: #ff9e64 !important; }
+.chroma .kd { color: #bb9af7 !important; }
+.chroma .kn { color: #bb9af7 !important; }
+.chroma .kp { color: #bb9af7 !important; }
+.chroma .kr { color: #bb9af7 !important; }
+.chroma .kt { color: #2ac3de !important; }
 
 /* Name */
-.chroma .na { color: #1f2328 !important; }
-.chroma .nb { color: #0550ae !important; }
-.chroma .nc { color: #953800 !important; }
-.chroma .nf { color: #8250df !important; }
-.chroma .nt { color: #116329 !important; }
+.chroma .na { color: #c0caf5 !important; }
+.chroma .nb { color: #2ac3de !important; }
+.chroma .nc { color: #ff9e64 !important; }
+.chroma .nf { color: #7aa2f7 !important; }
+.chroma .nt { color: #2ac3de !important; }
+.chroma .nv { color: #c0caf5 !important; }
 
 /* Literal */
-.chroma .l { color: #0550ae !important; }
-.chroma .ld { color: #0a3069 !important; }
-.chroma .s { color: #0a3069 !important; }
-.chroma .sa { color: #0a3069 !important; }
-.chroma .sb { color: #0a3069 !important; }
-.chroma .sc { color: #0a3069 !important; }
-.chroma .sd { color: #0a3069 !important; }
-.chroma .se { color: #0a3069 !important; }
-.chroma .sh { color: #0a3069 !important; }
-.chroma .si { color: #0a3069 !important; }
-.chroma .sr { color: #0a3069 !important; }
-.chroma .ss { color: #0a3069 !important; }
-.chroma .sx { color: #0a3069 !important; }
-.chroma .s1 { color: #0a3069 !important; }
-.chroma .s2 { color: #0a3069 !important; }
+.chroma .l { color: #ff9e64 !important; }
+.chroma .ld { color: #9ece6a !important; }
+.chroma .s { color: #9ece6a !important; }
+.chroma .sa { color: #9ece6a !important; }
+.chroma .sb { color: #9ece6a !important; }
+.chroma .sc { color: #9ece6a !important; }
+.chroma .sd { color: #9ece6a !important; }
+.chroma .se { color: #ff9e64 !important; }
+.chroma .sh { color: #9ece6a !important; }
+.chroma .si { color: #9ece6a !important; }
+.chroma .sr { color: #b4f9f8 !important; }
+.chroma .ss { color: #9ece6a !important; }
+.chroma .sx { color: #9ece6a !important; }
+.chroma .s1 { color: #9ece6a !important; }
+.chroma .s2 { color: #9ece6a !important; }
 
 /* Number */
-.chroma .m { color: #0550ae !important; }
-.chroma .mb { color: #0550ae !important; }
-.chroma .mf { color: #0550ae !important; }
-.chroma .mh { color: #0550ae !important; }
-.chroma .mi { color: #0550ae !important; }
-.chroma .mo { color: #0550ae !important; }
-.chroma .il { color: #0550ae !important; }
+.chroma .m { color: #ff9e64 !important; }
+.chroma .mb { color: #ff9e64 !important; }
+.chroma .mf { color: #ff9e64 !important; }
+.chroma .mh { color: #ff9e64 !important; }
+.chroma .mi { color: #ff9e64 !important; }
+.chroma .mo { color: #ff9e64 !important; }
+.chroma .il { color: #ff9e64 !important; }
 
 /* Comment */
-.chroma .c { color: #656d76 !important; }
-.chroma .c1 { color: #656d76 !important; }
-.chroma .ch { color: #656d76 !important; }
-.chroma .cm { color: #656d76 !important; }
-.chroma .cp { color: #cf222e !important; }
-.chroma .cpf { color: #656d76 !important; }
-.chroma .cs { color: #cf222e !important; }
+.chroma .c { color: #565f89 !important; font-style: italic !important; }
+.chroma .c1 { color: #565f89 !important; font-style: italic !important; }
+.chroma .ch { color: #565f89 !important; font-style: italic !important; }
+.chroma .cm { color: #565f89 !important; font-style: italic !important; }
+.chroma .cp { color: #bb9af7 !important; }
+.chroma .cpf { color: #565f89 !important; font-style: italic !important; }
+.chroma .cs { color: #bb9af7 !important; font-style: italic !important; }
 
 /* Operator */
-.chroma .o { color: #cf222e !important; }
-.chroma .ow { color: #cf222e !important; }
+.chroma .o { color: #89ddff !important; }
+.chroma .ow { color: #bb9af7 !important; }
 
 /* Punctuation */
-.chroma .p { color: #1f2328 !important; }
+.chroma .p { color: #a9b1d6 !important; }
 
 /* Line numbers */
-.chroma .ln { color: #656d76 !important; }
-.chroma .lnt { color: #656d76 !important; }
+.chroma .ln { color: #565f89 !important; }
+.chroma .lnt { color: #565f89 !important; }
 
 /* Highlight */
-.chroma .hl { background-color: #ddf4ff !important; }
+.chroma .hl { background-color: #283457 !important; }
+
+/* PreWrapper extra */
+.chroma { border-radius: 8px !important; padding: 1em !important; }
