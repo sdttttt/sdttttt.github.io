@@ -1,0 +1,35 @@
+name: Format Markdown
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '**.md'
+  workflow_dispatch:
+
+jobs:
+  format:
+    runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Prettier
+        run: npm install -g prettier
+
+      - name: Format Markdown files
+        run: prettier --write "**/*.md"
+
+      - name: Commit and push changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git diff --quiet && git diff --staged --quiet || git commit -m "style: auto-format markdown"
+          git push
