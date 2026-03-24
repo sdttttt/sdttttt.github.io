@@ -58,6 +58,11 @@ theme = "PaperMod"
 
 [menu]
   [[menu.main]]
+    identifier = "source"
+    name = "Source"
+    url = "https://github.com/sdttttt/sdttttt.github.io"
+    weight = 3
+  [[menu.main]]
     identifier = "archives"
     name = "Archives"
     url = "/archives/"
