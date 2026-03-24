@@ -1,6 +1,6 @@
 ---
 title: Rails Development
-tags: ["Rails"]
+tags: ["开发"]
 ---
 
 ### Webpacker

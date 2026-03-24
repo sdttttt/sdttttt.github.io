@@ -2,7 +2,7 @@
 title: "Impl and Dyn on Rust"
 date: 2020-11-12
 description: "这篇文章会讲解关于Rust中impl和dyn这两个关键词的作用. 帮助你更好的编写Rust程序."
-tags: ["Rust"]
+tags: ["开发"]
 author: sdttttt
 draft: false
 ---

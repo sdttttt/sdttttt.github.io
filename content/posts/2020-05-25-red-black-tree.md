@@ -1,7 +1,7 @@
 ---
 title: "Red Black Tree"
 date: 2020-05-25
-tags: ["Data Structure"]
+tags: ["学习"]
 draft: false
 ---
 

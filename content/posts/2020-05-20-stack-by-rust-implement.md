@@ -1,7 +1,7 @@
 ---
 title: "Stack by Rust implement"
 date: 2020-05-20
-tags: ["Rust", "Data Structure"]
+tags: ["开发", "学习"]
 draft: false
 ---
 

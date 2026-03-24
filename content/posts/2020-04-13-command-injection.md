@@ -1,7 +1,7 @@
 ---
 title: "Command Injection"
 date: 2020-04-13
-tags: ["penetration test"]
+tags: ["安全"]
 draft: true
 ---
 

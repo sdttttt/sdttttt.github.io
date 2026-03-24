@@ -2,7 +2,7 @@
 title: "About Rust"
 date: 2021-04-09
 description: ""
-tags: ["Log"]
+tags: ["日志"]
 author: sdttttt
 draft: false
 ---

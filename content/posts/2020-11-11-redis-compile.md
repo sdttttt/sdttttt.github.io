@@ -2,7 +2,7 @@
 title: "Redis Compile"
 date: 2020-11-11
 description: ""
-tags: ["Log"]
+tags: ["日志"]
 author: sdttttt
 draft: false
 ---

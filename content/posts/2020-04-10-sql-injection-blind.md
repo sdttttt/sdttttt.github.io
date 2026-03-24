@@ -1,7 +1,7 @@
 ---
 title: "Sql Injection Blind"
 date: 2020-04-10
-tags: ["penetration test"]
+tags: ["安全"]
 draft: false
 ---
 

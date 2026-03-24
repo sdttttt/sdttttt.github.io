@@ -1,7 +1,7 @@
 ---
 title: "GoSyncPool"
 date: 2020-09-03
-tags: ["Golang"]
+tags: ["开发"]
 description: "sync.pool 一个Go底层的内存复用池."
 author: sdttttt
 draft: false

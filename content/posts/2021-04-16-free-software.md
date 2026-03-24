@@ -2,7 +2,7 @@
 title: "Free Software"
 date: 2021-04-16
 description: ""
-tags: ["Log"]
+tags: ["日志"]
 author: sdttttt
 draft: false
 ---
