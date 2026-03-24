@@ -1,13 +1,20 @@
-# Hugo Blog
+# Last Regrets
 
-基于 [Hugo](https://gohugo.io/) 的静态博客，使用 [Paper](https://github.com/nanxiaobei/hugo-paper) 主题。
+基于 [Hugo](https://gohugo.io/) 的个人博客，使用 [PaperMod](https://github.com/adityatelange/hugo-PaperMod) 主题。
+
+站点地址: https://sdttttt.online/
 
 ## 仓库结构
 
 ```
 ├── content/          # 文章内容 (Markdown)
-├── static/           # 静态资源 (图片等)
-├── themes/paper/     # 主题 (git submodule)
+│   ├── posts/        # 博客文章
+│   ├── about.md      # 关于页面
+│   ├── archives.md   # 归档页面
+│   └── search.md     # 搜索页面
+├── static/           # 静态资源
+├── themes/PaperMod/  # 主题 (git submodule)
+├── layouts/          # 自定义布局模板
 ├── hugo.toml         # Hugo 配置
 └── .github/workflows/ # CI/CD 配置
 ```
@@ -28,35 +35,28 @@ hugo server -D
 
 1. 在 `content/posts/` 创建 `.md` 文件
 2. 本地预览: `hugo server -D`
-3. 推送到 GitHub:
-   ```bash
-   git add .
-   git commit -m "Add new post"
-   git push
-   ```
-4. GitHub Actions 自动构建并部署
+3. 推送到 GitHub，自动部署
+
+## CI/CD
+
+| 工作流 | 触发条件 | 说明 |
+|--------|----------|------|
+| `deploy.yml` | push 到 master | 构建并部署到 GitHub Pages |
+| `format-markdown.yml` | push `.md` 文件 | 自动格式化 Markdown |
 
 ## 更新主题
 
 ```bash
-git submodule update --remote themes/paper
-git add themes/paper
-git commit -m "Update paper theme"
+git submodule update --remote themes/PaperMod
+git add themes/PaperMod
+git commit -m "Update PaperMod theme"
 git push
 ```
 
 ## 首次克隆
 
 ```bash
-git clone --recursive <repo-url>
+git clone --recursive https://github.com/sdttttt/sdttttt.github.io.git
 # 或已克隆后初始化 submodule
 git submodule update --init --recursive
 ```
-
-## 部署
-
-- 触发条件: 推送到 `master` 分支
-- 构建工具: GitHub Actions
-- 托管平台: GitHub Pages
-
-部署状态查看: Actions 页面
