@@ -19,23 +19,10 @@
 └── .github/workflows/ # CI/CD 配置
 ```
 
-## 本地开发
-
-```bash
-# 安装 Hugo (macOS)
-brew install hugo
-
-# 启动开发服务器
-hugo server -D
-
-# 访问 http://localhost:1313
-```
-
 ## 发布文章
 
 1. 在 `content/posts/` 创建 `.md` 文件
-2. 本地预览: `hugo server -D`
-3. 推送到 GitHub，自动部署
+2. 推送到 GitHub，自动部署
 
 ## CI/CD
 
