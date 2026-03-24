@@ -1,6 +1,6 @@
 ---
 title: "尝试写一个strlen"
-date: 
+date:
 author: sdttttt
 draft: false
 ---
@@ -31,7 +31,7 @@ strlen2:
 next:
 	cmp byte [rax], 0
 	je down
-	inc rax	
+	inc rax
 	jmp next
 down:
 	sub rax, rdi

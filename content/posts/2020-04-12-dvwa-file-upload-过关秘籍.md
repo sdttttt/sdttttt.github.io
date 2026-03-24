@@ -28,7 +28,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 }
 ```
 
-### 
+###
 
 ### Medium
 
@@ -78,7 +78,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 }
 ```
 
-### 
+###
 
 ### High
 
@@ -127,7 +127,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 }
 ```
 
-### 
+###
 
 ### High
 
@@ -172,7 +172,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 }
 ```
 
-### 
+###
 
 ### Impossible
 
@@ -238,7 +238,7 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 generateSessionToken();
 ```
 
-### 
+###
 
 ### Extension
 
@@ -275,4 +275,3 @@ if(isset($_POST['submit'])){
 如下上传，显示文件路径中有个空格，这并不是真正意义上的空格，而是%00截断后显示成的空格。
 
 > 在url中%00表示ascll码中的0 ，而ascii中0作为特殊字符保留，表示字符串结束，所以当url中出现%00时就会认为读取已结束 (php版本要小于5.3.4，5.3.4及以上已经修复该问题)
->

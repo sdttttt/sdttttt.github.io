@@ -1,6 +1,6 @@
 ---
 title: "第一个裸机程序"
-date: 
+date:
 author: sdttttt
 draft: false
 ---
@@ -18,11 +18,11 @@ romimage: file=/home/admin123/Desktop/bochs/share/bochs/BIOS-bochs-latest
 vgaromimage: file=/home/admin123/Desktop/bochs/share/bochs/VGABIOS-lgpl-latest
 
 # 软盘，不用
-# floppya: 1_44=a.img, status=inserted 
+# floppya: 1_44=a.img, status=inserted
 
 # 使用硬盘
-# boot: floppy 
-boot: disk 
+# boot: floppy
+boot: disk
 
 # 日志文件的输出。
 log: bochs.out

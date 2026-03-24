@@ -34,7 +34,7 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 }
 ```
 
-### 
+###
 
 ### Medium
 
@@ -73,7 +73,7 @@ if( isset( $_POST[ 'Submit' ]  ) ) {
 }
 ```
 
-# 
+#
 
 # High
 

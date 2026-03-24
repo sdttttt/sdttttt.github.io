@@ -28,7 +28,7 @@ zone_vpn_input  all  --  anywhere             anywhere             /* !fw3 */
 zone_docker_input  all  --  anywhere             anywhere             /* !fw3 */
 ```
 
-这里我们只看第一条目标是`openclash_wan_input` 的规则简单的解释一下, 所有自外部网络的所有流量（all）转发到 OpenClash 进行处理，但不包括来自本地网络的流量（localnetwork）, 
+这里我们只看第一条目标是`openclash_wan_input` 的规则简单的解释一下, 所有自外部网络的所有流量（all）转发到 OpenClash 进行处理，但不包括来自本地网络的流量（localnetwork）,
 
 ```
 Chain openclash_wan_input (1 references)
@@ -113,10 +113,8 @@ REDIRECT   tcp  --  anywhere             anywhere             ! owner UID match 
 以上就是Openclash对直连情况下的流量做的处理, 还有一种就是流量会经过TUN的时候.
 
 > TUN 作为网络层设备, 它可以用来处理 TCP、UDP、ICMP 流量. 它已经在生产环境中进行了广泛的测试和使用 - 您甚至可以用它来玩竞技游戏.
-> 
-> 
+>
 > 使用 Clash TUN 的最大优势之一是内置支持对操作系统路由表、路由规则和 nftable 的自动管理.
-> 
 
 我使用的方案是混合模式, TCP流量走直连, UDP流量走TUN.
 

@@ -13,14 +13,13 @@ Azure Pipelines 支持非常多的语言。
 
 如果使用公共项目，则Azure Pipelines是免费的。如果您使用私人项目，则每月可以免费运行多达1800分钟（30小时）的管道作业。了解有关基于并行作业定价的更多信息。
 
-是不是非常的棒呢 o(*////▽////*)q
+是不是非常的棒呢 o(_////▽////_)q
 
 **请遵循以下基本步骤：**
 
 - 配置Azure Pipelines以使用您的Git存储库。
 - 编辑azure-pipelines.yml文件以定义构建。
 - 将您的代码推送到版本控制存储库。此操作将启动默认触发器以构建和部署，然后监视结果。
-
 
 ## Ruby
 
@@ -45,23 +44,23 @@ trigger:
       - appveyor.yml
 
 pool:
-  vmImage: 'ubuntu-18.04'
+  vmImage: "ubuntu-18.04"
 
 steps:
-- task: UseRubyVersion@0
-  inputs:
-  # 天杀的，微软提供的Ubuntu 镜像已经不支持 Ruby2.6.3
-    versionSpec: '>= 2.6.3'
+  - task: UseRubyVersion@0
+    inputs:
+      # 天杀的，微软提供的Ubuntu 镜像已经不支持 Ruby2.6.3
+      versionSpec: ">= 2.6.3"
 
-# Rails 内置数据库 SQLite3 需要依赖以下工具
-- script: sudo apt-get -yqq install libsqlite3-dev libpq-dev
-  displayName: install sqlite3
+  # Rails 内置数据库 SQLite3 需要依赖以下工具
+  - script: sudo apt-get -yqq install libsqlite3-dev libpq-dev
+    displayName: install sqlite3
 
-- script: |
-    gem install bundler
-    bundle install --retry=3 --jobs=4
-  displayName: 'bundle install'
+  - script: |
+      gem install bundler
+      bundle install --retry=3 --jobs=4
+    displayName: "bundle install"
 
-- script: bundle exec rake
-  displayName: 'bundle exec rake'
+  - script: bundle exec rake
+    displayName: "bundle exec rake"
 ```

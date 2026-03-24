@@ -1,6 +1,6 @@
 ---
 title: "记录一次软路由故障"
-date: 
+date:
 author: sdttttt
 draft: false
 ---

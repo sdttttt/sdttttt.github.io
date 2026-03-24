@@ -1,6 +1,6 @@
 ---
 title: "ImmortalWrt的编译踩坑"
-date: 
+date:
 author: sdttttt
 draft: false
 ---
@@ -15,7 +15,7 @@ draft: false
 
 - ERROR: package/kernel/bpf-headers failed to build.
 
-这个问题最后抛出的关键信息是 /workdir/openwrt/include/bpf.mk:71: *** ERROR: LLVM/clang version too old. Minimum required: 12, found: . Stop.
+这个问题最后抛出的关键信息是 /workdir/openwrt/include/bpf.mk:71: \*\*\* ERROR: LLVM/clang version too old. Minimum required: 12, found: . Stop.
 
 只要安装LLVM/clang 12以上的版本就可以。
 

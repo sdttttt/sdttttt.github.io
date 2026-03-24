@@ -24,6 +24,7 @@ draft: false
 插入的节点默认是红色的.因为这样可以最大限度满足红黑树的5个性质.
 
 请试想一下.如果插入的节点是红色:
+
 - 性质1可以满足.
 - 性质2可以满足.
 - 性质3可以满足(插入红色节点后自动衍生出2个黑色的NIL节点).
@@ -45,18 +46,15 @@ draft: false
 - 第二种: node的父节点为黑色。这种情况不需要做修改.
 
 - 第三种: node的父节点为红色 (根据性质3，N的祖父节点必为黑色). 这种情况和变换规则都比较多.下面细说...
+  - node的叔父节点为红色。这种情况，将N的父节点和叔父节点的颜色都改为黑色，若祖父节点是跟节点就将其改为黑色，否则将其颜色改为红色，并以祖父节点为插入的目标节点开始重新递归修复红黑树.
 
-    - node的叔父节点为红色。这种情况，将N的父节点和叔父节点的颜色都改为黑色，若祖父节点是跟节点就将其改为黑色，否则将其颜色改为红色，并以祖父节点为插入的目标节点开始重新递归修复红黑树.
-        
-    ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_3.png)
+  ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_3.png)
+  - node的叔父节点为黑色，且node和node的父节点在同一边 (即父节点为祖父的左儿子时，N也是父节点的左儿子。父节点为祖父节点的右儿子时。N也是父节点的右儿子)。以父节点为祖父节的左儿子为例，将父节点改为黑色，祖父节点改为红色，然后以祖父节点为基准右旋。(N为父节点右儿子时做相应的左旋)
 
-    - node的叔父节点为黑色，且node和node的父节点在同一边 (即父节点为祖父的左儿子时，N也是父节点的左儿子。父节点为祖父节点的右儿子时。N也是父节点的右儿子)。以父节点为祖父节的左儿子为例，将父节点改为黑色，祖父节点改为红色，然后以祖父节点为基准右旋。(N为父节点右儿子时做相应的左旋)
+  ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_5.png)
+  - node的叔父节点为黑色，且node和node的父节点不在同一边 (即父节点为祖父的左儿子时，N是父节点的右儿子。父节点为祖父节点的右儿子时。N也是父节点左右儿子)。以父节点为祖父节点的左儿子为例。以父节点为基准，进行左旋，然后以父节点为目标插入节点进入情况3的b情况进行操作。
 
-    ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_5.png)
-
-    - node的叔父节点为黑色，且node和node的父节点不在同一边 (即父节点为祖父的左儿子时，N是父节点的右儿子。父节点为祖父节点的右儿子时。N也是父节点左右儿子)。以父节点为祖父节点的左儿子为例。以父节点为基准，进行左旋，然后以父节点为目标插入节点进入情况3的b情况进行操作。
-
-    ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_4.png)
+  ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_4.png)
 
 ### Delete
 

@@ -29,7 +29,7 @@ $ sudo vim /etc/exports
 #
 
 /home/t1 *(rw,async,no_subtree_check,no_root_squash,fsid=0)
-<分享的目录> <*代表都能访问，也可以写网段限制> <(一些功能和权限)>  
+<分享的目录> <*代表都能访问，也可以写网段限制> <(一些功能和权限)>
 
 $ service nfs-server start
 ```

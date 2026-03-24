@@ -159,7 +159,6 @@ if( isset( $_GET[ 'Submit' ] ) ) {
 generateSessionToken();
 ```
 
-
 ## Extension
 
 **二次注入:**
@@ -172,7 +171,7 @@ generateSessionToken();
 
 更新SQL:
 
-> update from users 
+> update from users
 > set password = '$password' 
 > where 
 > username = '$username' and password '$password'

@@ -1,6 +1,6 @@
 ---
 title: "重装软路由"
-date: 
+date:
 author: sdttttt
 draft: false
 ---
@@ -27,7 +27,7 @@ kmod-sched-core kmod-sched-bpf kmod-xdp-sockets-diag
 
 ![Untitled](Untitled%202.png)
 
-这是immortalwrt 23.05.1 Orangepi R1 Plus LTS 的测试，在油管上看播放4k，播放的时候经常卡住… 
+这是immortalwrt 23.05.1 Orangepi R1 Plus LTS 的测试，在油管上看播放4k，播放的时候经常卡住…
 
 ![Untitled](Untitled%203.png)
 

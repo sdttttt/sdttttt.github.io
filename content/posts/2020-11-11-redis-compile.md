@@ -7,7 +7,7 @@ author: sdttttt
 draft: false
 ---
 
-也不知道我发了什么疯, 在windows上编译了一遍redis. 事实上我找到的windows上最新的redis版本是3. 
+也不知道我发了什么疯, 在windows上编译了一遍redis. 事实上我找到的windows上最新的redis版本是3.
 
 这个版本以及相当老了. 目前最新的redis是在6. 我不想功能相差过大,就重新在windows上编译了一次.
 

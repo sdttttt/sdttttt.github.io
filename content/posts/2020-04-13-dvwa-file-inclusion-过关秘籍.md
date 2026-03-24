@@ -8,7 +8,7 @@ draft: false
 
 是一种`SSRF`漏洞
 
-### 
+###
 
 ### Low
 
@@ -19,7 +19,7 @@ draft: false
 $file = $_GET[ 'page' ];
 ```
 
-### 
+###
 
 ### Medium
 
@@ -39,7 +39,7 @@ $file = str_replace( array( "http://", "https://" ), "", $file );
 $file = str_replace( array( "../", "..\"" ), "", $file );
 ```
 
-### 
+###
 
 ### High
 
@@ -66,7 +66,7 @@ if( !fnmatch( "file*", $file ) && $file != "include.php" ) {
 }
 ```
 
-### 
+###
 
 ### Impossible
 

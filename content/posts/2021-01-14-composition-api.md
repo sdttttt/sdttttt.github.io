@@ -5,7 +5,7 @@ author: sdttttt
 draft: false
 ---
 
-最近一直在写 Vue, 在公司的项目里使用的是`Composition Api` + Vue2 的组合. *(因为公司里考虑到同事的技能树, 没有用vue3和Typescipt)*.
+最近一直在写 Vue, 在公司的项目里使用的是`Composition Api` + Vue2 的组合. _(因为公司里考虑到同事的技能树, 没有用vue3和Typescipt)_.
 
 CA 是 Vue3 追加的全新 API. 用到 Vue2 里可能有点怪怪的.
 
@@ -79,7 +79,7 @@ function useCount(count: number) {
 
 开发项目的时候还踩了很多坑, 不过都是一些智商问题... 比如JS的对象传递传递的是`Reference`, 基本类型是`Clone`. 因为这个原因有几个视图之间的数据没法实时同步, 害我浪费了一个下午.
 
-### 
+###
 
 ### 关于 watchEffect
 
@@ -92,8 +92,8 @@ function useCount(count: number) {
 举个例子:
 
 ```jsx
-const count = ref(0)
-watchEffect(() => console.log(count))
+const count = ref(0);
+watchEffect(() => console.log(count));
 
 // 当count数据发送变化的时候会执行watchEffect内的回调函数
 ```

@@ -51,10 +51,10 @@ if( isset( $_POST[ 'Upload' ] ) ) {
     //         [tmp_name] => /tmp/php/php1h4j1o (could be anywhere on your system, depending on your config        settings, but the user has no control, so this isn't tainted)
     //         [error] => UPLOAD_ERR_OK  (= 0)
     //         [size] => 123   (the size in bytes)
-    
+
     // 其中对name和type的description的描述都是 `treat as tainted`(被污染的)
     // 这意味着它有可能会被修改 unsafe
-    
+
     // 我们可以尝试上传一个PHP文件，使用一些拦截请求工具，修改即将发出的请求.
     // 来达到修改`name`中的后缀名和`type`中的媒体类型.
     if( ( $uploaded_type == "image/jpeg" || $uploaded_type == "image/png" ) &&
@@ -77,7 +77,6 @@ if( isset( $_POST[ 'Upload' ] ) ) {
 }
 ```
 
-
 ### High
 
 ```PHP
@@ -90,10 +89,10 @@ if( isset( $_POST[ 'Upload' ] ) ) {
     $uploaded_name = $_FILES[ 'uploaded' ][ 'name' ];
         // jpg
     $uploaded_ext  = substr( $uploaded_name, strrpos( $uploaded_name, '.' ) + 1);
-    
+
     // file size
     $uploaded_size = $_FILES[ 'uploaded' ][ 'size' ];
-    
+
     // tmp_name 是临时副本的名字
     $uploaded_tmp  = $_FILES[ 'uploaded' ][ 'tmp_name' ];
 
@@ -144,8 +143,8 @@ if( isset( $_POST[ 'Upload' ] ) ) {
     if( ( strtolower( $uploaded_ext ) == "jpg" || strtolower( $uploaded_ext ) == "jpeg" || strtolower( $uploaded_ext ) == "png" ) &&
         ( $uploaded_size < 100000 ) &&
 
-        
-       
+
+
         // 函数会通过读取文件头，返回图片的长、宽等信息，如果没有相关的图片文件头，函数会报错
         getimagesize( $uploaded_tmp ) ) {
 

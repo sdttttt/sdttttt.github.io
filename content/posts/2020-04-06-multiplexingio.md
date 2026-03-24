@@ -1,7 +1,7 @@
 ---
 title: "MultiplexingIO"
 date: 2020-04-06
-tags: ['unix']
+tags: ["unix"]
 draft: false
 ---
 
@@ -11,8 +11,7 @@ draft: false
 ![](/multiplexIO/1.png)
 
 于是大部分人都直接联想到"一根网线,多个sock复用" 这个概念,包括上面的几个回答, 其实不
-管你用多进程还是I/O多路复用, 网线都只有一根好伐。**多个Sock复用一根网线这个功能是在内核
-+驱动层实现的.**
+管你用多进程还是I/O多路复用, 网线都只有一根好伐。**多个Sock复用一根网线这个功能是在内核 +驱动层实现的.**
 
 **重要的事情再说一遍: I/O multiplexing 这里面的 multiplexing 指的其实是在单个线程通过记
 录跟踪每一个Sock(I/O流)的状态(对应空管塔里面的Fight progress strip槽)来同时管理多个I/O
@@ -42,19 +41,19 @@ select 被实现以后,很快就暴露出了很多问题。
 
 - select 会修改传入的参数数组,这个对于一个需要调用很多次的函数,是非常不友好的。
 - select 如果任何一个sock(I/O stream)出现了数据,select 仅仅会返回,但是并不会告诉你是那
-个sock上有数据,于是你只能自己一个一个的找,10几个sock可能还好,要是几万的sock每次
+  个sock上有数据,于是你只能自己一个一个的找,10几个sock可能还好,要是几万的sock每次
 - select 不是线程安全的,如果你把一个sock加入到select, 然后突然另外一个线程发现,尼玛,这
-个sock不用,要收回。对不起,这个select 不支持的,如果你丧心病狂的竟然关掉这个sock,
-select的标准行为是。。呃。。不可预测的, 这个可是写在文档中的哦.
+  个sock不用,要收回。对不起,这个select 不支持的,如果你丧心病狂的竟然关掉这个sock,
+  select的标准行为是。。呃。。不可预测的, 这个可是写在文档中的哦.
 
 > “If a file descriptor being monitored by select() is closed in another thread, the result is
-unspecified.”
+> unspecified.”
 
 于是14年以后(1997年)一帮人又实现了poll, poll 修复了select的很多问题,比如:
 
 - poll 去掉了1024个链接的限制,于是要多少链接呢, 主人你开心就好。
 - poll 从设计上来说,不再修改传入数组,不过这个要看你的平台了,所以行走江湖,还是小心为
-妙.
+  妙.
 
 **其实拖14年那么久也不是效率问题, 而是那个时代的硬件实在太弱,一台服务器处理1千多个链接
 简直就是神一样的存在了,select很长段时间已经满足需求。**
