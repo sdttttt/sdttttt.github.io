@@ -4,17 +4,18 @@
 
 ## Git 提交身份
 
-进行 Git 提交时，必须使用以下身份：
+每次提交消息尾部必须附带上：
 
 ```
-git config user.name "claude"
-git config user.email "noreply@anthropic.com"
+Co-authored-by: Claude <noreply@anthropic.com>
 ```
 
-或者在提交时指定：
+示例：
 
 ```
-git commit --author="claude <noreply@anthropic.com>"
+git commit -m "feat: add new feature
+
+Co-authored-by: Claude <noreply@anthropic.com>"
 ```
 
 ## 操作风险
