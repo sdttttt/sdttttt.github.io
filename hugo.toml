@@ -42,7 +42,7 @@ theme = "PaperMod"
     url = "https://github.com/sdttttt"
 
 [params.assets]
-  favicon = "/favicon.ico"
+  favicon = "/favicon.svg"
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
