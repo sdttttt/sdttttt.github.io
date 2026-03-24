@@ -39,10 +39,10 @@ hugo server -D
 
 ## CI/CD
 
-| 工作流 | 触发条件 | 说明 |
-|--------|----------|------|
-| `deploy.yml` | push 到 master | 构建并部署到 GitHub Pages |
-| `format-markdown.yml` | push `.md` 文件 | 自动格式化 Markdown |
+| 工作流                | 触发条件        | 说明                      |
+| --------------------- | --------------- | ------------------------- |
+| `deploy.yml`          | push 到 master  | 构建并部署到 GitHub Pages |
+| `format-markdown.yml` | push `.md` 文件 | 自动格式化 Markdown       |
 
 ## 更新主题
 
