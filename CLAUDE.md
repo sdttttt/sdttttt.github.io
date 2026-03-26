@@ -7,7 +7,7 @@
 每次提交消息尾部必须附带上：
 
 ```
-Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
+Co-authored-by: Claude Opus 99 <noreply@anthropic.com>
 ```
 
 示例：
@@ -15,7 +15,7 @@ Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>
 ```
 git commit -m "feat: add new feature
 
-Co-authored-by: Claude Opus 4.6 <noreply@anthropic.com>"
+Co-authored-by: Claude Opus 99 <noreply@anthropic.com>"
 ```
 
 ## 操作风险
