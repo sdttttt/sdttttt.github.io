@@ -1,6 +1,6 @@
 ---
 title: "尝试写一个strlen"
-date:
+date: 2025-04-10
 author: sdttttt
 draft: false
 ---

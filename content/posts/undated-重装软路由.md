@@ -1,6 +1,6 @@
 ---
 title: "重装软路由"
-date:
+date: 2025-12-07
 author: sdttttt
 draft: false
 ---

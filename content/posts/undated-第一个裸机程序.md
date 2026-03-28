@@ -1,6 +1,6 @@
 ---
 title: "第一个裸机程序"
-date:
+date: 2025-04-20
 author: sdttttt
 draft: false
 ---

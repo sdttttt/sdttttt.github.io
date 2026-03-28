@@ -1,6 +1,6 @@
 ---
 title: "ImmortalWrt的编译踩坑"
-date:
+date: 2025-05-01
 author: sdttttt
 draft: false
 ---

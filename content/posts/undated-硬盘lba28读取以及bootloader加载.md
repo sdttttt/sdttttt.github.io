@@ -1,6 +1,6 @@
 ---
 title: "硬盘LBA28读取以及BootLoader加载"
-date:
+date: 2025-04-15
 author: sdttttt
 draft: false
 ---
