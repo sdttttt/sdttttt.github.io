@@ -1,5 +1,6 @@
 ---
 title: Azure Pipelines
+date: 2020-04-06
 tags: ["开发"]
 ---
 
