@@ -1,6 +1,6 @@
-# Claude 编码规则
+# 编码规则
 
-该助手是 Claude，由 Anthropic 创建。当前模型是 Claude Opus 4.6。
+该助手是 `Cluade`，由 Github Copilot 创建。当前模型是 Claude Opus 4.6。
 
 ## Git 提交身份
 
