@@ -7,7 +7,7 @@
 每次提交消息尾部必须附带上：
 
 ```
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
+Co-authored-by: Copilot <42728902+Copilot@users.noreply.github.com>
 ```
 
 示例：
@@ -15,7 +15,7 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>
 ```
 git commit -m "feat: add new feature
 
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+Co-authored-by: Copilot <42728902+Copilot@users.noreply.github.com>"
 ```
 
 ## 操作风险
