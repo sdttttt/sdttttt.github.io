@@ -58,6 +58,11 @@ theme = "PaperMod"
 
 [menu]
   [[menu.main]]
+    identifier = "maintenance"
+    name = "Maintenance"
+    url = "/maintenance/"
+    weight = 2
+  [[menu.main]]
     identifier = "source"
     name = "Source"
     url = "https://github.com/sdttttt/sdttttt.github.io"
