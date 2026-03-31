@@ -1,0 +1,23 @@
+{{- partial "footer.html" . -}}
+
+<!-- 不蒜子统计 -->
+{{- if site.Params.busuanzi.enable }}
+<div class="busuanzi-container" style="font-size: 0.8em; color: var(--secondary); margin: 1em 0;">
+    {{- if site.Params.busuanzi.siteUV }}
+    <span id="busuanzi_container_site_uv" style="display: inline-block;">
+        本站访客数：<span id="busuanzi_value_site_uv"></span> 人
+    </span>
+    {{- end }}
+    {{- if site.Params.busuanzi.sitePV }}
+    <span id="busuanzi_container_site_pv" style="display: inline-block; margin-left: 1em;">
+        本站访问量：<span id="busuanzi_value_site_pv"></span> 次
+    </span>
+    {{- end }}
+    {{- if site.Params.busuanzi.pagePV }}
+    <span id="busuanzi_container_page_pv" style="display: inline-block; margin-left: 1em;">
+        本文阅读数：<span id="busuanzi_value_page_pv"></span> 次
+    </span>
+    {{- end }}
+</div>
+<script async src="//busuanzi.ibruce.info/busuanzi/2.3/busuanzi.pure.mini.js"></script>
+{{- end }}

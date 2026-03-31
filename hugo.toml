@@ -20,7 +20,7 @@ theme = "PaperMod"
   keywords = ["网络日志"]
   defaultTheme = "auto"
   DateFormat = "2006年01月02日"
-  ShowReadingTime = false
+  ShowReadingTime = true
   ShowShareButtons = false
   ShowPostNavLinks = true
   ShowBreadCrumbs = true
@@ -43,6 +43,12 @@ theme = "PaperMod"
 
 [params.assets]
   favicon = "/favicon.svg"
+
+[params.busuanzi]
+  enable = true
+  siteUV = true
+  sitePV = true
+  pagePV = true
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
