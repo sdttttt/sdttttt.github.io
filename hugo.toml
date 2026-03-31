@@ -64,9 +64,9 @@ theme = "PaperMod"
 
 [menu]
   [[menu.main]]
-    identifier = "claw_care"
+    identifier = "maintenance"
     name = "ClawCare"
-    url = "/claw_care/"
+    url = "/maintenance/"
     weight = 2
   [[menu.main]]
     identifier = "source"
