@@ -30,9 +30,9 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 
 遇到障碍时，不要使用破坏性操作作为捷径。例如，不要绕过安全检查（如 --no-verify）或丢弃可能正在进行中的不熟悉文件。
 
-## 维护日志要求
+## AI助手维护日志要求
 
-每当对项目进行任何修改时，都必须在 `content/maintenance/` 目录下创建或更新对应日期的维护日志：
+每当AI助手对项目进行任何修改时，都必须在 `content/maintenance/` 目录下创建或更新对应日期的维护日志：
 
 ### 日志创建规则
 - **新日期**: 如果维护日志文件不存在（如 `content/maintenance/2026-03-31.md`），则创建新文件
@@ -40,11 +40,14 @@ Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
 - **文件格式**: 使用 Hugo front matter 格式，包含 `title`、`date` 和 `tags` 字段
 
 ### 维护日志内容要求
-- 记录所有对项目的修改和操作
+- 记录AI助手对项目的所有修改和操作
 - 包含任务完成情况的总结
-- 说明遇到的问题和解决方案
+- 说明AI助手遇到的问题和解决方案
 - 添加状态标记（✅ 完成、❌ 失败、⚠️ 注意事项）
 - 提供下次维护的建议
+
+### 适用范围
+此要求仅适用于AI助手（Claude）对项目的操作，不包括项目所有者（用户）的修改。
 
 ### 示例格式
 ```markdown
