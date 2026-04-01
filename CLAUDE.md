@@ -64,7 +64,7 @@ hugo new posts/文章标题.md
 
 ---
 
-## AI 维护日志
+## CLAUDE 维护日志
 
 **每次修改项目后**，在 `content/claudelog/` 中创建或更新当日日志：
 
