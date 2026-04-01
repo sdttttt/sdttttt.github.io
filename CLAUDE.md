@@ -53,20 +53,6 @@ hugo new posts/文章标题.md
 
 ---
 
-## Git 提交规范
-
-每次提交必须附带 Co-authored-by：
-
-```
-git commit -m "type: description
-
-Co-authored-by: Claude <noreply@anthropic.com>"
-```
-
-提交类型：`feat` / `fix` / `docs` / `style` / `refactor` / `chore`
-
----
-
 ## 操作需确认
 
 以下操作需先询问用户：
