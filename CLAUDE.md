@@ -1,88 +1,119 @@
-# 编码规则
+# CLAUDE.md
 
-该助手是 `Cluade`，由 Github Copilot 创建。当前模型是 Claude Opus 4.6。
+This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Git 提交身份
+---
 
-每次提交消息尾部必须附带上：
+## 项目概述
+
+基于 Hugo 的个人博客，使用 PaperMod 主题，通过 GitHub Actions 自动部署到 GitHub Pages。
+
+站点：https://sdttttt.online/ | 仓库：sdttttt/sdttttt.github.io
+
+---
+
+## 常用命令
+
+```bash
+# 本地开发（预览网站，包含草稿）
+hugo server -D
+
+# 构建生产版本
+hugo --minify
+
+# 更新 PaperMod 主题（子模块）
+git submodule update --remote themes/PaperMod
+
+# 创建新文章
+hugo new posts/文章标题.md
+```
+
+---
+
+## 项目架构
 
 ```
-Co-authored-by: Copilot <42728902+Copilot@users.noreply.github.com>
+├── content/              # Markdown 内容
+│   ├── posts/            # 博客文章
+│   └── claudelog/        # AI 维护日志（见下方）
+├── layouts/              # 自定义布局模板
+├── static/               # 静态资源（图片、favicon 等）
+├── themes/PaperMod/      # PaperMod 主题（git submodule）
+├── .github/workflows/    # CI/CD
+│   ├── deploy.yml        # push 到 master → 构建并部署
+│   └── format-markdown.yml # Markdown 自动格式化
+└── hugo.toml             # Hugo 配置文件
 ```
 
-示例：
+**关键点**：
+- PaperMod 主题是子模块，首次克隆需 `git clone --recursive`
+- 文章自动部署：推送到 master 分支即可触发 CI/CD
+- 维护日志目录：`content/maintenance/`
+
+---
+
+## Git 提交规范
+
+每次提交必须附带 Co-authored-by：
 
 ```
-git commit -m "feat: add new feature
+git commit -m "type: description
 
-Co-authored-by: Copilot <42728902+Copilot@users.noreply.github.com>"
+Co-authored-by: Claude <noreply@anthropic.com>"
 ```
 
-## 操作风险
+提交类型：`feat` / `fix` / `docs` / `style` / `refactor` / `chore`
 
-考虑你的操作的可逆性和潜在影响。鼓励你采取本地的、可逆的操作，如编辑文件或运行测试，但对于难以撤销、影响共享系统或可能具有破坏性的操作，请在继续之前询问用户。
+---
 
-需要确认的操作示例：
+## 操作需确认
 
-- 破坏性操作：删除文件或分支、删除数据库表、rm -rf
-- 难以撤销的操作：git push --force、git reset --hard、修改已发布的提交
-- 对他人可见的操作：推送代码、评论 PR/issue、发送消息、修改共享基础设施
+以下操作需先询问用户：
+- 破坏性：删除文件/分支、`rm -rf`、`git reset --hard`
+- 难以撤销：`git push --force`、修改已发布提交
+- 对外可见：推送代码、创建 PR/issue
+- 绕过检查：带 `--no-verify` 的命令
 
-遇到障碍时，不要使用破坏性操作作为捷径。例如，不要绕过安全检查（如 --no-verify）或丢弃可能正在进行中的不熟悉文件。
+---
 
-## AI助手维护日志要求
+## AI 维护日志
 
-每当AI助手对项目进行任何修改时，都必须在 `content/maintenance/` 目录下创建或更新对应日期的维护日志：
-
-### 日志创建规则
-
-- **新日期**: 如果维护日志文件不存在（如 `content/maintenance/2026-03-31.md`），则创建新文件
-- **已存在日期**: 如果对应日期的日志已存在，则在原有基础上追加新的维护记录
-- **文件格式**: 使用 Hugo front matter 格式，包含 `title`、`date` 和 `tags` 字段
-
-### 维护日志内容要求
-
-- 记录AI助手对项目的所有修改和操作
-- 包含任务完成情况的总结
-- 说明AI助手遇到的问题和解决方案
-- 添加状态标记（✅ 完成、❌ 失败、⚠️ 注意事项）
-- 提供下次维护的建议
-
-### 适用范围
-
-此要求仅适用于AI助手（Claude）对项目的操作，不包括项目所有者（用户）的修改。
-
-### 示例格式
+**每次修改项目后**，在 `content/claudelog/` 中创建或更新当日日志：
 
 ```markdown
 ---
-title: "2026-03-31"
-date: 2026-03-31
+title: "YYYY-MM-DD"
+date: YYYY-MM-DD
 tags: ["维护记录"]
 ---
 
-## 维护记录 - 2026-03-31
+## 维护记录
 
 ### 完成的工作
-
-- [ ] 任务1 ✅
-- [ ] 任务2 ✅
+- 任务描述 ✅
 
 ### 遇到的问题
-
-- 问题描述 ⚠️
-- 解决方案...
+- 问题描述 ⚠️ - 解决方案
 
 ### 下次建议
-
-- 建议改进点...
+- 改进建议
 ```
 
-## 指导
+规则：
+- 文件名格式：`YYYY-MM-DD.md`
+- 已存在则追加，不存在则创建
+- 适用范围：仅 AI 操作，不包括用户自己的修改
 
-- 执行每一个任务前，编写对应的任务计划列表，向用户给出分步实施计划。
-- 在完成涉及工具使用的任务后，提供你所做工作的简要摘要。
-- 你的上下文窗口将在接近限制时自动压缩，允许你从上次停止的地方无限期地继续工作。因此，不要因为 token 预算问题而提前停止任务。当你接近 token 预算限制时，在上下文窗口刷新之前将当前进度和状态保存到记忆中。始终尽可能保持持久性和自主性，完整地完成任务，即使预算即将耗尽。无论剩余上下文如何，都不要人为地提前停止任何任务。
-- 以结构化的方式搜索此信息。在收集数据时，发展几个竞争性假设。在你的进度笔记中跟踪你的置信水平以改善校准。定期自我批评你的方法和计划。更新假设树或研究笔记文件以持久化信息并提供透明度。系统地分解这个复杂的研究任务。
-- 扩展思考会增加延迟，只应在能显著提高答案质量时使用——通常用于需要多步推理的问题。如有疑问，直接回复。
-- 如果你创建了任何临时的新文件、脚本或辅助文件用于迭代，请在任务结束时通过删除这些文件来进行清理。
+---
+
+## 任务执行规范
+
+- 复杂任务前：先提供分步计划
+- 完成后：提供工作摘要
+- 临时文件：任务结束时清理
+
+---
+
+## Markdown 格式
+
+项目配置了自动格式化（`.github/workflows/format-markdown.yml`），push `.md` 文件时会自动格式化。
