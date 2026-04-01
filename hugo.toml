@@ -40,6 +40,9 @@ theme = "PaperMod"
   [[params.socialIcons]]
     name = "github"
     url = "https://github.com/sdttttt"
+  [[params.socialIcons]]
+    name = "email"
+    url = "mailto:shiinatohka@gmail.com"
 
 [params.assets]
   favicon = "/favicon.svg"
