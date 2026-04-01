@@ -46,6 +46,7 @@ hugo new posts/文章标题.md
 ```
 
 **关键点**：
+
 - PaperMod 主题是子模块，首次克隆需 `git clone --recursive`
 - 文章自动部署：推送到 master 分支即可触发 CI/CD
 - 维护日志目录：`content/maintenance/`
@@ -69,6 +70,7 @@ Co-authored-by: Claude <noreply@anthropic.com>"
 ## 操作需确认
 
 以下操作需先询问用户：
+
 - 破坏性：删除文件/分支、`rm -rf`、`git reset --hard`
 - 难以撤销：`git push --force`、修改已发布提交
 - 对外可见：推送代码、创建 PR/issue
@@ -90,16 +92,20 @@ tags: ["维护记录"]
 ## 维护记录
 
 ### 完成的工作
+
 - 任务描述 ✅
 
 ### 遇到的问题
+
 - 问题描述 ⚠️ - 解决方案
 
 ### 下次建议
+
 - 改进建议
 ```
 
 规则：
+
 - 文件名格式：`YYYY-MM-DD.md`
 - 已存在则追加，不存在则创建
 - 适用范围：仅 AI 操作，不包括用户自己的修改
