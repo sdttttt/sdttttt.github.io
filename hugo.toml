@@ -47,11 +47,8 @@ theme = "PaperMod"
 [params.assets]
   favicon = "/favicon.svg"
 
-[params.busuanzi]
-  enable = true
-  siteUV = true
-  sitePV = true
-  pagePV = true
+[params.cloudflareAnalytics]
+  token = "261d0f0494df4666aa1d2a8cb4c9f822"
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
