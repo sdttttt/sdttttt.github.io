@@ -1,0 +1,65 @@
+---
+title: "关于一些Coding Plan体验"
+date: 2026-05-08
+---
+
+最近我试了几个的coding plan和coding agent. 这篇文章我就说说我自己的体验.
+由于现在的模型迭代速度很快，马上有反转也说不定.
+
+coding Plan: `智谱Pro`,`ChatGPT Plus`,`Claude Pro`, `Github Copilot`, `MiniMax`
+coding Agent: `Claude Code`, `Open Code`, `Codex`
+
+### 智谱 Coding Plan
+
+模型能力很强，但是一到高峰很明显，就是超时，只能退而求其次使用`GLM-4.7`，智谱的算力很明细是不够的. 
+
+而且`GLM-5`有的时候会干蠢事，完全不听提示词的情况.
+
+### Claude Pro
+
+不够，完全不够用.
+
+作为目前最顶尖的AI公司，模型能力毋庸置疑，我哪怕发布几个很复杂的任务，提示词也没几句，`Opus`也能很好的完成任务.
+
+但是20美元的`Pro`套餐使用`Opus`的使用量只能用尝鲜来形容，我的工作流程是`plan`->`worker`, 两个都使用opus的情况下，一个复杂任务下去，直接能把5小时限额淦掉一般.
+
+但是如果使用`sonnet/haiku`那么还用啥Claude呢.
+
+况且这A公司对国内有极其严格的风控.
+
+### ChatGPT Plus
+
+很不错的套餐, 就是也要翻墙, 不过没有A公司那么严格.
+
+最近`GPT-5.5`出来之后`ChatGPT Plus`就变得很不错了，体验不输`Claude`.
+
+对比`Claude Pro`体感上大概是3倍的用量.
+
+最优先建议购买的套餐.
+
+### Github Copilot
+
+本来是神中神, 由于计费政策从次数改为积分后，现在变成拉中拉了.
+
+### MiniMax
+
+模型能力虽然一般，但是够用。
+
+用量极其夸张，基本是给OpenClaw之类的全能代理工具用的级别.
+
+---
+下面是`Coding Agent`
+
+### Claude Code
+
+简单来说就是开箱即用, `Claude Code` 内置的提示词和agent调度很优秀，工作极少会出错，一般都是提示词歧义问题，才会导致出错.
+
+### Open Code
+
+最严谨的一集，但是事多，OpenCode工作比Claude Code略慢一些，而且经常会编写单元测试, 和执行一些奇怪的review。哪怕你没有要求他去做.
+
+非常推荐使用`omo(oh-my-openagent)`, 装上这个工作流之后基本工作准确率能上升不少，就是费token.
+
+### Codex
+
+这个我不太好评价，因为没有配合GPT以外的模型使用过. GPT搭配Codex效果确实非常好，体验甚至在`Claude Code`之上.
