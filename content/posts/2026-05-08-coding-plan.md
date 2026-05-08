@@ -11,7 +11,7 @@ coding Agent: `Claude Code`, `Open Code`, `Codex`
 
 ### 智谱 Coding Plan
 
-模型能力很强，但是一到高峰很明显，就是超时，只能退而求其次使用`GLM-4.7`，智谱的算力很明细是不够的. 
+模型能力很强，但是一到高峰很明显，就是超时，只能退而求其次使用`GLM-4.7`，智谱的算力很明细是不够的.
 
 而且`GLM-5`有的时候会干蠢事，完全不听提示词的情况.
 
@@ -48,6 +48,7 @@ coding Agent: `Claude Code`, `Open Code`, `Codex`
 用量极其夸张，基本是给OpenClaw之类的全能代理工具用的级别.
 
 ---
+
 下面是`Coding Agent`
 
 ### Claude Code
