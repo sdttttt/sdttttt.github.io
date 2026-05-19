@@ -64,3 +64,13 @@ coding Agent: `Claude Code`, `Open Code`, `Codex`
 ### Codex
 
 这个我不太好评价，因为没有配合GPT以外的模型使用过. GPT搭配Codex效果确实非常好，体验甚至在`Claude Code`之上.
+
+### Pi
+
+优点是扩展性高，缺点也是扩展性高。
+
+有使用门槛的Agent, 本身自带的system-prompts 极少，1M都不到，本身没有`sub-agent`,`plan-mode`,`MCP`, 不过有一个很强的上下文管理机制 `/tree` 回到任意时间点.
+
+Pi对上下文的可控性可以最大程序发挥LLM本身的性能，节约Token以及可以高度自定义自己的工作流。
+
+我使用了一段时间，只不过对我来说是弊大于利。我是真不擅长调整上下文，导致在我工作中的实际表现对比`claude-code`要差上很多. 
