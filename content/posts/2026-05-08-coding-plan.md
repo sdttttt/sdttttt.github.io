@@ -47,6 +47,12 @@ coding Agent: `Claude Code`, `Open Code`, `Codex`
 
 用量极其夸张，基本是给OpenClaw之类的全能代理工具用的级别.
 
+### Kimi
+
+我购买的是Moderato 用量可以说是侃侃吃紧. 对我最近的编程任务来说刚刚好. 但是这个套餐肯定是不够的.
+
+在CC中使用，Kimi2.6模型的能力比较接近Claude sonnet 4.6.
+
 ---
 
 下面是`Coding Agent`
