@@ -8,4 +8,6 @@ draft: false
 
 ---
 
-正在学习Zig
+### 联系方式
+
+matrix: @sdttttt:chat.neboer.site
