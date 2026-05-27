@@ -10,4 +10,5 @@ draft: false
 
 ### 联系方式
 
-matrix: @sdttttt:chat.neboer.site
+- matrix: @sdttttt:chat.neboer.site
+- QQ空间漂流瓶
