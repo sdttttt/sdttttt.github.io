@@ -11,4 +11,4 @@ draft: false
 ### 联系方式
 
 - matrix: @sdttttt:chat.neboer.site
-- QQ空间漂流瓶
+- 北冰洋漂流瓶
