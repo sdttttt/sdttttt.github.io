@@ -8,7 +8,7 @@ draft: false
 
 渴望注定无法得到的*『真物』*.
 
-<img width="1280" height="720" alt="vuADTzT" src="https://github.com/user-attachments/assets/6caed32e-36a3-4913-a7c4-1bbeebcbe208" />
+<img alt="vuADTzT" src="https://github.com/user-attachments/assets/6caed32e-36a3-4913-a7c4-1bbeebcbe208" />
 
 ### 联系方式
 
