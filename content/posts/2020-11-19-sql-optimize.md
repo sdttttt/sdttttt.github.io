@@ -5,6 +5,10 @@ description: ""
 tags: ["开发"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-11-19-sql-optimize.svg"
+  alt: ""
+  hidden: false
 ---
 
 本文主要讲关于`SELECT`语句的优化问题. 会涉及到一些关于表索引的知识.

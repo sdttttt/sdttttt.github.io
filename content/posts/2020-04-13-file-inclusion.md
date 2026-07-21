@@ -3,6 +3,10 @@ title: "File Inclusion"
 date: 2020-04-13
 tags: ["安全"]
 draft: true
+cover:
+  image: "images/covers/2020-04-13-file-inclusion.svg"
+  alt: ""
+  hidden: false
 ---
 
 DVWA File Inclusion 过关秘籍

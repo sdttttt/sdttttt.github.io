@@ -1,6 +1,10 @@
 ---
 title: "对我来说的 OpenClaw 用法"
 date: 2026-03-24
+cover:
+  image: "images/covers/2026-03-24-openclaw-usage-for-me.svg"
+  alt: ""
+  hidden: false
 ---
 
 clawdbot 出来也有一段时间了，这些 AI 项目的迭代速度都很快，这也算是现在是现在 Agent 编码的优势吧。

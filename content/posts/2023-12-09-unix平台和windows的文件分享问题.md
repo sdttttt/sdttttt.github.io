@@ -5,6 +5,10 @@ tags: ["思考"]
 categories: ["学习思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2023-12-09-unix平台和windows的文件分享问题.svg"
+  alt: ""
+  hidden: false
 ---
 
 前几天重新把家里的板子重装了系统，这次打算不使用云盘之类的软件来保存文件了，就用简单的samba之类系统级的文件分享。

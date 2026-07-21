@@ -4,6 +4,10 @@ date: 2023-09-08
 tags: ["思考", "软路由"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2023-09-08-adguard-home-dns失效问题.svg"
+  alt: ""
+  hidden: false
 ---
 
 我的软路由上一般只会开两个软件, 一个是Openclash, 还有一个是AdGuardHome.

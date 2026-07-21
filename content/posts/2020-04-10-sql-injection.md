@@ -3,6 +3,10 @@ title: "SQL Injection"
 date: 2020-04-10
 tags: ["安全"]
 draft: false
+cover:
+  image: "images/covers/2020-04-10-sql-injection.svg"
+  alt: ""
+  hidden: false
 ---
 
 DVWA SQL Injection 过关秘籍.

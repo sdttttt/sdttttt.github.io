@@ -4,6 +4,10 @@ date: 2020-04-13
 tags: ["思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-04-13-dvwa-command-injection-过关秘籍.svg"
+  alt: ""
+  hidden: false
 ---
 
 ### LOW

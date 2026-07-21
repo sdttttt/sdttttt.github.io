@@ -5,6 +5,10 @@ description: ""
 tags: ["日志"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2021-04-16-free-software.svg"
+  alt: ""
+  hidden: false
 ---
 
 最近把我所有在github上软件的许可证换成了`The Unlicense`. 为啥呢..

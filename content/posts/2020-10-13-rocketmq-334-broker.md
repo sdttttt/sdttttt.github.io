@@ -5,6 +5,10 @@ description: ""
 tags: ["开发"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-10-13-rocketmq-334-broker.svg"
+  alt: ""
+  hidden: false
 ---
 
 差不多可以看消息队列的源码了。

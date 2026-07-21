@@ -1,6 +1,10 @@
 ---
 title: "About the Blog"
 date: 2020-04-03
+cover:
+  image: "images/covers/2020-04-03-about-the-blog.svg"
+  alt: ""
+  hidden: false
 ---
 
 `blog`里的文章并非全部原创，有一部分是经过修改后整理出`要点`，集中一起写到这里面。也包涵了一些我对整个软件行业的想法。

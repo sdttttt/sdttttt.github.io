@@ -3,6 +3,10 @@ title: "Red Black Tree"
 date: 2020-05-25
 tags: ["学习"]
 draft: false
+cover:
+  image: "images/covers/2020-05-25-red-black-tree.svg"
+  alt: ""
+  hidden: false
 ---
 
 半年前在研究`HashMap`的时候已经学习过红黑树的规则原理了.

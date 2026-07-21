@@ -4,6 +4,10 @@ date: 2023-04-25
 tags: ["日志", "软路由"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2023-04-25-orangepi-r1-plus-lts.svg"
+  alt: ""
+  hidden: false
 ---
 
 这几天没忍住，又入手了一块便宜的软路由，就是这个香橙派的R1plusLTS，这个型号的上一款R1plus和NanoPi R2S的配置一模一样，处理器和网卡内存等等都一样，这个LTS型号据说是芯片短缺的时候出现的，把网卡从RTL8211E换成了YT8531C了，内存从DDR4换成了LPDDR3, 其他还是一样，不过这两个硬件一换的话，原本R2S的固件和R1plus还能兼容，现在是没办法兼容了，网上对R1plusLTS适配的固件也比较少. 最坏的情况也得自己编译了。

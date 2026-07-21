@@ -3,6 +3,10 @@ title: "Database Storage"
 date: 2020-06-02
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-06-02-database-storage.svg"
+  alt: ""
+  hidden: false
 ---
 
 **CMU Database System 15-445/645** 储存 Part 1

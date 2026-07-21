@@ -3,6 +3,10 @@ title: "File Upload"
 date: 2020-04-12
 tags: ["安全"]
 draft: false
+cover:
+  image: "images/covers/2020-04-12-file-upload.svg"
+  alt: ""
+  hidden: false
 ---
 
 DVWA File upload 过关秘籍.

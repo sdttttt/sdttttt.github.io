@@ -3,6 +3,10 @@ title: "硬盘LBA28读取以及BootLoader加载"
 date: 2025-05-16
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2025-05-16-硬盘lba28读取以及bootloader加载.svg"
+  alt: ""
+  hidden: false
 ---
 
 ⚠这篇文章比较无聊，因为涉及到一些硬件相关的东西，所以大部分的知识内容都很刻板，基本只能当作字典用。

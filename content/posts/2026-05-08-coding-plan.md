@@ -1,6 +1,10 @@
 ---
 title: "关于一些Coding Plan体验"
 date: 2026-05-08
+cover:
+  image: "images/covers/2026-05-08-coding-plan.svg"
+  alt: ""
+  hidden: false
 ---
 
 最近我试了几个的coding plan和coding agent. 这篇文章我就说说我自己的体验.

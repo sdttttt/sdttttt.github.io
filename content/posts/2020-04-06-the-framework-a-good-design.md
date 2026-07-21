@@ -3,6 +3,10 @@ title: "The Framework a good design?"
 date: 2020-04-06
 tags: ["开发"]
 draft: false
+cover:
+  image: "images/covers/2020-04-06-the-framework-a-good-design.svg"
+  alt: ""
+  hidden: false
 ---
 
 我第一次听到框架这个概念已经是在大学的时候了，当时我的老师和我提起。

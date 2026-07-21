@@ -4,6 +4,10 @@ date: 2026-03-12
 tags: ["思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2026-03-12-cbc-padding-oracle-攻击.svg"
+  alt: ""
+  hidden: false
 ---
 
 最近在研究TLS协议，了解到了TLS1.2时期使用CBC加密导致的 Padding Oracle 攻击（填充神谕攻击），这篇文章稍微讲一下，也顺便总结一下我的理解。

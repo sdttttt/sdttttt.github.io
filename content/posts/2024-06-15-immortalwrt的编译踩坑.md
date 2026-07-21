@@ -3,6 +3,10 @@ title: "ImmortalWrt的编译踩坑"
 date: 2024-06-15
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2024-06-15-immortalwrt的编译踩坑.svg"
+  alt: ""
+  hidden: false
 ---
 
 这篇文章会经常更新。

@@ -1,6 +1,10 @@
 ---
 title: "Github Actions"
 date: 2020-03-11
+cover:
+  image: "images/covers/2020-03-11-github-actions.svg"
+  alt: ""
+  hidden: false
 ---
 
 ## Github Actions 上传 Releases

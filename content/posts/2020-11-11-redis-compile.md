@@ -5,6 +5,10 @@ description: ""
 tags: ["日志"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-11-11-redis-compile.svg"
+  alt: ""
+  hidden: false
 ---
 
 也不知道我发了什么疯, 在windows上编译了一遍redis. 事实上我找到的windows上最新的redis版本是3.

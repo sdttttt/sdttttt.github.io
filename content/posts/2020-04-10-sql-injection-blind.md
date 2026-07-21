@@ -3,6 +3,10 @@ title: "Sql Injection Blind"
 date: 2020-04-10
 tags: ["安全"]
 draft: false
+cover:
+  image: "images/covers/2020-04-10-sql-injection-blind.svg"
+  alt: ""
+  hidden: false
 ---
 
 返回的结果集无法看到，只能通过一些页面显示或状态来判断。

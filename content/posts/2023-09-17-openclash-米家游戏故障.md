@@ -5,6 +5,10 @@ tags: ["工具"]
 categories: ["碎片杂文"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2023-09-17-openclash-米家游戏故障.svg"
+  alt: ""
+  hidden: false
 ---
 
 这几天开始我有的时候登录mihoyo的游戏会出现1001_1等登录问题, 这个问题目前和OpenClash有关.

@@ -5,6 +5,10 @@ tags: ["软路由"]
 categories: ["学习思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2023-10-04-关于openclash的流量处理.svg"
+  alt: ""
+  hidden: false
 ---
 
 这几天闲来无事, 学习了一些关于iptables的知识, 同时也了解了一下OpenClash在OpenWRT上是怎么对经过网关的流量做透明代理的.

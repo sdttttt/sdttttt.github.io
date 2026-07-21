@@ -3,6 +3,10 @@ title: "MultiplexingIO"
 date: 2020-04-06
 tags: ["学习"]
 draft: false
+cover:
+  image: "images/covers/2020-04-06-multiplexingio.svg"
+  alt: ""
+  hidden: false
 ---
 
 其实“I/O多路复用”这个坑爹翻译可能是这个概念在中文里面如此难理解的原因。所谓的I/O多路

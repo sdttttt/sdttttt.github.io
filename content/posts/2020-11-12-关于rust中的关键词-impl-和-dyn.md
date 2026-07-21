@@ -4,6 +4,10 @@ date: 2020-11-12
 tags: ["思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-11-12-关于rust中的关键词-impl-和-dyn.svg"
+  alt: ""
+  hidden: false
 ---
 
 我们先来看这样一段代码:

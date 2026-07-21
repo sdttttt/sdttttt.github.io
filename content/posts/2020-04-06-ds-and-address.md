@@ -3,6 +3,10 @@ title: "DS and [address]"
 date: 2020-04-06
 tags: ["学习"]
 draft: true
+cover:
+  image: "images/covers/2020-04-06-ds-and-address.svg"
+  alt: ""
+  hidden: false
 ---
 
 在8086PC 中要读取`内存单元`时，必须先知道它的地址，地址由段地址和偏移地址构成。

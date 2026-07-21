@@ -5,6 +5,10 @@ description: ""
 tags: ["Algorithm"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-10-26-cache-algorithm.svg"
+  alt: ""
+  hidden: false
 ---
 
 本文主要讲的是目前存在的几种缓存算法, 没错, 我又来~~误人子弟~~了.

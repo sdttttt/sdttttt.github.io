@@ -5,6 +5,10 @@ description: ""
 tags: ["日志"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2021-04-09-about-rust.svg"
+  alt: ""
+  hidden: false
 ---
 
 Rust这个语言是我大概去年年中学的, 虽然一只在用, 都没评价这个语言, 这次有点空可以稍微说一下..

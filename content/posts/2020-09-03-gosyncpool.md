@@ -5,6 +5,10 @@ tags: ["开发"]
 description: "sync.pool 一个Go底层的内存复用池."
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-09-03-gosyncpool.svg"
+  alt: ""
+  hidden: false
 ---
 
 今天在看Sentinel-golang源码的时候发现sentinel在内部使用了sync.Pool该结构体.看到Sync和Pool的我第一反应想到应该是线程池之类的东西.在实际看过原理之后发现并不是这样的.

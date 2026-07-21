@@ -5,6 +5,10 @@ tags: ["思考", "软路由"]
 categories: ["学习思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2023-11-22-openclash-转发改为tproxy.svg"
+  alt: ""
+  hidden: false
 ---
 
 最近不想用Tun了，但是OpenClash的转发也不是全走的TProxy，TCP走Redirect，UDP走TProxy

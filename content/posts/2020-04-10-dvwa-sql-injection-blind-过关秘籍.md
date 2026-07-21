@@ -4,6 +4,10 @@ date: 2020-04-10
 tags: ["思考"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-04-10-dvwa-sql-injection-blind-过关秘籍.svg"
+  alt: ""
+  hidden: false
 ---
 
 返回的结果集无法看到，只能通过一些页面显示或状态来判断。

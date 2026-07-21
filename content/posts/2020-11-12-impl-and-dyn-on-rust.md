@@ -5,6 +5,10 @@ description: "这篇文章会讲解关于Rust中impl和dyn这两个关键词的�
 tags: ["开发"]
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2020-11-12-impl-and-dyn-on-rust.svg"
+  alt: ""
+  hidden: false
 ---
 
 我们先来看这样一段代码:

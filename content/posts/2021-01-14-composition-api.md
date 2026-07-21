@@ -3,6 +3,10 @@ title: "Composition Api"
 date: 2021-01-14
 author: sdttttt
 draft: false
+cover:
+  image: "images/covers/2021-01-14-composition-api.svg"
+  alt: ""
+  hidden: false
 ---
 
 最近一直在写 Vue, 在公司的项目里使用的是`Composition Api` + Vue2 的组合. _(因为公司里考虑到同事的技能树, 没有用vue3和Typescipt)_.

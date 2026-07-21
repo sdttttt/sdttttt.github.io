@@ -4,6 +4,10 @@ date: 2020-08-25
 author: sdttttt
 tags: ["开发"]
 draft: false
+cover:
+  image: "images/covers/2020-08-25-thread-pool-executor-运行细节.svg"
+  alt: ""
+  hidden: false
 ---
 
 先说说线程池本身, 由于线程资源本身在计算机中比较昂贵, 创建和销毁都有相当的开销, 所以在一些处理简单但是并发量大的场景使用一个请求对应一个线程的是不明智的选择.
