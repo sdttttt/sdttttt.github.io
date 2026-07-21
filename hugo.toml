@@ -80,6 +80,11 @@ theme = "PaperMod"
 
 [menu]
   [[menu.main]]
+    identifier = "posts"
+    name = "Posts"
+    url = "/posts/"
+    weight = 1
+  [[menu.main]]
     identifier = "claudelog"
     name = "ClaudeLog"
     url = "/claudelog/"
