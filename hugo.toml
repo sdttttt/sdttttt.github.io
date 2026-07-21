@@ -33,9 +33,10 @@ theme = "PaperMod"
   underlineLinks = true
   externalLinksInNewTab = true
 
-  [params.homeInfoParams]
-    Title = "sdttttt"
-    Content = "普通的魔法师"
+  [params.profileMode]
+    enabled = true
+    title = "sdttttt"
+    subtitle = "普通的魔法师"
 
   [[params.socialIcons]]
     name = "github"
@@ -44,8 +45,23 @@ theme = "PaperMod"
     name = "email"
     url = "mailto:shiinatohka@gmail.com"
 
-[params.assets]
-  favicon = "/favicon.svg"
+  [params.assets]
+    favicon = "/favicon.svg"
+    apple = "/apple-touch-icon.png"
+    safari = "/safari-pinned-tab.svg"
+    msapplication = "/mstile-150x150.png"
+    theme = "#1a1a1a"
+
+  [params.editPost]
+    URL = "https://github.com/sdttttt/sdttttt.github.io/edit/master/content/"
+
+  [params.schema]
+    publisherType = "Person"
+    sameAs = ["https://github.com/sdttttt"]
+
+  [params.cover]
+    responsiveImages = true
+    linkFullImages = false
 
 [params.cloudflareAnalytics]
   token = "261d0f0494df4666aa1d2a8cb4c9f822"
