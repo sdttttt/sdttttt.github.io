@@ -38,6 +38,16 @@ theme = "PaperMod"
     title = "sdttttt"
     subtitle = "普通的魔法师"
 
+    [[params.profileMode.buttons]]
+      name = "Posts"
+      url = "/posts/"
+    [[params.profileMode.buttons]]
+      name = "Archives"
+      url = "/archives/"
+    [[params.profileMode.buttons]]
+      name = "Tags"
+      url = "/tags/"
+
   [[params.socialIcons]]
     name = "github"
     url = "https://github.com/sdttttt"
