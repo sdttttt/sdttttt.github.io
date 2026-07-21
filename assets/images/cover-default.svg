@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="1200" height="630">
+  <title>Cover</title>
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2A2A2A"/>
+      <stop offset="100%" stop-color="#0F0F0F"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#bg)"/>
+  <text x="600" y="395" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="240" font-weight="700"
+        fill="#D97757">R</text>
+  <line x1="450" y1="445" x2="750" y2="445" stroke="#D97757" stroke-width="3" opacity="0.5"/>
+</svg>
