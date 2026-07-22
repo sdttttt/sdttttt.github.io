@@ -18,7 +18,7 @@ theme = "PaperMod"
 [params]
   description = "普通的魔法师"
   keywords = ["网络日志"]
-  defaultTheme = "auto"
+  defaultTheme = "dark"
   DateFormat = "2006年01月02日"
   ShowReadingTime = true
   ShowShareButtons = false
