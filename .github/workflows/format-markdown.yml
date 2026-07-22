@@ -31,4 +31,5 @@ jobs:
         run: prettier --write "**/*.md"
 
       - name: Commit and push changes
-        run: bun scripts/git-commit-push.ts --message "style: auto-format markdown"
+        run: |
+          bun scripts/git-commit-push.ts --message "style: auto-format markdown"
