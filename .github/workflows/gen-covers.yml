@@ -26,4 +26,5 @@ jobs:
         run: bun scripts/gen-covers.ts --all --inject-fm
 
       - name: Commit and push changes
-        run: bun scripts/git-commit-push.ts --message "feat(assets): auto-generate cover images"
+        run: |
+          bun scripts/git-commit-push.ts --message "feat(assets): auto-generate cover images"
