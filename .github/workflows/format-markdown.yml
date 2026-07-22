@@ -28,7 +28,7 @@ jobs:
         run: npm install -g prettier
 
       - name: Format Markdown files
-        run: prettier --write "**/*.md"
+        run: bun scripts/format-markdown.ts
 
       - name: Commit and push changes
         run: |
