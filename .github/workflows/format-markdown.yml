@@ -19,6 +19,11 @@ jobs:
         with:
           node-version: '24'
 
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
       - name: Install Prettier
         run: npm install -g prettier
 
@@ -26,9 +31,4 @@ jobs:
         run: prettier --write "**/*.md"
 
       - name: Commit and push changes
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git diff --quiet && git diff --staged --quiet || git commit -m "style: auto-format markdown"
-          git push
+        run: bun scripts/git-commit-push.ts --message "style: auto-format markdown"
