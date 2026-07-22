@@ -1,0 +1,27 @@
+name: Validate Posts
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [master, main]
+    paths:
+      - 'content/posts/**'
+      - 'scripts/**'
+      - '.github/workflows/validate-posts.yml'
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Validate posts
+        run: bun scripts/validate-posts.ts

@@ -58,3 +58,13 @@ export function getStrings(args: ParsedArgs, key: string): string[] {
   if (typeof v === 'string') return [v];
   return [];
 }
+
+export function getNumber(args: ParsedArgs, key: string): number | undefined {
+  const v = args[key];
+  if (typeof v === 'number') return v;
+  if (typeof v === 'string') {
+    const n = Number(v);
+    if (!Number.isNaN(n)) return n;
+  }
+  return undefined;
+}

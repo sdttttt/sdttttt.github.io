@@ -13,6 +13,7 @@
 
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, basename, extname } from 'node:path';
+import { parseFrontMatter } from './lib/frontmatter';
 
 // ─────────────────────────────────────────────────────────────
 // 配置
@@ -66,65 +67,6 @@ function escapeXml(s: string): string {
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
-}
-
-/** 从一段 front matter 文本中提取字段（手写解析，支持纯 YAML 子集） */
-function parseFrontMatter(raw: string): Record<string, unknown> {
-  const m = raw.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) return {};
-  const out: Record<string, unknown> = {};
-  const lines = m[1]!.split('\n');
-  let i = 0;
-  while (i < lines.length) {
-    const line = lines[i]!;
-    if (!line.trim() || line.trim().startsWith('#')) { i++; continue; }
-    const kv = line.match(/^(\w[\w.-]*):\s*(.*)$/);
-    if (!kv) { i++; continue; }
-    const key = kv[1]!;
-    const rawVal = kv[2]!.trim();
-    if (rawVal === '') {
-      // 嵌套对象：取后续缩进行
-      const nested: Record<string, unknown> = {};
-      i++;
-      while (i < lines.length) {
-        const nl = lines[i]!;
-        if (!nl.startsWith('  ') && !nl.startsWith('\t')) break;
-        const nkv = nl.trim().match(/^(\w[\w.-]*):\s*(.*)$/);
-        if (nkv) nested[nkv[1]!] = unquote(nkv[2]!.trim());
-        i++;
-      }
-      out[key] = nested;
-      continue;
-    }
-    out[key] = parseScalar(rawVal);
-    i++;
-  }
-  return out;
-}
-
-function parseScalar(s: string): unknown {
-  // 数组：["a", "b"]
-  if (s.startsWith('[') && s.endsWith(']')) {
-    const inner = s.slice(1, -1).trim();
-    if (!inner) return [];
-    return inner.split(',').map((x) => unquote(x.trim()));
-  }
-  // 布尔
-  if (s === 'true') return true;
-  if (s === 'false') return false;
-  // null
-  if (s === 'null' || s === '~') return null;
-  // 数字
-  if (/^-?\d+(\.\d+)?$/.test(s)) return Number(s);
-  // 字符串
-  return unquote(s);
-}
-
-function unquote(s: string): string {
-  if ((s.startsWith('"') && s.endsWith('"')) || (s.startsWith("'") && s.endsWith("'"))) {
-    return s.slice(1, -1);
-  }
-  return s;
 }
 
 function slugFromFilename(filename: string): string {

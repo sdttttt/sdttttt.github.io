@@ -1,0 +1,28 @@
+name: Check Dead Links
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 每周日 02:17 UTC 检查一次
+    - cron: '17 2 * * 0'
+  push:
+    branches: [master, main]
+    paths:
+      - 'content/**'
+      - 'scripts/check-dead-links.ts'
+      - '.github/workflows/check-dead-links.yml'
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Check dead links
+        run: bun scripts/check-dead-links.ts
