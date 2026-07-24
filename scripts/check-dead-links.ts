@@ -15,6 +15,7 @@ import { parseArgs, getNumber, getBoolean } from './lib/args';
 
 const CONTENT_DIR = 'content';
 const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;
+const FENCE_REGEX = /^(`{3,}|~{3,})/;
 
 const args = parseArgs(process.argv);
 const timeout = getNumber(args, 'timeout') ?? 10000;
@@ -26,7 +27,7 @@ interface DeadLink {
   status: number | string;
 }
 
-async function* walkMarkdown(dir: string): AsyncGenerator<string> {
+export async function* walkMarkdown(dir: string): AsyncGenerator<string> {
   const entries = await readdir(dir, { withFileTypes: true });
   for (const entry of entries) {
     const path = join(dir, entry.name);
@@ -38,10 +39,10 @@ async function* walkMarkdown(dir: string): AsyncGenerator<string> {
   }
 }
 
-async function checkUrl(url: string): Promise<{ ok: boolean; status: number | string }> {
+export async function checkUrl(url: string, ms: number = timeout): Promise<{ ok: boolean; status: number | string }> {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    const timer = setTimeout(() => controller.abort(), ms);
     const res = await fetch(url, {
       method: 'HEAD',
       signal: controller.signal,
@@ -64,10 +65,10 @@ async function checkUrl(url: string): Promise<{ ok: boolean; status: number | st
   }
 }
 
-async function checkUrlGet(url: string): Promise<{ ok: boolean; status: number | string }> {
+export async function checkUrlGet(url: string, ms: number = timeout): Promise<{ ok: boolean; status: number | string }> {
   try {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeout);
+    const timer = setTimeout(() => controller.abort(), ms);
     const res = await fetch(url, {
       method: 'GET',
       signal: controller.signal,
@@ -86,7 +87,7 @@ async function checkUrlGet(url: string): Promise<{ ok: boolean; status: number |
   }
 }
 
-function shouldSkip(url: string): boolean {
+export function shouldSkip(url: string): boolean {
   try {
     const u = new URL(url);
     return u.hostname === 'localhost' || u.hostname === '127.0.0.1';
@@ -95,13 +96,47 @@ function shouldSkip(url: string): boolean {
   }
 }
 
+/**
+ * 提取 Markdown 文本中位于围栏代码块之外的链接。
+ *
+ * 支持 ` ``` ` 与 `~~~` 形式的围栏代码块，只处理代码块外的文本。
+ */
+export function extractLinksOutsideCodeBlocks(raw: string): string[] {
+  const lines = raw.split('\n');
+  const outside: string[] = [];
+  let inCodeBlock = false;
+  let fenceChar = '';
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    const fenceMatch = trimmed.match(FENCE_REGEX);
+    if (fenceMatch) {
+      const fence = fenceMatch[1]!;
+      if (!inCodeBlock) {
+        inCodeBlock = true;
+        fenceChar = fence[0]!;
+      } else if (fence[0] === fenceChar) {
+        inCodeBlock = false;
+        fenceChar = '';
+      }
+      continue;
+    }
+
+    if (!inCodeBlock) {
+      outside.push(line);
+    }
+  }
+
+  return outside.join('\n').match(LINK_REGEX) ?? [];
+}
+
 async function main(): Promise<void> {
   const dead: DeadLink[] = [];
   const checked = new Map<string, { ok: boolean; status: number | string }>();
 
   for await (const path of walkMarkdown(CONTENT_DIR)) {
     const raw = await readFile(path, 'utf8');
-    const matches = raw.match(LINK_REGEX) ?? [];
+    const matches = extractLinksOutsideCodeBlocks(raw);
     const unique = [...new Set(matches)];
 
     for (const url of unique) {
@@ -139,4 +174,6 @@ async function main(): Promise<void> {
   process.exit(1);
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}

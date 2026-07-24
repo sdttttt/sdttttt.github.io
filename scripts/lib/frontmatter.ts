@@ -51,7 +51,7 @@ export function parseFrontMatter(raw: string): FrontMatter {
         const nl = lines[i]!;
         if (!nl.startsWith('  ') && !nl.startsWith('\t')) break;
         const nkv = nl.trim().match(/^(\w[\w.-]*):\s*(.*)$/);
-        if (nkv) nested[nkv[1]!] = unquote(nkv[2]!.trim());
+        if (nkv) nested[nkv[1]!] = parseScalar(nkv[2]!.trim());
         i++;
       }
       out[key] = nested;

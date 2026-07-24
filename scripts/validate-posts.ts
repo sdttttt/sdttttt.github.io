@@ -24,7 +24,7 @@ interface Issue {
   message: string;
 }
 
-function isValidDate(s: string): boolean {
+export function isValidDate(s: string): boolean {
   return !Number.isNaN(Date.parse(s));
 }
 
@@ -38,7 +38,7 @@ async function exists(path: string): Promise<boolean> {
 }
 
 /** Hugo 资源路径：cover.image 相对于 assets/ 或 static/ */
-async function coverExists(coverImage: string): Promise<boolean> {
+export async function coverExists(coverImage: string): Promise<boolean> {
   if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
     return true; // 外链封面，不校验本地文件
   }
@@ -46,7 +46,7 @@ async function coverExists(coverImage: string): Promise<boolean> {
   return (await exists(`assets/${relative}`)) || (await exists(`static/${relative}`));
 }
 
-async function validate(): Promise<Issue[]> {
+export async function validate(): Promise<Issue[]> {
   const entries = await readdir(POSTS_DIR);
   const files = entries.filter((f) => f.endsWith('.md') && f !== '_index.md');
   const issues: Issue[] = [];
@@ -88,15 +88,21 @@ async function validate(): Promise<Issue[]> {
   return issues;
 }
 
-const issues = await validate();
+async function main(): Promise<void> {
+  const issues = await validate();
 
-if (issues.length === 0) {
-  console.log('✓ 所有文章校验通过');
-  process.exit(0);
+  if (issues.length === 0) {
+    console.log('✓ 所有文章校验通过');
+    process.exit(0);
+  }
+
+  console.error(`发现 ${issues.length} 个问题:\n`);
+  for (const { file, message } of issues) {
+    console.error(`  ${file}: ${message}`);
+  }
+  process.exit(1);
 }
 
-console.error(`发现 ${issues.length} 个问题:\n`);
-for (const { file, message } of issues) {
-  console.error(`  ${file}: ${message}`);
+if (import.meta.main) {
+  await main();
 }
-process.exit(1);

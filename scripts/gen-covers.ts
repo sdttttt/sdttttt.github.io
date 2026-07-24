@@ -48,7 +48,7 @@ const PATTERN_FNS = [
 // ─────────────────────────────────────────────────────────────
 
 /** djb2 hash → 32-bit unsigned int */
-function hash(s: string): number {
+export function hash(s: string): number {
   let h = 5381;
   for (let i = 0; i < s.length; i++) {
     h = ((h << 5) + h + s.charCodeAt(i)) | 0;
@@ -56,11 +56,13 @@ function hash(s: string): number {
   return h >>> 0;
 }
 
-function pick<T>(arr: readonly T[], n: number): T {
-  return arr[n % arr.length]!;
+export function pick<T>(arr: readonly T[], n: number): T {
+  const len = arr.length;
+  const idx = ((n % len) + len) % len;
+  return arr[idx]!;
 }
 
-function escapeXml(s: string): string {
+export function escapeXml(s: string): string {
   return s
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
@@ -69,7 +71,7 @@ function escapeXml(s: string): string {
     .replace(/'/g, '&apos;');
 }
 
-function slugFromFilename(filename: string): string {
+export function slugFromFilename(filename: string): string {
   return basename(filename, extname(filename));
 }
 
@@ -77,7 +79,7 @@ function slugFromFilename(filename: string): string {
 // 图案函数
 // ─────────────────────────────────────────────────────────────
 
-function patternCircleGrid(p: typeof PALETTES[number]): string {
+export function patternCircleGrid(p: typeof PALETTES[number]): string {
   const cells = 9;
   const cellSize = 80;
   const startX = (W - cellSize * cells) / 2;
@@ -97,7 +99,7 @@ function patternCircleGrid(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternDiagonal(p: typeof PALETTES[number]): string {
+export function patternDiagonal(p: typeof PALETTES[number]): string {
   let s = '';
   const step = 24;
   for (let i = -H; i < W + H; i += step) {
@@ -110,7 +112,7 @@ function patternDiagonal(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternConcentric(p: typeof PALETTES[number]): string {
+export function patternConcentric(p: typeof PALETTES[number]): string {
   let s = '';
   const cx = W / 2;
   const cy = H / 2;
@@ -121,7 +123,7 @@ function patternConcentric(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternTriangles(p: typeof PALETTES[number]): string {
+export function patternTriangles(p: typeof PALETTES[number]): string {
   let s = '';
   const size = 70;
   for (let y = 0; y < H + size; y += size) {
@@ -140,7 +142,7 @@ function patternTriangles(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternWave(p: typeof PALETTES[number]): string {
+export function patternWave(p: typeof PALETTES[number]): string {
   let s = '';
   const lines = 8;
   for (let i = 0; i < lines; i++) {
@@ -157,7 +159,7 @@ function patternWave(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternRectangles(p: typeof PALETTES[number]): string {
+export function patternRectangles(p: typeof PALETTES[number]): string {
   let s = '';
   const cols = 12;
   const rows = 6;
@@ -177,7 +179,7 @@ function patternRectangles(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternGrid(p: typeof PALETTES[number]): string {
+export function patternGrid(p: typeof PALETTES[number]): string {
   let s = '';
   const step = 40;
   for (let x = step; x < W; x += step) {
@@ -191,7 +193,7 @@ function patternGrid(p: typeof PALETTES[number]): string {
   return s;
 }
 
-function patternDots(p: typeof PALETTES[number]): string {
+export function patternDots(p: typeof PALETTES[number]): string {
   let s = '';
   const count = 120;
   let seed = hash(p.name) >>> 0;
@@ -215,7 +217,7 @@ function patternDots(p: typeof PALETTES[number]): string {
 // SVG 生成
 // ─────────────────────────────────────────────────────────────
 
-function genSvg(seed: string, paletteName: string): string {
+export function genSvg(seed: string, paletteName: string): string {
   const h = hash(seed);
   const palette = pick(PALETTES, hash(paletteName + seed));
   const patternFn = pick(PATTERN_FNS, hash(seed + 'pattern'));
@@ -245,17 +247,17 @@ function genSvg(seed: string, paletteName: string): string {
 // 主流程
 // ─────────────────────────────────────────────────────────────
 
-async function listPosts(): Promise<string[]> {
+export async function listPosts(): Promise<string[]> {
   const entries = await readdir(POSTS_DIR);
   return entries.filter((f) => f.endsWith('.md') && f !== '_index.md').sort();
 }
 
-async function readPost(filename: string): Promise<{ meta: Record<string, unknown>; slug: string }> {
+export async function readPost(filename: string): Promise<{ meta: Record<string, unknown>; slug: string }> {
   const raw = await readFile(join(POSTS_DIR, filename), 'utf8');
   return { meta: parseFrontMatter(raw), slug: slugFromFilename(filename) };
 }
 
-async function ensureDir(dir: string): Promise<void> {
+export async function ensureDir(dir: string): Promise<void> {
   await mkdir(dir, { recursive: true });
 }
 
@@ -263,7 +265,7 @@ async function ensureDir(dir: string): Promise<void> {
  * 给文章 front matter 注入 cover 字段（指向生成的 SVG）
  * 已有 cover 字段且 image 非 cover-default.svg 的跳过（保留真实封面）
  */
-async function injectCoverField(files: string[], { dryRun }: { dryRun: boolean }): Promise<void> {
+export async function injectCoverField(files: string[], { dryRun }: { dryRun: boolean }): Promise<void> {
   let injected = 0;
   let skipped = 0;
   for (const f of files) {
@@ -309,7 +311,7 @@ async function injectCoverField(files: string[], { dryRun }: { dryRun: boolean }
   console.log(`\n共 ${injected} 个 front matter 注入${dryRun ? '（dry-run）' : ''}, 跳过 ${skipped} 个已有真实封面`);
 }
 
-async function generateFor(files: string[], { force, dryRun }: { force: boolean; dryRun: boolean }) {
+export async function generateFor(files: string[], { force, dryRun }: { force: boolean; dryRun: boolean }) {
   await ensureDir(COVERS_DIR);
   let generated = 0;
   let skipped = 0;
@@ -346,7 +348,7 @@ async function generateFor(files: string[], { force, dryRun }: { force: boolean;
 // CLI
 // ─────────────────────────────────────────────────────────────
 
-function parseArgs(): {
+export function parseArgs(): {
   mode: 'dry-run' | 'all' | 'files';
   files?: string[];
   force: boolean;
@@ -400,7 +402,9 @@ async function main() {
   }
 }
 
-main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+if (import.meta.main) {
+  main().catch((err) => {
+    console.error(err);
+    process.exit(1);
+  });
+}

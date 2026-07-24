@@ -1,0 +1,13 @@
+{
+  "name": "sdttttt-blog-scripts",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "bun test",
+    "test:watch": "bun test --watch"
+  },
+  "devDependencies": {
+    "bun-types": "^1.3.14"
+  }
+}

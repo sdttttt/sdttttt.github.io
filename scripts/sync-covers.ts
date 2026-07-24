@@ -20,7 +20,7 @@ const COVERS_DIR = 'assets/images/covers';
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
 
-async function collectUsedCovers(): Promise<Set<string>> {
+export async function collectUsedCovers(): Promise<Set<string>> {
   const entries = await readdir(POSTS_DIR);
   const files = entries.filter((f) => f.endsWith('.md') && f !== '_index.md');
   const used = new Set<string>();
@@ -60,4 +60,6 @@ async function main(): Promise<void> {
   console.log(`\n共 ${orphans.length} 个孤儿封面${dryRun ? '（dry-run）' : ''}`);
 }
 
-await main();
+if (import.meta.main) {
+  await main();
+}
