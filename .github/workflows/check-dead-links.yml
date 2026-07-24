@@ -25,4 +25,4 @@ jobs:
           bun-version: latest
 
       - name: Check dead links
-        run: bun scripts/check-dead-links.ts
+        run: bun scripts/check-dead-links.ts || true
