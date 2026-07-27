@@ -38,8 +38,6 @@ const PATTERN_FNS = [
   patternConcentric,
   patternTriangles,
   patternWave,
-  patternRectangles,
-  patternGrid,
   patternDots,
 ] as const;
 
@@ -159,40 +157,6 @@ export function patternWave(p: typeof PALETTES[number]): string {
   return s;
 }
 
-export function patternRectangles(p: typeof PALETTES[number]): string {
-  let s = '';
-  const cols = 12;
-  const rows = 6;
-  const cw = W / cols;
-  const ch = H / rows;
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      if ((r * cols + c) % 3 !== 0) continue;
-      const x = c * cw + cw * 0.15;
-      const y = r * ch + ch * 0.15;
-      const w = cw * 0.7;
-      const h = ch * 0.7;
-      const opacity = 0.15 + ((r + c) % 5) * 0.08;
-      s += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="${p.accent}" stroke-width="2" opacity="${opacity.toFixed(2)}"/>`;
-    }
-  }
-  return s;
-}
-
-export function patternGrid(p: typeof PALETTES[number]): string {
-  let s = '';
-  const step = 40;
-  for (let x = step; x < W; x += step) {
-    const opacity = 0.08 + ((x / step) % 4 === 0 ? 0.15 : 0);
-    s += `<line x1="${x}" y1="0" x2="${x}" y2="${H}" stroke="${p.accent}" stroke-width="${((x / step) % 4 === 0) ? 2 : 1}" opacity="${opacity.toFixed(2)}"/>`;
-  }
-  for (let y = step; y < H; y += step) {
-    const opacity = 0.08 + ((y / step) % 4 === 0 ? 0.15 : 0);
-    s += `<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${p.accent}" stroke-width="${((y / step) % 4 === 0) ? 2 : 1}" opacity="${opacity.toFixed(2)}"/>`;
-  }
-  return s;
-}
-
 export function patternDots(p: typeof PALETTES[number]): string {
   let s = '';
   const count = 120;
@@ -222,7 +186,7 @@ export function genSvg(seed: string, paletteName: string): string {
   const palette = pick(PALETTES, hash(paletteName + seed));
   const patternFn = pick(PATTERN_FNS, hash(seed + 'pattern'));
   const year = (seed.match(/\d{4}/)?.[0]) ?? '----';
-  const symbol = pick(['◇', '○', '△', '□', '☆', '∞', '◐', '✦'], h);
+  const symbol = pick(['○', '△', '☆', '∞', '◐', '✦'], h);
 
   const body = patternFn(palette);
   const gradientId = `bg-${palette.name}-${h}`;

@@ -10,8 +10,6 @@ import {
   patternConcentric,
   patternTriangles,
   patternWave,
-  patternRectangles,
-  patternGrid,
   patternDots,
   parseArgs as parseGenCoversArgs,
   listPosts,
@@ -80,8 +78,6 @@ describe('pattern functions', () => {
     patternConcentric,
     patternTriangles,
     patternWave,
-    patternRectangles,
-    patternGrid,
     patternDots,
   ];
 
