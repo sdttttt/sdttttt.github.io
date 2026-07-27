@@ -16,7 +16,7 @@ rssLimit = 20
 theme = "PaperMod"
 
 [params]
-  description = "普通的魔法师"
+  description = "不再后悔"
   keywords = ["网络日志"]
   defaultTheme = "dark"
   DateFormat = "2006年01月02日"
