@@ -1,6 +1,7 @@
 name: Hugo on GitHub Pages
 
 on:
+  workflow_dispatch:
   push:
     branches:
       - master
@@ -8,12 +9,34 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    if: github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write # 自动修复结果需要提交回仓库
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: true
+          fetch-depth: 0 # pull --rebase 需要完整历史
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+
+      - name: Install Prettier
+        run: npm install -g prettier@3.9.6
+
+      # 先生成封面并注入 front matter，再交给 prettier 统一格式化，
+      # 这样注入的 YAML 不会留下待格式化的残留。
+      - name: Generate covers and inject front matter
+        run: bun scripts/gen-covers.ts --all --inject-fm
+
+      - name: Format Markdown files
+        run: bun scripts/format-markdown.ts
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
@@ -26,22 +49,27 @@ jobs:
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # Upload entire repository
           path: './public'
+
+      # 放在 artifact 上传之后：万一撞上并发 push 导致失败，也不阻塞本次部署
+      - name: Commit auto-fix results
+        run: |
+          bun scripts/git-commit-push.ts --message "chore: auto-fix content"
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      pages: write      # to deploy to Pages
-      id-token: write   # to verify the deployment originates from an appropriate source
+      pages: write # to deploy to Pages
+      id-token: write # to verify the deployment originates from an appropriate source
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-    
+
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

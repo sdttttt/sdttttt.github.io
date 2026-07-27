@@ -29,4 +29,6 @@ if (!gitHasStagedChanges()) {
 
 const escapedMessage = message.replace(/"/g, '\\"');
 gitExec(`commit -m "${escapedMessage}"`, { dryRun });
+// 兜底：吸收运行期间出现的远端新提交，避免 push 被拒
+gitExec('pull --rebase', { dryRun });
 gitExec('push', { dryRun });
