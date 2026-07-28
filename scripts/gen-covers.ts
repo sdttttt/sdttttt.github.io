@@ -20,7 +20,7 @@ import { parseFrontMatter } from './lib/frontmatter';
 // ─────────────────────────────────────────────────────────────
 
 const POSTS_DIR = 'content/posts';
-const COVERS_DIR = 'assets/images/covers';
+const COVERS_DIR = 'static/images/covers';
 const W = 1200;
 const H = 630;
 

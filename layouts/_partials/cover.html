@@ -1,0 +1,75 @@
+{{- /*
+  Cover image partial - override of PaperMod's cover.html.
+
+  Why override: PaperMod uses `resources.ByType "image"` to find the cover,
+  which only matches jpg/png/webp/gif - NOT svg. Since our covers are SVGs
+  in `static/`, PaperMod can't find them as a resource, so Hugo doesn't
+  output them to `public/` and the URL 404s.
+
+  This override:
+  - For files in `static/`: outputs the URL directly (no Hugo processing).
+    Uses `printf` to avoid `absURL` URL-encoding `[` and `]` (so the
+    rendered HTML is clean instead of `%5B%5D`).
+  - For files in `assets/` (e.g. future png/jpg covers): uses
+    `resources.Get` and falls back to PaperMod's responsive image logic.
+
+  Template: overrides themes/PaperMod/layouts/_partials/cover.html
+*/ -}}
+
+{{- with .cxt }}
+  {{- if (and .Params.cover.image (not $.isHidden)) }}
+    <figure class="entry-cover">
+      {{- $loading := cond $.IsSingle "eager" "lazy" }}
+      {{- $addLink := (and site.Params.cover.linkFullImages $.IsSingle) }}
+      {{- $alt := (.Params.cover.alt | default .Params.cover.caption | plainify) }}
+      {{- $responsiveImages := (.Params.cover.responsiveImages | default site.Params.cover.responsiveImages) | default true }}
+
+      {{/* Try to find as an asset (for png/jpg in assets/) */}}
+      {{- $cover := resources.Get .Params.cover.image }}
+
+      {{- $processableFormats := (slice "jpg" "jpeg" "png" "tif" "bmp" "gif") -}}
+      {{- if hugo.IsExtended -}}
+        {{- $processableFormats = $processableFormats | append "webp" -}}
+      {{- end -}}
+
+      {{- $isProduction := or (hugo.IsProduction) (eq site.Params.env "production") }}
+
+      {{- if $cover }}
+        {{/* Found as an asset - use PaperMod's responsive logic */}}
+        {{- if (and (in $processableFormats $cover.MediaType.SubType) ($responsiveImages) $isProduction) }}
+          {{- $sizes := (slice "360" "480" "720" "1080" "1500") }}
+          <img loading="{{ $loading }}"
+            srcset='{{- range $size := $sizes -}}
+                      {{- if (ge $cover.Width $size) -}}
+                        {{- printf "%s %sw," (($cover.Resize (printf "%sx" $size)).Permalink) $size -}}
+                      {{- end -}}
+                    {{- end -}}
+                    {{- printf "%s %dw" $cover.Permalink $cover.Width }}'
+            src="{{ $cover.Permalink }}"
+            sizes="(min-width: 768px) 720px, 100vw"
+            width="{{ $cover.Width }}" height="{{ $cover.Height }}"
+            alt="{{ $alt }}">
+        {{- else }}
+          <img loading="{{ $loading }}" src="{{ $cover.Permalink }}" alt="{{ $alt }}">
+        {{- end }}
+      {{- else }}
+        {{/* Not an asset - treat as static/ file. Use printf to keep brackets literal
+            (absURL would encode [ and ] to %5B %5D, which is uglier but still works) */}}
+        {{- $imgdl := printf "%s%s" site.BaseURL (strings.TrimPrefix "/" .Params.cover.image) }}
+        {{- if $addLink }}
+          <a href="{{ $imgdl }}" target="_blank" rel="noopener noreferrer">
+        {{- end }}
+        <img loading="{{ $loading }}" src="{{ $imgdl }}" alt="{{ $alt }}">
+        {{- if $addLink }}
+          </a>
+        {{- end -}}
+      {{- end }}
+
+      {{- if $.IsSingle }}
+        {{ with .Params.cover.caption -}}
+          <figcaption>{{ . | markdownify }}</figcaption>
+        {{- end }}
+      {{- end }}
+    </figure>
+  {{- end }}
+{{- end -}}

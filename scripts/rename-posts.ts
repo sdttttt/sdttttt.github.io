@@ -5,7 +5,7 @@
  * - 日期取自 frontmatter `date` 字段
  * - 6 位 hash 是 body 内容的 SHA-256 前 3 字节（24 bit → base36）
  * - 文件名中方括号 `[]` 是字面字符
- * - 配套封面 assets/images/covers/{oldSlug}.svg 同步重命名
+ * - 配套封面 static/images/covers/{oldSlug}.svg 同步重命名
  * - frontmatter 中 cover.image 引用同步更新
  *
  * 用法：
@@ -22,7 +22,7 @@ import { parseFrontMatter, extractFrontMatterBlock } from './lib/frontmatter';
 import { parseArgs, getBoolean } from './lib/args';
 
 const POSTS_DIR = 'content/posts';
-const COVERS_DIR = 'assets/images/covers';
+const COVERS_DIR = 'static/images/covers';
 
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');

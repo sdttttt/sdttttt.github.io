@@ -2,7 +2,7 @@
 /**
  * 清理未使用的封面 SVG
  *
- * 扫描所有文章的 cover.image，删除 assets/images/covers 中未被引用的 SVG。
+ * 扫描所有文章的 cover.image，删除 static/images/covers 中未被引用的 SVG。
  *
  * 用法：
  *   bun scripts/sync-covers.ts          # 直接删除孤儿封面
@@ -15,7 +15,7 @@ import { parseFrontMatter } from './lib/frontmatter';
 import { parseArgs, getBoolean } from './lib/args';
 
 const POSTS_DIR = 'content/posts';
-const COVERS_DIR = 'assets/images/covers';
+const COVERS_DIR = 'static/images/covers';
 
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');

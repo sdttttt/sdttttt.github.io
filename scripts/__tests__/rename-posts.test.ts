@@ -164,7 +164,7 @@ body`;
 interface TempContent {
   /** 添加一个 .md 到 content/posts/，可选添加对应的 cover svg */
   addPost: (filename: string, content: string, opts?: { coverSlug?: string }) => void;
-  /** 在 assets/images/covers/ 放一个 SVG（即使没有对应 .md） */
+  /** 在 static/images/covers/ 放一个 SVG（即使没有对应 .md） */
   addCover: (slug: string) => void;
   restore: () => void;
 }
@@ -174,16 +174,16 @@ function setupTempContent(): TempContent {
   const workDir = mkdtempSync(join(tmpdir(), 'rename-posts-build-test-'));
   process.chdir(workDir);
   mkdirSync('content/posts', { recursive: true });
-  mkdirSync('assets/images/covers', { recursive: true });
+  mkdirSync('static/images/covers', { recursive: true });
   return {
     addPost: (filename, content, opts) => {
       writeFileSync(join('content/posts', filename), content);
       if (opts?.coverSlug) {
-        writeFileSync(join('assets/images/covers', `${opts.coverSlug}.svg`), '<svg></svg>');
+        writeFileSync(join('static/images/covers', `${opts.coverSlug}.svg`), '<svg></svg>');
       }
     },
     addCover: (slug) => {
-      writeFileSync(join('assets/images/covers', `${slug}.svg`), '<svg></svg>');
+      writeFileSync(join('static/images/covers', `${slug}.svg`), '<svg></svg>');
     },
     restore: () => {
       process.chdir(originalCwd);
