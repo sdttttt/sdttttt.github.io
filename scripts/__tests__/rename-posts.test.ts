@@ -1,4 +1,7 @@
-import { describe, test, expect, mock, afterEach } from 'bun:test';
+import { describe, test, expect, afterEach, beforeEach } from 'bun:test';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import {
   normalizeDate,
   extractBody,
@@ -14,10 +17,6 @@ function simulateNewName(date: string, body: string): string {
   const raw = `---\ndate: ${date}\n---\n${body}`;
   return `${normalizeDate(date)}[${computeHash6(extractBody(raw))}].md`;
 }
-
-afterEach(() => {
-  mock.restore();
-});
 
 // ─────────────────────────────────────────────────────────────
 // 纯函数
@@ -156,36 +155,54 @@ body`;
 });
 
 // ─────────────────────────────────────────────────────────────
-// 集成：buildReport + detectCollisions
+// 集成：buildReport + detectCollisions（用真实临时文件，不 mock fs）
+//
+// **不能用 mock.module('node:fs/promises', ...)**：bun:test 中 mock.module
+// 是文件级持久的，rename-posts-execute.test.ts 用真实 fs 的测试会被污染。
 // ─────────────────────────────────────────────────────────────
 
-function makeMockFs(
-  files: Record<string, string>,
-  coverExistsMap: Record<string, boolean> = {},
-) {
-  mock.module('node:fs/promises', () => ({
-    readdir: mock(async (dir: string) => {
-      // 只为 content/posts 提供列表
-      if (dir === 'content/posts') {
-        return Object.keys(files);
+interface TempContent {
+  /** 添加一个 .md 到 content/posts/，可选添加对应的 cover svg */
+  addPost: (filename: string, content: string, opts?: { coverSlug?: string }) => void;
+  /** 在 assets/images/covers/ 放一个 SVG（即使没有对应 .md） */
+  addCover: (slug: string) => void;
+  restore: () => void;
+}
+
+function setupTempContent(): TempContent {
+  const originalCwd = process.cwd();
+  const workDir = mkdtempSync(join(tmpdir(), 'rename-posts-build-test-'));
+  process.chdir(workDir);
+  mkdirSync('content/posts', { recursive: true });
+  mkdirSync('assets/images/covers', { recursive: true });
+  return {
+    addPost: (filename, content, opts) => {
+      writeFileSync(join('content/posts', filename), content);
+      if (opts?.coverSlug) {
+        writeFileSync(join('assets/images/covers', `${opts.coverSlug}.svg`), '<svg></svg>');
       }
-      return [];
-    }),
-    readFile: mock(async (path: string) => {
-      const name = path.split('/').pop()!;
-      if (files[name] === undefined) throw new Error(`not found: ${path}`);
-      return files[name]!;
-    }),
-    stat: mock(async (path: string) => {
-      if (coverExistsMap[path]) return {};
-      throw new Error('not found');
-    }),
-    rename: mock(async () => undefined),
-    writeFile: mock(async () => undefined),
-  }));
+    },
+    addCover: (slug) => {
+      writeFileSync(join('assets/images/covers', `${slug}.svg`), '<svg></svg>');
+    },
+    restore: () => {
+      process.chdir(originalCwd);
+      rmSync(workDir, { recursive: true, force: true });
+    },
+  };
 }
 
 describe('buildReport', () => {
+  let env: TempContent;
+
+  beforeEach(() => {
+    env = setupTempContent();
+  });
+
+  afterEach(() => {
+    env.restore();
+  });
+
   test('有效文章进入 plans', async () => {
     const content = `---
 title: Hello
@@ -196,13 +213,8 @@ cover:
   hidden: false
 ---
 hello body content`;
-    makeMockFs(
-      {
-        '2024-01-15-hello.md': content,
-        '_index.md': '---\ntitle: Posts\n---',
-      },
-      { 'assets/images/covers/2024-01-15-hello.svg': true },
-    );
+    env.addPost('2024-01-15-hello.md', content, { coverSlug: '2024-01-15-hello' });
+    env.addPost('_index.md', '---\ntitle: Posts\n---');
     const { plans, skipped } = await buildReport();
     expect(skipped).toEqual([]);
     expect(plans.length).toBe(1);
@@ -215,9 +227,7 @@ hello body content`;
   });
 
   test('缺少 date 归入 skipped', async () => {
-    makeMockFs({
-      'no-date.md': '---\ntitle: x\n---\nbody',
-    });
+    env.addPost('no-date.md', '---\ntitle: x\n---\nbody');
     const { plans, skipped } = await buildReport();
     expect(plans.length).toBe(0);
     expect(skipped.length).toBe(1);
@@ -225,9 +235,7 @@ hello body content`;
   });
 
   test('无效 date 归入 skipped', async () => {
-    makeMockFs({
-      'bad-date.md': '---\ntitle: x\ndate: not-a-date\n---\nbody',
-    });
+    env.addPost('bad-date.md', '---\ntitle: x\ndate: not-a-date\n---\nbody');
     const { plans, skipped } = await buildReport();
     expect(plans.length).toBe(0);
     expect(skipped.length).toBe(1);
@@ -237,13 +245,11 @@ hello body content`;
   test('已是新格式归入 skipped', async () => {
     // 模拟脚本的处理：date + extractBody 后的 body 算 hash
     const newName = simulateNewName('2024-01-15', 'unique body for idempotency test');
-    makeMockFs({
-      [newName]: `---
+    env.addPost(newName, `---
 title: x
 date: 2024-01-15
 ---
-unique body for idempotency test`,
-    });
+unique body for idempotency test`);
     const { plans, skipped } = await buildReport();
     expect(plans.length).toBe(0);
     expect(skipped.length).toBe(1);
@@ -251,9 +257,7 @@ unique body for idempotency test`,
   });
 
   test('忽略 _index.md', async () => {
-    makeMockFs({
-      '_index.md': '---\ntitle: Posts\n---\n',
-    });
+    env.addPost('_index.md', '---\ntitle: Posts\n---\n');
     const { plans, skipped } = await buildReport();
     expect(plans.length).toBe(0);
     expect(skipped.length).toBe(0);
@@ -267,10 +271,8 @@ cover:
   image: "images/covers/custom.svg"
 ---
 body`;
-    makeMockFs(
-      { '2024-01-15-x.md': content },
-      { 'assets/images/covers/custom.svg': true },
-    );
+    env.addPost('2024-01-15-x.md', content);
+    env.addCover('custom');
     const { plans } = await buildReport();
     expect(plans.length).toBe(1);
     expect(plans[0]!.cover).toBeNull();
@@ -284,10 +286,8 @@ cover:
   image: "images/covers/2024-01-15-x.svg"
 ---
 body`;
-    makeMockFs(
-      { '2024-01-15-x.md': content },
-      {}, // 没有 cover
-    );
+    env.addPost('2024-01-15-x.md', content);
+    // 不 addCover
     const { plans } = await buildReport();
     expect(plans.length).toBe(1);
     expect(plans[0]!.cover).toBeNull();
@@ -335,3 +335,12 @@ describe('detectCollisions', () => {
     expect(collisions.get('20240115[aaaaaa].md')!.length).toBe(3);
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// 集成：executePlan（用真实 git repo 验证 index 同步）
+//
+// 单独放在本文件，**不能合并到 rename-posts.test.ts**：
+// 那个文件里的 buildReport 测试用 mock.module 替换了 node:fs/promises，
+// 而 mock.module 在 bun:test 是文件级持久的（mock.restore() 不处理它），
+// 会污染这里对真实 fs 的调用。
+// ─────────────────────────────────────────────────────────────

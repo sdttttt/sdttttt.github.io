@@ -225,34 +225,54 @@ export function detectCollisions(plans: RenamePlan[]): Map<string, RenamePlan[]>
  * 用 Bun.spawn 数组参数形式避免 shell 转义问题。
  */
 async function moveFile(oldPath: string, newPath: string): Promise<{ usedGit: boolean }> {
-  // 先尝试 git mv
-  try {
-    const proc = Bun.spawn(['git', 'mv', oldPath, newPath], {
-      stdout: 'pipe',
-      stderr: 'pipe',
-    });
-    const exit = await proc.exited;
-    if (exit === 0) return { usedGit: true };
-  } catch {
-    // git 不可用 → 降级
-  }
+  const { ok } = await runGit(['mv', oldPath, newPath]);
+  if (ok) return { usedGit: true };
   await rename(oldPath, newPath);
   return { usedGit: false };
 }
 
-export async function executePlan(plan: RenamePlan): Promise<void> {
-  // 1) 先 mv cover SVG（如果存在）
-  if (plan.cover) {
-    await moveFile(plan.cover.oldCoverPath, plan.cover.newCoverPath);
+/**
+ * 同步 index 与 working tree。
+ *
+ * 关键：tracked 文件 `writeFile` 只会改 working tree，**index 不会自动更新**。
+ * 如果不 `git add`，下一步 `git mv` 会把 index 里的**旧内容**搬到新路径，
+ * commit 时拿到的就是「新路径 + 旧内容」（历史上的 bug）。
+ *
+ * 不可用时静默返回 false，由调用方自行决定是否降级。
+ */
+async function gitAdd(path: string): Promise<boolean> {
+  const { ok } = await runGit(['add', path]);
+  return ok;
+}
+
+/**
+ * 跑 git 子命令，捕获退出码。不可用/失败时返回 ok=false。
+ */
+async function runGit(args: string[]): Promise<{ ok: boolean; exit: number }> {
+  try {
+    const proc = Bun.spawn(['git', ...args], { stdout: 'pipe', stderr: 'pipe' });
+    const exit = await proc.exited;
+    return { ok: exit === 0, exit };
+  } catch {
+    return { ok: false, exit: -1 };
   }
-  // 2) 改写 frontmatter（如果 cover 需要更新）
+}
+
+export async function executePlan(plan: RenamePlan): Promise<void> {
+  // 1) 改写 frontmatter（如果 cover 需要更新）
   if (plan.cover) {
     const raw = await readFile(plan.oldPath, 'utf8');
     const updated = rewriteCoverImage(raw, plan.oldSlug, plan.newSlug);
     await writeFile(plan.oldPath, updated);
+    // 关键：让 index 知道 OLD 路径有新内容，下一步 git mv 才会搬新内容
+    await gitAdd(plan.oldPath);
   }
-  // 3) mv .md
+  // 2) mv .md
   await moveFile(plan.oldPath, plan.newPath);
+  // 3) mv cover SVG（独立路径，不存在 index 同步问题）
+  if (plan.cover) {
+    await moveFile(plan.cover.oldCoverPath, plan.cover.newCoverPath);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
