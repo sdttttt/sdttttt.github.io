@@ -18,6 +18,7 @@ theme = "PaperMod"
 [params]
   description = "不再后悔"
   keywords = ["网络日志"]
+  env = "production"
   defaultTheme = "dark"
   DateFormat = "2006年01月02日"
   ShowReadingTime = true
