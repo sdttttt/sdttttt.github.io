@@ -33,20 +33,9 @@ theme = "PaperMod"
   underlineLinks = true
   externalLinksInNewTab = true
 
-  [params.profileMode]
-    enabled = true
-    title = "sdttttt"
-    subtitle = "普通的魔法师"
-
-    [[params.profileMode.buttons]]
-      name = "Posts"
-      url = "/posts/"
-    [[params.profileMode.buttons]]
-      name = "Archives"
-      url = "/archives/"
-    [[params.profileMode.buttons]]
-      name = "Tags"
-      url = "/tags/"
+  [params.homeInfoParams]
+    Title = "sdttttt"
+    Content = "普通的魔法师"
 
   [[params.socialIcons]]
     name = "github"
