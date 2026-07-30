@@ -1,38 +1,34 @@
 /**
  * 集成测试：executePlan（用真实 git repo 验证 index 同步）
  *
- * 单独成文件，**不能合并到 rename-posts.test.ts**：
- * 那个文件里的 buildReport 测试用 mock.module 替换了 node:fs/promises，
- * mock.module 在 bun:test 是文件级持久的（mock.restore() 不处理它），
- * 会污染这里对真实 fs 的调用。
- *
  * 关键回归测试：writeFile 后必须 `git add` 让 index 同步，否则 git mv
  * 搬走的是 index 里的旧内容，commit 拿到「新路径 + 旧内容」。
  */
 
-import { describe, test, expect, beforeEach, afterEach, mock } from 'bun:test';
+import { describe, test, beforeEach, afterEach } from 'node:test';
 import { mkdtempSync, rmSync, writeFileSync, readFileSync, existsSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { executePlan, type RenamePlan } from '../rename-posts';
-
-// **关键**：validate-posts.test.ts 用 mock.module 替换了 node:fs/promises。
-// bun:test 中 mock.module 在同一 worker 进程内跨文件持续，mock.restore() 也不处理。
-// 必须显式 re-mock 回原始模块，否则 executePlan 的 readFile 会拿到 mock 的固定数据。
-// 使用 require 是因为 import 会触发同名 mock 进入死循环。
-const realFs = require('node:fs/promises');
-mock.module('node:fs/promises', () => realFs);
-const realFsSync = require('node:fs');
-mock.module('node:fs', () => realFsSync);
+import { spawn } from 'node:child_process';
+import { executePlan, type RenamePlan } from '../rename-posts.js';
+import { expect } from './expect.js';
 
 async function runShell(args: string[]): Promise<{ exit: number; stdout: string; stderr: string }> {
-  const proc = Bun.spawn(args, { stdout: 'pipe', stderr: 'pipe' });
-  const [stdout, stderr, exit] = await Promise.all([
-    proc.stdout ? new Response(proc.stdout).text() : Promise.resolve(''),
-    proc.stderr ? new Response(proc.stderr).text() : Promise.resolve(''),
-    proc.exited,
-  ]);
-  return { exit, stdout, stderr };
+  return new Promise((resolve, reject) => {
+    const child = spawn(args[0]!, args.slice(1), { stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = '';
+    let stderr = '';
+    child.stdout!.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr!.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (exit) => {
+      resolve({ exit: exit ?? -1, stdout, stderr });
+    });
+  });
 }
 
 async function setupTempGitRepo(): Promise<{ workDir: string; restore: () => void }> {

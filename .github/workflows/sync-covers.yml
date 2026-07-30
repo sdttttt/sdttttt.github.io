@@ -10,18 +10,25 @@ jobs:
   sync:
     runs-on: ubuntu-latest
     if: github.actor != 'github-actions[bot]'
+    permissions:
+      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile scripts
+        run: npx tsc -p tsconfig.scripts.json
 
       - name: Remove orphan cover images
-        run: bun scripts/sync-covers.ts
+        run: node scripts/dist/sync-covers.js
 
       - name: Commit and push changes
         run: |
-          bun scripts/git-commit-push.ts --message "chore(assets): remove orphan cover images"
+          node scripts/dist/git-commit-push.js --message "chore(assets): remove orphan cover images"

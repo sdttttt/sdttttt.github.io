@@ -8,6 +8,8 @@ on:
       - 'content/posts/**'
       - 'scripts/**'
       - '.github/workflows/validate-posts.yml'
+      - 'package.json'
+      - 'package-lock.json'
   pull_request:
     branches: [master, main]
 
@@ -18,10 +20,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile scripts
+        run: npx tsc -p tsconfig.scripts.json
 
       - name: Validate posts
-        run: bun scripts/validate-posts.ts
+        run: node scripts/dist/validate-posts.js

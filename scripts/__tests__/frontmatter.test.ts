@@ -1,5 +1,6 @@
-import { describe, test, expect } from 'bun:test';
-import { parseFrontMatter, extractFrontMatterBlock } from '../lib/frontmatter';
+import { describe, test } from 'node:test';
+import { parseFrontMatter, extractFrontMatterBlock } from '../lib/frontmatter.js';
+import { expect } from './expect.js';
 
 describe('parseFrontMatter', () => {
   test('空字符串返回空对象', () => {

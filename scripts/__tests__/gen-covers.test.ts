@@ -1,4 +1,4 @@
-import { describe, test, expect, mock, afterEach } from 'bun:test';
+import { describe, test, afterEach } from 'node:test';
 import {
   hash,
   pick,
@@ -17,10 +17,15 @@ import {
   ensureDir,
   injectCoverField,
   generateFor,
-} from '../gen-covers';
+} from '../gen-covers.js';
+import { expect } from './expect.js';
+import { inTempDir } from './temp-dir.js';
+import { mkdirSync, writeFileSync, readFileSync, existsSync } from 'node:fs';
+
+const originalArgv = process.argv;
 
 afterEach(() => {
-  mock.restore();
+  process.argv = originalArgv;
 });
 
 const SAMPLE_PALETTE = {
@@ -81,11 +86,13 @@ describe('pattern functions', () => {
     patternDots,
   ];
 
-  test.each(patterns)('%# returns non-empty SVG string', (fn) => {
-    const out = fn(SAMPLE_PALETTE);
-    expect(typeof out).toBe('string');
-    expect(out.length).toBeGreaterThan(0);
-  });
+  for (const fn of patterns) {
+    test(`${fn.name} returns non-empty SVG string`, () => {
+      const out = fn(SAMPLE_PALETTE);
+      expect(typeof out).toBe('string');
+      expect(out.length).toBeGreaterThan(0);
+    });
+  }
 
   test('同一输入结果确定', () => {
     expect(patternCircleGrid(SAMPLE_PALETTE)).toBe(patternCircleGrid(SAMPLE_PALETTE));
@@ -117,117 +124,97 @@ describe('genSvg', () => {
 });
 
 describe('parseGenCoversArgs', () => {
-  const originalArgv = process.argv;
-
-  afterEach(() => {
-    process.argv = originalArgv;
-  });
-
   test('--all 模式', () => {
-    process.argv = ['bun', 'script', '--all'];
+    process.argv = ['node', 'script', '--all'];
     expect(parseGenCoversArgs()).toEqual({ mode: 'all', force: false, inject: false });
   });
 
   test('无参数为 dry-run 模式', () => {
-    process.argv = ['bun', 'script'];
+    process.argv = ['node', 'script'];
     expect(parseGenCoversArgs()).toEqual({ mode: 'dry-run', force: false, inject: false });
   });
 
   test('传入文件名为 files 模式', () => {
-    process.argv = ['bun', 'script', 'a.md', 'b.md'];
+    process.argv = ['node', 'script', 'a.md', 'b.md'];
     expect(parseGenCoversArgs()).toEqual({ mode: 'files', files: ['a.md', 'b.md'], force: false, inject: false });
   });
 
   test('--force 和 --inject-fm 被解析', () => {
-    process.argv = ['bun', 'script', '--all', '--force', '--inject-fm'];
+    process.argv = ['node', 'script', '--all', '--force', '--inject-fm'];
     expect(parseGenCoversArgs()).toEqual({ mode: 'all', force: true, inject: true });
   });
 });
 
 describe('listPosts', () => {
-  test('返回排序后的 Markdown 文件，排除 _index.md', async () => {
-    mock.module('node:fs/promises', () => ({
-      readdir: mock(async () => ['b.md', '_index.md', 'a.md', 'c.txt']),
+  test('返回排序后的 Markdown 文件，排除 _index.md', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/posts/b.md', '');
+      writeFileSync('content/posts/_index.md', '');
+      writeFileSync('content/posts/a.md', '');
+      writeFileSync('content/posts/c.txt', '');
+      expect(await listPosts()).toEqual(['a.md', 'b.md']);
     }));
-    expect(await listPosts()).toEqual(['a.md', 'b.md']);
-  });
 });
 
 describe('readPost', () => {
-  test('解析 front matter 并返回 slug', async () => {
-    mock.module('node:fs/promises', () => ({
-      readFile: mock(async () => '---\ntitle: Hello\n---\n'),
+  test('解析 front matter 并返回 slug', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/posts/2024-01-01-hello.md', '---\ntitle: Hello\n---\n');
+      const post = await readPost('2024-01-01-hello.md');
+      expect(post.meta).toEqual({ title: 'Hello' });
+      expect(post.slug).toBe('2024-01-01-hello');
     }));
-    const post = await readPost('2024-01-01-hello.md');
-    expect(post.meta).toEqual({ title: 'Hello' });
-    expect(post.slug).toBe('2024-01-01-hello');
-  });
 });
 
 describe('ensureDir', () => {
-  test('调用 mkdir recursive', async () => {
-    const mkdir = mock(async () => undefined);
-    mock.module('node:fs/promises', () => ({
-      mkdir,
+  test('调用 mkdir recursive', () =>
+    inTempDir(async () => {
+      await ensureDir('assets/images/covers');
+      expect(existsSync('assets/images/covers')).toBe(true);
     }));
-    await ensureDir('assets/images/covers');
-    expect(mkdir).toHaveBeenCalledWith('assets/images/covers', { recursive: true });
-  });
 });
 
 describe('injectCoverField', () => {
-  const originalWriteFile = process.env.__mock_writeFile;
-
-  test('无 cover 的文章追加 cover 块', async () => {
-    const writeFile = mock(async () => undefined);
-    mock.module('node:fs/promises', () => ({
-      readFile: mock(async () => '---\ntitle: Hello\n---\n'),
-      writeFile,
+  test('无 cover 的文章追加 cover 块', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/posts/hello.md', '---\ntitle: Hello\n---\n');
+      await injectCoverField(['hello.md'], { dryRun: false });
+      const written = readFileSync('content/posts/hello.md', 'utf8');
+      expect(written).toContain('cover:');
+      expect(written).toContain('images/covers/hello.svg');
     }));
 
-    await injectCoverField(['hello.md'], { dryRun: false });
-    expect(writeFile).toHaveBeenCalled();
-    const written = writeFile.mock.calls[0][1] as string;
-    expect(written).toContain('cover:');
-    expect(written).toContain('images/covers/hello.svg');
-  });
-
-  test('dry-run 不写入', async () => {
-    const writeFile = mock(async () => undefined);
-    mock.module('node:fs/promises', () => ({
-      readFile: mock(async () => '---\ntitle: Hello\n---\n'),
-      writeFile,
+  test('dry-run 不写入', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      const original = '---\ntitle: Hello\n---\n';
+      writeFileSync('content/posts/hello.md', original);
+      await injectCoverField(['hello.md'], { dryRun: true });
+      expect(readFileSync('content/posts/hello.md', 'utf8')).toBe(original);
     }));
-
-    await injectCoverField(['hello.md'], { dryRun: true });
-    expect(writeFile).not.toHaveBeenCalled();
-  });
 });
 
 describe('generateFor', () => {
-  test('无 cover 生成 SVG', async () => {
-    const writeFile = mock(async () => undefined);
-    mock.module('node:fs/promises', () => ({
-      readFile: mock(async () => '---\ntitle: Hello\n---\n'),
-      writeFile,
-      mkdir: mock(async () => undefined),
+  test('无 cover 生成 SVG', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      mkdirSync('static/images/covers', { recursive: true });
+      writeFileSync('content/posts/hello.md', '---\ntitle: Hello\n---\n');
+      await generateFor(['hello.md'], { force: false, dryRun: false });
+      expect(existsSync('static/images/covers/hello.svg')).toBe(true);
+      const written = readFileSync('static/images/covers/hello.svg', 'utf8');
+      expect(written).toContain('<svg');
     }));
 
-    await generateFor(['hello.md'], { force: false, dryRun: false });
-    expect(writeFile).toHaveBeenCalled();
-    const written = writeFile.mock.calls[0][1] as string;
-    expect(written).toContain('<svg');
-  });
-
-  test('dry-run 不写入', async () => {
-    const writeFile = mock(async () => undefined);
-    mock.module('node:fs/promises', () => ({
-      readFile: mock(async () => '---\ntitle: Hello\n---\n'),
-      writeFile,
-      mkdir: mock(async () => undefined),
+  test('dry-run 不写入', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      mkdirSync('static/images/covers', { recursive: true });
+      writeFileSync('content/posts/hello.md', '---\ntitle: Hello\n---\n');
+      await generateFor(['hello.md'], { force: false, dryRun: true });
+      expect(existsSync('static/images/covers/hello.svg')).toBe(false);
     }));
-
-    await generateFor(['hello.md'], { force: false, dryRun: true });
-    expect(writeFile).not.toHaveBeenCalled();
-  });
 });

@@ -1,17 +1,17 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * 检查 Markdown 中的死链
  *
  * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
  *
  * 用法：
- *   bun scripts/check-dead-links.ts
- *   bun scripts/check-dead-links.ts --timeout 10000
+ *   node scripts/dist/check-dead-links.js
+ *   node scripts/dist/check-dead-links.js --timeout 10000
  */
 
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseArgs, getNumber, getBoolean } from './lib/args';
+import { parseArgs, getNumber, getBoolean } from './lib/args.js';
 
 const CONTENT_DIR = 'content';
 const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;

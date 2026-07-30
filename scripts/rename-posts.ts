@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * 将 content/posts/ 下的文章批量重命名为 YYYYMMDD[xxxxxx].md
  *
@@ -9,8 +9,8 @@
  * - frontmatter 中 cover.image 引用同步更新
  *
  * 用法：
- *   bun scripts/rename-posts.ts --dry-run --verbose   # 预览计划
- *   bun scripts/rename-posts.ts                       # 实际执行
+ *   node scripts/dist/rename-posts.js --dry-run --verbose   # 预览计划
+ *   node scripts/dist/rename-posts.js                       # 实际执行
  *
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
@@ -18,8 +18,9 @@
 import { readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
-import { parseFrontMatter, extractFrontMatterBlock } from './lib/frontmatter';
-import { parseArgs, getBoolean } from './lib/args';
+import { spawn } from 'node:child_process';
+import { parseFrontMatter, extractFrontMatterBlock } from './lib/frontmatter.js';
+import { parseArgs, getBoolean } from './lib/args.js';
 
 const POSTS_DIR = 'content/posts';
 const COVERS_DIR = 'static/images/covers';
@@ -222,7 +223,7 @@ export function detectCollisions(plans: RenamePlan[]): Map<string, RenamePlan[]>
 
 /**
  * 执行 rename。优先 `git mv` 以保留历史；失败/非 git 仓库时降级为 fs.rename。
- * 用 Bun.spawn 数组参数形式避免 shell 转义问题。
+ * 用 child_process.spawn 数组参数形式避免 shell 转义问题。
  */
 async function moveFile(oldPath: string, newPath: string): Promise<{ usedGit: boolean }> {
   const { ok } = await runGit(['mv', oldPath, newPath]);
@@ -250,8 +251,12 @@ async function gitAdd(path: string): Promise<boolean> {
  */
 async function runGit(args: string[]): Promise<{ ok: boolean; exit: number }> {
   try {
-    const proc = Bun.spawn(['git', ...args], { stdout: 'pipe', stderr: 'pipe' });
-    const exit = await proc.exited;
+    const exit = await new Promise<number>((resolve) => {
+      const child = spawn('git', args, {
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+      child.on('close', resolve);
+    });
     return { ok: exit === 0, exit };
   } catch {
     return { ok: false, exit: -1 };

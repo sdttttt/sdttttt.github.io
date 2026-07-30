@@ -1,5 +1,6 @@
-import { describe, test, expect } from 'bun:test';
-import { parseArgs, getString, getBoolean, getStrings, getNumber } from '../lib/args';
+import { describe, test } from 'node:test';
+import { parseArgs, getString, getBoolean, getStrings, getNumber } from '../lib/args.js';
+import { expect } from './expect.js';
 
 describe('parseArgs', () => {
   test('空参数返回空对象和空位置参数', () => {

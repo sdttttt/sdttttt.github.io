@@ -1,17 +1,20 @@
-import { describe, test, expect, mock, afterEach } from 'bun:test';
+import { describe, test, mock, afterEach } from 'node:test';
 import {
   extractLinksOutsideCodeBlocks,
   shouldSkip,
   checkUrl,
   checkUrlGet,
   walkMarkdown,
-} from '../check-dead-links';
+} from '../check-dead-links.js';
+import { expect } from './expect.js';
+import { inTempDir } from './temp-dir.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
-  mock.restore();
+  mock.restoreAll();
 });
 
 describe('extractLinksOutsideCodeBlocks', () => {
@@ -78,14 +81,14 @@ describe('shouldSkip', () => {
 
 describe('checkUrl', () => {
   test('200 返回 ok', async () => {
-    globalThis.fetch = mock(() => Promise.resolve(new Response(null, { status: 200, statusText: 'OK' })));
+    globalThis.fetch = mock.fn(() => Promise.resolve(new Response(null, { status: 200, statusText: 'OK' }))) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
   });
 
   test('405 触发 GET 二次请求', async () => {
-    globalThis.fetch = mock((() => {
+    globalThis.fetch = mock.fn((() => {
       let call = 0;
       return () => {
         call++;
@@ -94,35 +97,35 @@ describe('checkUrl', () => {
         }
         return Promise.resolve(new Response(null, { status: 200 }));
       };
-    })());
+    })()) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
-    expect((globalThis.fetch as any).mock.calls.length).toBe(2);
+    expect((globalThis.fetch as unknown as { mock: { calls: unknown[] } }).mock.calls.length).toBe(2);
   });
 
   test('404 返回失败', async () => {
-    globalThis.fetch = mock(() => Promise.resolve(new Response(null, { status: 404 })));
+    globalThis.fetch = mock.fn(() => Promise.resolve(new Response(null, { status: 404 }))) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(false);
     expect(result.status).toBe(404);
   });
 
   test('超时返回 timeout', async () => {
-    globalThis.fetch = mock((_url: string, init: RequestInit) => {
+    globalThis.fetch = mock.fn((_url: string, init: RequestInit) => {
       return new Promise((_resolve, reject) => {
         init.signal?.addEventListener('abort', () => {
           reject(new DOMException('The operation was aborted.', 'AbortError'));
         });
       });
-    });
+    }) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com', 1);
     expect(result.ok).toBe(false);
     expect(result.status).toBe('timeout');
   });
 
   test('网络错误返回 error 状态', async () => {
-    globalThis.fetch = mock(() => Promise.reject(new Error('network down')));
+    globalThis.fetch = mock.fn(() => Promise.reject(new Error('network down'))) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(false);
     expect(result.status).toContain('network down');
@@ -131,52 +134,38 @@ describe('checkUrl', () => {
 
 describe('checkUrlGet', () => {
   test('使用 GET 方法', async () => {
-    globalThis.fetch = mock((url: string, init: RequestInit) => {
+    globalThis.fetch = mock.fn((url: string, init: RequestInit) => {
       expect(init.method).toBe('GET');
       return Promise.resolve(new Response(null, { status: 200 }));
-    });
+    }) as unknown as typeof fetch;
     const result = await checkUrlGet('https://example.com');
     expect(result.ok).toBe(true);
   });
 });
 
 describe('walkMarkdown', () => {
-  test('递归遍历 Markdown 文件', async () => {
-    mock.module('node:fs/promises', () => ({
-      readdir: mock(async (dir: string) => {
-        if (dir === 'content') {
-          return [
-            { name: 'posts', isDirectory: () => true, isFile: () => false },
-            { name: 'about.md', isDirectory: () => false, isFile: () => true },
-            { name: 'logo.png', isDirectory: () => false, isFile: () => true },
-          ];
-        }
-        if (dir === 'content/posts') {
-          return [
-            { name: 'a.md', isDirectory: () => false, isFile: () => true },
-            { name: 'b.txt', isDirectory: () => false, isFile: () => true },
-          ];
-        }
-        return [];
-      }),
+  test('递归遍历 Markdown 文件', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/about.md', '');
+      writeFileSync('content/logo.png', '');
+      writeFileSync('content/posts/a.md', '');
+      writeFileSync('content/posts/b.txt', '');
+
+      const paths: string[] = [];
+      for await (const p of walkMarkdown('content')) {
+        paths.push(p);
+      }
+      expect(paths.sort()).toEqual(['content/about.md', 'content/posts/a.md']);
     }));
 
-    const paths: string[] = [];
-    for await (const p of walkMarkdown('content')) {
-      paths.push(p);
-    }
-    expect(paths.sort()).toEqual(['content/about.md', 'content/posts/a.md']);
-  });
-
-  test('空目录无产出', async () => {
-    mock.module('node:fs/promises', () => ({
-      readdir: mock(async () => []),
+  test('空目录无产出', () =>
+    inTempDir(async () => {
+      mkdirSync('content', { recursive: true });
+      const paths: string[] = [];
+      for await (const p of walkMarkdown('content')) {
+        paths.push(p);
+      }
+      expect(paths).toEqual([]);
     }));
-
-    const paths: string[] = [];
-    for await (const p of walkMarkdown('content')) {
-      paths.push(p);
-    }
-    expect(paths).toEqual([]);
-  });
 });

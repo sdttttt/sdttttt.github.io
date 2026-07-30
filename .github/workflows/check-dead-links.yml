@@ -19,10 +19,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - uses: actions/setup-node@v4
         with:
-          bun-version: latest
+          node-version: '24'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Compile scripts
+        run: npx tsc -p tsconfig.scripts.json
 
       - name: Check dead links
-        run: bun scripts/check-dead-links.ts || true
+        run: node scripts/dist/check-dead-links.js || true

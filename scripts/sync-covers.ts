@@ -1,18 +1,18 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * 清理未使用的封面 SVG
  *
  * 扫描所有文章的 cover.image，删除 static/images/covers 中未被引用的 SVG。
  *
  * 用法：
- *   bun scripts/sync-covers.ts          # 直接删除孤儿封面
- *   bun scripts/sync-covers.ts --dry-run # 只打印，不删除
+ *   node scripts/dist/sync-covers.js          # 直接删除孤儿封面
+ *   node scripts/dist/sync-covers.js --dry-run # 只打印，不删除
  */
 
 import { readdir, readFile, unlink } from 'node:fs/promises';
 import { join, basename } from 'node:path';
-import { parseFrontMatter } from './lib/frontmatter';
-import { parseArgs, getBoolean } from './lib/args';
+import { parseFrontMatter } from './lib/frontmatter.js';
+import { parseArgs, getBoolean } from './lib/args.js';
 
 const POSTS_DIR = 'content/posts';
 const COVERS_DIR = 'static/images/covers';

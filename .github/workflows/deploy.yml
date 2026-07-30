@@ -18,11 +18,6 @@ jobs:
           submodules: true
           fetch-depth: 0 # pull --rebase 需要完整历史
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
-
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -30,25 +25,25 @@ jobs:
       - name: Install Prettier
         run: npm install -g prettier@3.9.6
 
-      - name: Install Bun dependencies
-        run: bun install
+      - name: Install dependencies
+        run: npm install
 
       - name: Compile scripts
-        run: bunx tsc -p tsconfig.scripts.json
+        run: npx tsc -p tsconfig.scripts.json
 
       - name: Optimize images
-        run: bun scripts/dist/optimize-images.js --dir assets/images --variants-only --width 1200
+        run: node scripts/dist/optimize-images.js --dir assets/images --variants-only --width 1200
 
       - name: Rename posts
-        run: bun scripts/dist/rename-posts.js
+        run: node scripts/dist/rename-posts.js
 
       # 先生成封面并注入 front matter，再交给 prettier 统一格式化，
       # 这样注入的 YAML 不会留下待格式化的残留。
       - name: Generate covers and inject front matter
-        run: bun scripts/dist/gen-covers.js --all --inject-fm
+        run: node scripts/dist/gen-covers.js --all --inject-fm
 
       - name: Format Markdown files
-        run: bun scripts/dist/format-markdown.js
+        run: node scripts/dist/format-markdown.js
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
@@ -70,7 +65,7 @@ jobs:
       # 放在 artifact 上传之后：万一撞上并发 push 导致失败，也不阻塞本次部署
       - name: Commit auto-fix results
         run: |
-          bun scripts/dist/git-commit-push.js --message "chore: auto-fix content"
+          node scripts/dist/git-commit-push.js --message "chore: auto-fix content"
 
   deploy:
     needs: build

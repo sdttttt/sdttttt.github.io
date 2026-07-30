@@ -1,12 +1,7 @@
-import { describe, test, expect, afterEach, beforeEach, mock } from 'bun:test';
+import { describe, test, afterEach, beforeEach } from 'node:test';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-
-// 其它测试文件可能 mock 了 node:fs/promises；本文件需要真实 fs，
-// 在每个测试前恢复真实模块，避免跨文件污染。
-const realFsPromises = require('node:fs/promises');
-const realFs = require('node:fs');
 
 import {
   normalizeDate,
@@ -16,7 +11,8 @@ import {
   buildReport,
   detectCollisions,
   type RenamePlan,
-} from '../rename-posts';
+} from '../rename-posts.js';
+import { expect } from './expect.js';
 
 // 模拟脚本对 raw 的处理：先用 extractBody 取 body，再算 hash
 function simulateNewName(date: string, body: string): string {
@@ -162,9 +158,6 @@ body`;
 
 // ─────────────────────────────────────────────────────────────
 // 集成：buildReport + detectCollisions（用真实临时文件，不 mock fs）
-//
-// **不能用 mock.module('node:fs/promises', ...)**：bun:test 中 mock.module
-// 是文件级持久的，rename-posts-execute.test.ts 用真实 fs 的测试会被污染。
 // ─────────────────────────────────────────────────────────────
 
 interface TempContent {
@@ -202,8 +195,6 @@ describe('buildReport', () => {
   let env: TempContent;
 
   beforeEach(() => {
-    mock.module('node:fs/promises', () => realFsPromises);
-    mock.module('node:fs', () => realFs);
     env = setupTempContent();
   });
 
@@ -343,12 +334,3 @@ describe('detectCollisions', () => {
     expect(collisions.get('20240115[aaaaaa].md')!.length).toBe(3);
   });
 });
-
-// ─────────────────────────────────────────────────────────────
-// 集成：executePlan（用真实 git repo 验证 index 同步）
-//
-// 单独放在本文件，**不能合并到 rename-posts.test.ts**：
-// 那个文件里的 buildReport 测试用 mock.module 替换了 node:fs/promises，
-// 而 mock.module 在 bun:test 是文件级持久的（mock.restore() 不处理它），
-// 会污染这里对真实 fs 的调用。
-// ─────────────────────────────────────────────────────────────

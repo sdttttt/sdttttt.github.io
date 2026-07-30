@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * 校验文章 front matter 和封面一致性
  *
@@ -10,12 +10,12 @@
  *   - private 如存在必须是布尔值
  *
  * 用法：
- *   bun scripts/validate-posts.ts
+ *   node scripts/dist/validate-posts.js
  */
 
 import { readdir, readFile, stat } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseFrontMatter } from './lib/frontmatter';
+import { parseFrontMatter } from './lib/frontmatter.js';
 
 const POSTS_DIR = 'content/posts';
 
