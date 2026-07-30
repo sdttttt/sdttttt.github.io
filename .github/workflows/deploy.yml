@@ -36,6 +36,9 @@ jobs:
       - name: Optimize images
         run: bun scripts/optimize-images.ts --dir assets/images --variants-only --width 1200
 
+      - name: Rename posts
+        run: bun scripts/rename-posts.ts
+
       # 先生成封面并注入 front matter，再交给 prettier 统一格式化，
       # 这样注入的 YAML 不会留下待格式化的残留。
       - name: Generate covers and inject front matter
