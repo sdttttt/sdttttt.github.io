@@ -1,6 +1,10 @@
 ---
 title: "第一次抽米家游戏满命"
 date: 2026-07-30
+cover:
+  image: "images/covers/new.svg"
+  alt: ""
+  hidden: false
 ---
 
 说实话这次纯粹是运气好, 以后应该不会有这样的剧本了。
