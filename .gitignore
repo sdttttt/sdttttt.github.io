@@ -8,3 +8,6 @@ hugo_stats.json
 
 # OS
 .DS_Store
+
+# CI compiled scripts
+scripts/dist/

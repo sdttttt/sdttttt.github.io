@@ -33,19 +33,22 @@ jobs:
       - name: Install Bun dependencies
         run: bun install
 
+      - name: Compile scripts
+        run: bunx tsc -p tsconfig.scripts.json
+
       - name: Optimize images
-        run: bun scripts/optimize-images.ts --dir assets/images --variants-only --width 1200
+        run: bun scripts/dist/optimize-images.js --dir assets/images --variants-only --width 1200
 
       - name: Rename posts
-        run: bun scripts/rename-posts.ts
+        run: bun scripts/dist/rename-posts.js
 
       # 先生成封面并注入 front matter，再交给 prettier 统一格式化，
       # 这样注入的 YAML 不会留下待格式化的残留。
       - name: Generate covers and inject front matter
-        run: bun scripts/gen-covers.ts --all --inject-fm
+        run: bun scripts/dist/gen-covers.js --all --inject-fm
 
       - name: Format Markdown files
-        run: bun scripts/format-markdown.ts
+        run: bun scripts/dist/format-markdown.js
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
@@ -67,7 +70,7 @@ jobs:
       # 放在 artifact 上传之后：万一撞上并发 push 导致失败，也不阻塞本次部署
       - name: Commit auto-fix results
         run: |
-          bun scripts/git-commit-push.ts --message "chore: auto-fix content"
+          bun scripts/dist/git-commit-push.js --message "chore: auto-fix content"
 
   deploy:
     needs: build

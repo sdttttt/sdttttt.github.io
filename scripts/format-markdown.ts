@@ -17,9 +17,10 @@ const check = getBoolean(args, 'check');
 
 const patterns = ['"**/*.md"'];
 const cmd = ['prettier', check ? '--check' : '--write', ...patterns];
+const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
 
 try {
-  execSync(cmd.join(' '), { stdio: 'inherit', shell: true });
+  execSync(cmd.join(' '), { stdio: 'inherit', shell });
 } catch {
   // prettier --check 发现未格式化文件时会返回非零退出码
   process.exit(1);

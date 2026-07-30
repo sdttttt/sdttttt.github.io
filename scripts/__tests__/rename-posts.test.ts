@@ -1,7 +1,13 @@
-import { describe, test, expect, afterEach, beforeEach } from 'bun:test';
+import { describe, test, expect, afterEach, beforeEach, mock } from 'bun:test';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+
+// 其它测试文件可能 mock 了 node:fs/promises；本文件需要真实 fs，
+// 在每个测试前恢复真实模块，避免跨文件污染。
+const realFsPromises = require('node:fs/promises');
+const realFs = require('node:fs');
+
 import {
   normalizeDate,
   extractBody,
@@ -196,6 +202,8 @@ describe('buildReport', () => {
   let env: TempContent;
 
   beforeEach(() => {
+    mock.module('node:fs/promises', () => realFsPromises);
+    mock.module('node:fs', () => realFs);
     env = setupTempContent();
   });
 

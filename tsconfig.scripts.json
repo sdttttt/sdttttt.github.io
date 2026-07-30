@@ -1,0 +1,17 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "rootDir": "scripts",
+    "outDir": "scripts/dist",
+    "strict": false,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "types": ["bun"],
+    "noEmitOnError": false,
+    "declaration": false
+  },
+  "include": ["scripts/**/*.ts"],
+  "exclude": ["scripts/__tests__", "scripts/dist", "node_modules"]
+}
