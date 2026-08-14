@@ -12,3 +12,9 @@ date: 2020-04-03
 > 所以，我觉得这样子也很好。
 >
 > 我已经很满足了。
+
+<img width="552" height="785" alt="a6841def004e6c7c38dd0a4b3f0fbc8e" src="https://github.com/user-attachments/assets/9a38610f-b3cc-4239-b940-e4b123d20ebe" />
+
+这是我最最最喜欢的角色！宫城志绪理！很可爱吧！她是属于仙台叶月的！
+
+*我或许是为了见到这孩子才会接触ACG文化的吧。*
