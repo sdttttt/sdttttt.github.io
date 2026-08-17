@@ -257,11 +257,15 @@ export async function injectCoverField(files: string[], { dryRun }: { dryRun: bo
     let newFm: string;
     if (/^cover:\s*$/m.test(fm)) {
       // 替换已有 cover 块（cover-default 占位 → 新封面）
+      // 确保 front matter 内容以换行结尾，便于下面拼装时保留分隔
       newFm = fm.replace(/^cover:\s*\n((?:  .+\n?)+)/m, newCover + '\n');
     } else {
       // 追加 cover 块（在 front matter 末尾）
-      newFm = fm.trimEnd() + '\n' + newCover + '\n';
+      newFm = fm.trimEnd() + '\n' + newCover;
     }
+
+    // 确保 newFm 以换行结尾，避免与闭合 --- 之间缺少分隔符
+    if (!newFm.endsWith('\n')) newFm += '\n';
 
     const newRaw = raw.replace(/^---\n[\s\S]*?\n---/, `---\n${newFm}---`);
     if (dryRun) {
