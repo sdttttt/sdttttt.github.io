@@ -65,7 +65,7 @@ describe('executePlan（真实 git repo 集成）', () => {
   test('rename + cover 重写后 commit 拿到的内容是新内容（不是 index 旧内容）', async () => {
     const oldSlug = '2020-01-01-hello';
     const oldCover = `assets/images/covers/${oldSlug}.svg`;
-    const newSlug = '20200101[abcdef]';
+    const newSlug = '20200101-hello-zzz';
     const newCover = `assets/images/covers/${newSlug}.svg`;
     const mdContent = `---
 title: Hello
@@ -88,7 +88,9 @@ hello body content`;
       oldSlug,
       newSlug,
       yyyymmdd: '20200101',
-      hash6: 'abcdef',
+      hash3: 'zzz',
+      title: 'Hello',
+      oldUrl: `/posts/20200101hello/`,
       cover: {
         oldCoverPath: oldCover,
         newCoverPath: newCover,
@@ -125,7 +127,7 @@ hello body content`;
 
   test('没有 cover 时也能正常 rename', async () => {
     const oldSlug = '2020-02-02-no-cover';
-    const newSlug = '20200202[123456]';
+    const newSlug = '20200202-no-cover-xxx';
     const mdContent = `---
 title: No Cover
 date: 2020-02-02
@@ -142,7 +144,9 @@ body`;
       oldSlug,
       newSlug,
       yyyymmdd: '20200202',
-      hash6: '123456',
+      hash3: 'xxx',
+      title: 'No Cover',
+      oldUrl: `/posts/20200202nocover/`,
       cover: null,
       body: 'body',
     };

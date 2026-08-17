@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 /**
- * 将 content/posts/ 下的文章批量重命名为 YYYYMMDD[xxxxxx].md
+ * 将 content/posts/ 下的文章批量重命名为 YYYYMMDD-{slug}-{xxx}.md
  *
  * - 日期取自 frontmatter `date` 字段
- * - 6 位 hash 是 body 内容的 SHA-256 前 3 字节（24 bit → base36）
- * - 文件名中方括号 `[]` 是字面字符
+ * - slug 由 frontmatter `title` 自动 slugify（保留中文 unicode）
+ * - 3 位 hash 是 body 内容的 SHA-256 前 2 字节（16 bit → base36）
+ *   用于兜底去重，绝大多数情况下文件名长度 = `YYYYMMDD-slug-XXX`
  * - 配套封面 static/images/covers/{oldSlug}.svg 同步重命名
  * - frontmatter 中 cover.image 引用同步更新
  *
@@ -65,12 +66,54 @@ export function extractBody(raw: string): string {
  * body 内容 → 6 位 base36 hash（24 bit）。
  * 使用 node:crypto 的 SHA-256，取前 3 字节。
  * 选 SHA-256 是因为它是行业标准、对任意输入分布均匀、便于审计。
+ *
+ * 注意：本函数保留用于向后兼容。新代码请用 `computeHash3`。
  */
 export function computeHash6(body: string): string {
   const buf = createHash('sha256').update(body).digest();
   // 取前 3 字节作为 24-bit unsigned int（大端）
   const n = ((buf[0]! << 16) | (buf[1]! << 8) | buf[2]!) >>> 0;
   return n.toString(36).padStart(6, '0');
+}
+
+/**
+ * body 内容 → 3 位 base36 hash（16 bit）。
+ * SHA-256 前 2 字节 → 16-bit unsigned int → base36。
+ *
+ * 比 `computeHash6` 更短小，作为 `YYYYMMDD-slug-XXX.md` 末尾的去重后缀。
+ * 16 bit 在 220+ 篇文章规模下冲突概率 ~0.1%，可接受。
+ */
+export function computeHash3(body: string): string {
+  const buf = createHash('sha256').update(body).digest();
+  // 取前 2 字节作为 16-bit unsigned int（大端）
+  const n = ((buf[0]! << 8) | buf[1]!) >>> 0;
+  return n.toString(36).padStart(3, '0');
+}
+
+/**
+ * 把 title 转成 URL/文件名安全的 slug。
+ *
+ * 规则：
+ * - 保留中文字符（CJK unicode），Hugo 原生支持 unicode 段
+ * - ASCII 部分：保留字母/数字/连字符，其余替换为 `-`
+ * - 合并连续连字符
+ * - 去掉首尾连字符
+ * - 长度上限 80 字符（避免文件名/URL 过长）
+ * - 空字符串兜底返回 `'untitled'`
+ */
+export function slugify(title: string): string {
+  const MAX = 80;
+  let s = title.trim();
+  // 替换所有非保留字符为连字符
+  // 保留：CJK 字符（U+4E00-U+9FFF, U+3400-U+4DBF, U+3040-U+30FF, U+AC00-U+D7AF）+ 拉丁字母数字 + 连字符
+  s = s.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u30FF\uAC00-\uD7AFa-zA-Z0-9-]+/g, '-');
+  // 合并连续连字符
+  s = s.replace(/-+/g, '-');
+  // 去掉首尾连字符
+  s = s.replace(/^-+|-+$/g, '');
+  // 长度上限（按字符数而非字节数；中文每个算 1 字符）
+  if (s.length > MAX) s = s.slice(0, MAX).replace(/-+$/, '');
+  return s || 'untitled';
 }
 
 /**
@@ -136,7 +179,9 @@ export interface RenamePlan {
   oldSlug: string;
   newSlug: string;
   yyyymmdd: string;
-  hash6: string;
+  hash3: string;
+  title: string;
+  oldUrl: string;  // 例如 "/posts/2026081705hog4/" 用于写入 aliases
   cover: CoverUpdate | null;
   body: string; // 用于 verbose 输出
 }
@@ -149,6 +194,19 @@ export interface SkipEntry {
 export interface Report {
   plans: RenamePlan[];
   skipped: SkipEntry[];
+}
+
+/**
+ * 从 oldSlug 推导旧 URL。
+ * 支持两种历史格式：
+ *   - YYYYMMDD[hash]      → /posts/YYYYMMDDhash/
+ *   - YYYY-MM-DD-slug     → /posts/YYYY-MM-DD-slug/
+ */
+export function oldUrlFromSlug(oldSlug: string): string {
+  // 合并 YYYYMMDD + 后缀，去掉所有分隔符和方括号
+  // 2026081705hog4 或 20260805[057m5q] 都解析为 2026081705hog4
+  const stripped = oldSlug.replace(/[\[\]-]/g, '');
+  return `/posts/${stripped}/`;
 }
 
 export async function buildReport(): Promise<Report> {
@@ -172,9 +230,17 @@ export async function buildReport(): Promise<Report> {
       continue;
     }
 
+    const title = typeof meta.title === 'string' ? meta.title : '';
+    if (!title) {
+      skipped.push({ file: f, reason: '缺少 title 字段' });
+      continue;
+    }
+
     const body = extractBody(raw);
-    const hash6 = computeHash6(body);
-    const newName = `${yyyymmdd}[${hash6}].md`;
+    const slug = slugify(title);
+    const hash3 = computeHash3(body);
+    const newSlug = `${yyyymmdd}-${slug}-${hash3}`;
+    const newName = `${newSlug}.md`;
     const newPath = join(POSTS_DIR, newName);
 
     if (newName === f) {
@@ -183,7 +249,6 @@ export async function buildReport(): Promise<Report> {
     }
 
     const oldSlug = basename(f, '.md');
-    const newSlug = basename(newName, '.md');
     const cover = await computeCoverUpdate(meta, oldSlug, newSlug);
 
     plans.push({
@@ -192,7 +257,9 @@ export async function buildReport(): Promise<Report> {
       oldSlug,
       newSlug,
       yyyymmdd,
-      hash6,
+      hash3,
+      title,
+      oldUrl: oldUrlFromSlug(oldSlug),
       cover,
       body,
     });
@@ -288,7 +355,9 @@ function printPlan(p: RenamePlan, prefix: string): void {
   console.log(`  ${basename(p.oldPath)}`);
   console.log(`    → ${basename(p.newPath)}`);
   if (verbose) {
-    console.log(`    hash: ${p.hash6} (body ${p.body.length} chars)`);
+    console.log(`    title: ${p.title}`);
+    console.log(`    hash:  ${p.hash3} (body ${p.body.length} chars)`);
+    console.log(`    alias: ${p.oldUrl}`);
   }
   if (p.cover) {
     console.log(
@@ -320,7 +389,7 @@ async function main(): Promise<void> {
     for (const [name, list] of collisions) {
       console.error(`  ${name}:`);
       for (const p of list) {
-        console.error(`    - ${basename(p.oldPath)} (hash ${p.hash6})`);
+        console.error(`    - ${basename(p.oldPath)} (hash ${p.hash3})`);
       }
     }
     process.exit(1);
