@@ -16,7 +16,7 @@ rssLimit = 20
 theme = "PaperMod"
 
 [params]
-  description = "不再后悔"
+  description = ""
   keywords = ["网络日志"]
   env = "production"
   defaultTheme = "dark"
@@ -36,7 +36,7 @@ theme = "PaperMod"
 
   [params.homeInfoParams]
     Title = "sdttttt"
-    Content = "普通的魔法师"
+    Content = "假如我走进海里，你会拉住我么？"
 
   [[params.socialIcons]]
     name = "github"
