@@ -1,0 +1,14 @@
+---
+title: "Tag和Category？"
+date: 2022-11-16
+tags: ["思考"]
+author: sdttttt
+draft: false
+cover:
+  image: "images/covers/20221116-Tag和Category-wgs.svg"
+  alt: ""
+  hidden: false
+aliases: ["/posts/2022111606evbk/"]
+---
+
+不是很懂这2个有什么区别。notion发布的文章我都只用tag
