@@ -63,9 +63,13 @@ jobs:
           path: './public'
 
       # 放在 artifact 上传之后：万一撞上并发 push 导致失败，也不阻塞本次部署
+      # git-commit-push.js 会按 staged 内容自动分类 commit message（rename/format/fm/...），
+      # 分类失败时回退到 --message-fallback，避免静默丢失信息。
       - name: Commit auto-fix results
         run: |
-          node scripts/dist/git-commit-push.js --message "chore: auto-fix content"
+          node scripts/dist/git-commit-push.js \
+            --message "chore: auto-fix content" \
+            --message-fallback "chore: auto-fix content"
 
   deploy:
     needs: build
