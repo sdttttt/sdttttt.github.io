@@ -3,13 +3,13 @@ title: "About"
 date: 2020-04-03
 ---
 
->  旷野和干旱之地，必然欢喜。
-> 
+> 旷野和干旱之地，必然欢喜。
+>
 > 沙漠也必快乐，又像玫瑰开花。
-> 
+>
 > 必开花繁盛，乐上加乐，而且欢呼。
-> 
-> ——《以赛亚书》第35章 
+>
+> ——《以赛亚书》第35章
 
 <img width="552" height="785" alt="a6841def004e6c7c38dd0a4b3f0fbc8e" src="https://github.com/user-attachments/assets/9a38610f-b3cc-4239-b940-e4b123d20ebe" />
 
