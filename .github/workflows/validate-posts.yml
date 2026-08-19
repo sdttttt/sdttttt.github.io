@@ -7,9 +7,8 @@ on:
     paths:
       - 'content/posts/**'
       - 'scripts/**'
+      - 'deno.json'
       - '.github/workflows/validate-posts.yml'
-      - 'package.json'
-      - 'package-lock.json'
   pull_request:
     branches: [master, main]
 
@@ -20,15 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: denoland/setup-deno@v2
         with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Compile scripts
-        run: npx tsc -p tsconfig.scripts.json
+          deno-version: v2.x
 
       - name: Validate posts
-        run: node scripts/dist/validate-posts.js
+        run: deno task validate-posts

@@ -19,15 +19,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: denoland/setup-deno@v2
         with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Compile scripts
-        run: npx tsc -p tsconfig.scripts.json
+          deno-version: v2.x
 
       - name: Check dead links
-        run: node scripts/dist/check-dead-links.js || true
+        run: deno task check-dead-links || true

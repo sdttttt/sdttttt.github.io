@@ -16,19 +16,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: denoland/setup-deno@v2
         with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Compile scripts
-        run: npx tsc -p tsconfig.scripts.json
+          deno-version: v2.x
 
       - name: Remove orphan cover images
-        run: node scripts/dist/sync-covers.js
+        run: deno task sync-covers
 
       - name: Commit and push changes
-        run: |
-          node scripts/dist/git-commit-push.js --message "chore(assets): remove orphan cover images"
+        run: deno run -A scripts/git-commit-push.ts --message "chore(assets): remove orphan cover images"

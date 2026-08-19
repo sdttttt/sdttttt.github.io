@@ -18,6 +18,11 @@ jobs:
           submodules: true
           fetch-depth: 0 # pull --rebase 需要完整历史
 
+      - uses: denoland/setup-deno@v2
+        with:
+          deno-version: v2.x
+
+      # format-markdown.ts 通过 shell 调用全局 prettier，所以保留 Node + 全局 prettier
       - uses: actions/setup-node@v4
         with:
           node-version: '24'
@@ -25,25 +30,19 @@ jobs:
       - name: Install Prettier
         run: npm install -g prettier@3.9.6
 
-      - name: Install dependencies
-        run: npm install
-
-      - name: Compile scripts
-        run: npx tsc -p tsconfig.scripts.json
-
       - name: Optimize images
-        run: node scripts/dist/optimize-images.js --dir assets/images --variants-only --width 1200
+        run: deno task optimize-images --dir assets/images --variants-only --width 1200
 
       - name: Rename posts
-        run: node scripts/dist/rename-posts.js
+        run: deno task rename-posts
 
       # 先生成封面并注入 front matter，再交给 prettier 统一格式化，
       # 这样注入的 YAML 不会留下待格式化的残留。
       - name: Generate covers and inject front matter
-        run: node scripts/dist/gen-covers.js --all --inject-fm
+        run: deno run -A scripts/gen-covers.ts --all --inject-fm
 
       - name: Format Markdown files
-        run: node scripts/dist/format-markdown.js
+        run: deno task format-markdown
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
@@ -63,11 +62,11 @@ jobs:
           path: './public'
 
       # 放在 artifact 上传之后：万一撞上并发 push 导致失败，也不阻塞本次部署
-      # git-commit-push.js 会按 staged 内容自动分类 commit message（rename/format/fm/...），
+      # git-commit-push.ts 会按 staged 内容自动分类 commit message（rename/format/fm/...），
       # 分类失败时回退到 --message-fallback，避免静默丢失信息。
       - name: Commit auto-fix results
         run: |
-          node scripts/dist/git-commit-push.js \
+          deno run -A scripts/git-commit-push.ts \
             --message "chore: auto-fix content" \
             --message-fallback "chore: auto-fix content"
 

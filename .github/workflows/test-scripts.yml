@@ -5,15 +5,13 @@ on:
     branches: [master, main]
     paths:
       - 'scripts/**'
+      - 'deno.json'
       - '.github/workflows/test-scripts.yml'
-      - 'package.json'
-      - 'package-lock.json'
   pull_request:
     branches: [master, main]
     paths:
       - 'scripts/**'
-      - 'package.json'
-      - 'package-lock.json'
+      - 'deno.json'
 
 jobs:
   test:
@@ -22,15 +20,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - uses: denoland/setup-deno@v2
         with:
-          node-version: '24'
-
-      - name: Install dependencies
-        run: npm install
-
-      - name: Compile scripts
-        run: npx tsc -p tsconfig.scripts.json
+          deno-version: v2.x
 
       - name: Run tests
-        run: node --test scripts/dist/__tests__/*.js
+        run: deno task test
