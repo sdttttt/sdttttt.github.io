@@ -22,13 +22,10 @@ jobs:
         with:
           deno-version: v2.x
 
-      # format-markdown.ts 通过 shell 调用全局 prettier，所以保留 Node + 全局 prettier
-      - uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
+      # format-markdown.ts 通过 shell 调用全局 prettier；用 deno install 替代 npm install -g，
+      # prettier wrapper 落在 ~/.deno/bin/(与 deno 同目录,已在 PATH),省掉 setup-node。
       - name: Install Prettier
-        run: npm install -g prettier@3.9.6
+        run: deno install -g -A npm:prettier@3.9.6
 
       - name: Optimize images
         run: deno task optimize-images --dir assets/images --variants-only --width 1200
