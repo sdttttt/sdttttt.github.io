@@ -26,6 +26,19 @@ git submodule update --remote themes/PaperMod
 
 # 创建新文章
 hugo new posts/文章标题.md
+
+# 脚本工作流基于 Deno：跑测试
+deno task test
+
+# 跑单个脚本（dry-run）
+deno task validate-posts
+deno task sync-covers-dry
+deno task rename-posts-dry
+deno task git-commit-push-dry
+
+# 格式化 / 检查 Markdown（依赖全局 prettier）
+deno task format-markdown
+deno task format-markdown-check
 ```
 
 ---
@@ -39,9 +52,17 @@ hugo new posts/文章标题.md
 ├── layouts/              # 自定义布局模板
 ├── static/               # 静态资源（图片、favicon 等）
 ├── themes/PaperMod/      # PaperMod 主题（git submodule）
+├── scripts/              # 维护脚本（Deno + TypeScript）
+│   ├── *.ts              # 入口脚本（validate-posts / rename-posts / ...）
+│   ├── lib/              # 共用工具（args / frontmatter / git）
+│   └── __tests__/        # node:test 测试
 ├── .github/workflows/    # CI/CD
 │   ├── deploy.yml        # push 到 master → 构建并部署
-│   └── format-markdown.yml # Markdown 自动格式化
+│   ├── validate-posts.yml # 校验 front matter / 封面
+│   ├── sync-covers.yml   # 每周清理孤儿封面
+│   ├── check-dead-links.yml # 每周检查外链
+│   └── test-scripts.yml  # 跑脚本测试
+├── deno.json             # Deno 配置（tasks / imports / unstable flags）
 └── hugo.toml             # Hugo 配置文件
 ```
 
@@ -49,7 +70,9 @@ hugo new posts/文章标题.md
 
 - PaperMod 主题是子模块，首次克隆需 `git clone --recursive`
 - 文章自动部署：推送到 master 分支即可触发 CI/CD
-- 维护日志目录：`content/maintenance/`
+- 维护日志目录：`content/claudelog/`
+- **脚本运行时是 Deno，不是 Node.js**：`deno task test` 跑测试；`deno run -A scripts/xxx.ts` 跑单脚本。所有 `node:` 内置 API + `npm:sharp` 都直接可用，无需 `tsc` 编译或 `node_modules`
+- 唯一保留 Node 依赖：prettier（仅 `deploy.yml` 里 `format-markdown.ts` 调用，需要 `setup-node@v4` + `npm install -g prettier@3.9.6`）
 
 ---
 
@@ -108,4 +131,4 @@ tags: ["维护记录"]
 
 ## Markdown 格式
 
-项目配置了自动格式化（`.github/workflows/format-markdown.yml`），push `.md` 文件时会自动格式化。
+`deploy.yml` 在推送后会自动调用 `deno task format-markdown`（基于全局 prettier）格式化所有 `.md` 文件。`deno task format-markdown-check` 用于本地只检查不写入。
