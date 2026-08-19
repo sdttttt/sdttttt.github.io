@@ -1,12 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 检查 Markdown 中的死链
  *
  * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
  *
  * 用法：
- *   node scripts/dist/check-dead-links.js
- *   node scripts/dist/check-dead-links.js --timeout 10000
+ *   deno task check-dead-links
+ *   deno run -A scripts/check-dead-links.ts --timeout 10000
  */
 
 import { readdir, readFile } from 'node:fs/promises';

@@ -1,10 +1,10 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 自动 git add / commit / push
  *
  * 用法：
- *   node scripts/dist/git-commit-push.js --message "style: auto-format markdown"
- *   node scripts/dist/git-commit-push.js --message "feat: xxx" --dry-run
+ *   deno run -A scripts/git-commit-push.ts --message "style: auto-format markdown"
+ *   deno run -A scripts/git-commit-push.ts --message "feat: xxx" --dry-run
  *
  * 自动 commit message 分类（仅当 staged 内容来自 deploy.yml 的 auto-fix 流水线时生效）：
  *   - 全部是 rename → chore(rename): sync post slug
@@ -33,7 +33,7 @@ if (isMain) {
 
   if (!message) {
     console.error(
-      'Usage: node scripts/dist/git-commit-push.js --message "commit message" [--message-fallback "..."] [--dry-run]',
+      'Usage: deno run -A scripts/git-commit-push.ts --message "commit message" [--message-fallback "..."] [--dry-run]',
     );
     process.exit(1);
   }

@@ -1,14 +1,14 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 批量生成文章封面 SVG
  *
- * 零依赖：Node 自带 fs / crypto / 字符串处理
+ * 零依赖：仅用 node:fs / node:path / 字符串处理
  *
  * 用法：
- *   node scripts/dist/gen-covers.js --dry-run          # 选 5 篇代表性文章，仅打印不写文件
- *   node scripts/dist/gen-covers.js --all              # 给所有无 cover 字段的文章生成
- *   node scripts/dist/gen-covers.js --all --force      # 强制覆盖已有 cover
- *   node scripts/dist/gen-covers.js --files a.md b.md  # 给指定文件生成
+ *   deno run -A scripts/gen-covers.ts --dry-run          # 选 5 篇代表性文章，仅打印不写文件
+ *   deno run -A scripts/gen-covers.ts --all              # 给所有无 cover 字段的文章生成
+ *   deno run -A scripts/gen-covers.ts --all --force      # 强制覆盖已有 cover
+ *   deno run -A scripts/gen-covers.ts --files a.md b.md  # 给指定文件生成
  */
 
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';

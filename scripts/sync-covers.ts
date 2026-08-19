@@ -1,12 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 清理未使用的封面 SVG
  *
  * 扫描所有文章的 cover.image，删除 static/images/covers 中未被引用的 SVG。
  *
  * 用法：
- *   node scripts/dist/sync-covers.js          # 直接删除孤儿封面
- *   node scripts/dist/sync-covers.js --dry-run # 只打印，不删除
+ *   deno task sync-covers          # 直接删除孤儿封面
+ *   deno task sync-covers-dry      # 只打印，不删除
  */
 
 import { readdir, readFile, unlink } from 'node:fs/promises';

@@ -1,12 +1,12 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 格式化 Markdown 文件
  *
  * 依赖：需要全局安装 prettier（npm install -g prettier）
  *
  * 用法：
- *   node scripts/dist/format-markdown.js          # 格式化所有 .md
- *   node scripts/dist/format-markdown.js --check  # 只检查，不写入
+ *   deno task format-markdown          # 格式化所有 .md
+ *   deno task format-markdown-check    # 只检查，不写入
  */
 
 import { execSync } from 'node:child_process';

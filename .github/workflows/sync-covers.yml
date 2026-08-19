@@ -24,4 +24,6 @@ jobs:
         run: deno task sync-covers
 
       - name: Commit and push changes
-        run: deno run -A scripts/git-commit-push.ts --message "chore(assets): remove orphan cover images"
+        run: >
+          deno run -A scripts/git-commit-push.ts
+          --message "chore(assets): remove orphan cover images"

@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 一次性迁移脚本：将所有 content/posts/*.md 从旧命名格式
  *   YYYYMMDD[hash].md 或 YYYY-MM-DD-slug.md
@@ -9,9 +9,9 @@
  * 使 Hugo 自动生成 301 等价物，保留外链。
  *
  * 用法：
- *   node scripts/dist/migrate-slug-scheme.js            # dry-run 预览
- *   node scripts/dist/migrate-slug-scheme.js --apply    # 实际执行
- *   node scripts/dist/migrate-slug-scheme.js --apply --verbose
+ *   deno run -A scripts/migrate-slug-scheme.ts            # dry-run 预览
+ *   deno run -A scripts/migrate-slug-scheme.ts --apply    # 实际执行
+ *   deno run -A scripts/migrate-slug-scheme.ts --apply --verbose
  *
  * 设计原则：
  * - 默认 dry-run，避免误操作 220+ 篇文章

@@ -1,18 +1,18 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 图片压缩 / 转 WebP 脚本
  *
- * 依赖：sharp（已加入 package.json devDependencies，首次使用前先执行 npm install）
+ * 依赖：sharp（Deno 通过 npm:sharp@0.33.5 自动解析，无需 npm install）
  *
  * 用法：
- *   node scripts/dist/optimize-images.js                     # 默认处理 assets/images/
- *   node scripts/dist/optimize-images.js --dir static/images # 指定目录
- *   node scripts/dist/optimize-images.js --quality 85        # 调整 JPEG/WebP/AVIF 质量
- *   node scripts/dist/optimize-images.js --width 1200        # 宽度过大时等比缩放
- *   node scripts/dist/optimize-images.js --webp              # 额外生成 .webp 变体（保留原图）
- *   node scripts/dist/optimize-images.js --variants-only     # 只生成 .webp 变体，不覆盖原图（适合 CI）
- *   node scripts/dist/optimize-images.js --dry-run           # 只打印，不写入
- *   node scripts/dist/optimize-images.js --force             # 即使体积变大也强制写入
+ *   deno run -A scripts/optimize-images.ts                     # 默认处理 assets/images/
+ *   deno run -A scripts/optimize-images.ts --dir static/images # 指定目录
+ *   deno run -A scripts/optimize-images.ts --quality 85        # 调整 JPEG/WebP/AVIF 质量
+ *   deno run -A scripts/optimize-images.ts --width 1200        # 宽度过大时等比缩放
+ *   deno run -A scripts/optimize-images.ts --webp              # 额外生成 .webp 变体（保留原图）
+ *   deno run -A scripts/optimize-images.ts --variants-only     # 只生成 .webp 变体，不覆盖原图（适合 CI）
+ *   deno run -A scripts/optimize-images.ts --dry-run           # 只打印，不写入
+ *   deno run -A scripts/optimize-images.ts --force             # 即使体积变大也强制写入
  */
 
 import { readdir, readFile, writeFile } from 'node:fs/promises';

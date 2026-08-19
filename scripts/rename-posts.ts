@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env deno
 /**
  * 将 content/posts/ 下的文章批量重命名为 YYYYMMDD-{slug}-{xxx}.md
  *
@@ -10,8 +10,8 @@
  * - frontmatter 中 cover.image 引用同步更新
  *
  * 用法：
- *   node scripts/dist/rename-posts.js --dry-run --verbose   # 预览计划
- *   node scripts/dist/rename-posts.js                       # 实际执行
+ *   deno run -A scripts/rename-posts.ts --dry-run --verbose   # 预览计划
+ *   deno task rename-posts                                     # 实际执行
  *
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
