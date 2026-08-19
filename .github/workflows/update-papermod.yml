@@ -13,6 +13,8 @@ permissions:
 jobs:
   update-submodule:
     runs-on: ubuntu-latest
+    # 跳过 github-actions[bot] 的触发：避免子模块更新 commit 触发新一轮自更新
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
