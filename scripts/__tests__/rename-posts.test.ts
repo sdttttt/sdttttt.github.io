@@ -6,7 +6,6 @@ import { join } from 'node:path';
 import {
   normalizeDate,
   extractBody,
-  computeHash6,
   computeHash3,
   slugify,
   rewriteCoverImage,
@@ -16,12 +15,6 @@ import {
   type RenamePlan,
 } from '../rename-posts.js';
 import { expect } from './expect.js';
-
-// 模拟脚本对 raw 的处理：先用 extractBody 取 body，再算 hash
-function simulateNewName(date: string, body: string): string {
-  const raw = `---\ndate: ${date}\n---\n${body}`;
-  return `${normalizeDate(date)}[${computeHash6(extractBody(raw))}].md`;
-}
 
 // ─────────────────────────────────────────────────────────────
 // 纯函数
@@ -82,44 +75,6 @@ describe('extractBody', () => {
   test('frontmatter 内部多行也正确剥离', () => {
     const raw = '---\ntitle: x\ntags:\n  - a\n  - b\ndate: 2025-01-01\n---\nbody';
     expect(extractBody(raw)).toBe('\nbody');
-  });
-});
-
-describe('computeHash6', () => {
-  test('输出长度固定 6', () => {
-    expect(computeHash6('').length).toBe(6);
-    expect(computeHash6('hello').length).toBe(6);
-    expect(computeHash6('中文字符也能算').length).toBe(6);
-  });
-
-  test('输出仅含 base36 字符 (0-9a-z)', () => {
-    const h = computeHash6('some body content with various chars !@#$%^&*()');
-    expect(h).toMatch(/^[0-9a-z]{6}$/);
-  });
-
-  test('确定性：相同输入 → 相同 hash', () => {
-    expect(computeHash6('abc')).toBe(computeHash6('abc'));
-  });
-
-  test('不同输入 → 不同 hash (高概率)', () => {
-    expect(computeHash6('hello')).not.toBe(computeHash6('world'));
-  });
-
-  test('body 加末尾空白 → 不同 hash（因为我们哈希的是 body 内容）', () => {
-    expect(computeHash6('abc')).not.toBe(computeHash6('abc '));
-  });
-
-  test('空字符串也是有效输入', () => {
-    expect(computeHash6('')).toMatch(/^[0-9a-z]{6}$/);
-  });
-
-  test('确定性 + 已知向量（防止误改回 djb2）', () => {
-    // SHA-256("hello") = 2cf24dba...
-    // 前 3 字节 = 0x2c, 0xf2, 0x4d = 24-bit 0x2cf24d = 2945613 → base36 "01r4ul"
-    expect(computeHash6('hello')).toBe('01r4ul');
-    // SHA-256("") = e3b0c442...
-    // 前 3 字节 = 0xe3, 0xb0, 0xc4 = 24-bit 0xe3b0c4 = 14921924 → base36 "08vttw"
-    expect(computeHash6('')).toBe('08vttw');
   });
 });
 

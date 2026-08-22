@@ -63,24 +63,10 @@ export function extractBody(raw: string): string {
 }
 
 /**
- * body 内容 → 6 位 base36 hash（24 bit）。
- * 使用 node:crypto 的 SHA-256，取前 3 字节。
- * 选 SHA-256 是因为它是行业标准、对任意输入分布均匀、便于审计。
- *
- * 注意：本函数保留用于向后兼容。新代码请用 `computeHash3`。
- */
-export function computeHash6(body: string): string {
-  const buf = createHash('sha256').update(body).digest();
-  // 取前 3 字节作为 24-bit unsigned int（大端）
-  const n = ((buf[0]! << 16) | (buf[1]! << 8) | buf[2]!) >>> 0;
-  return n.toString(36).padStart(6, '0');
-}
-
-/**
  * body 内容 → 3 位 base36 hash（16 bit）。
  * SHA-256 前 2 字节 → 16-bit unsigned int → base36。
  *
- * 比 `computeHash6` 更短小，作为 `YYYYMMDD-slug-XXX.md` 末尾的去重后缀。
+ * 作为 `YYYYMMDD-slug-XXX.md` 末尾的去重后缀。
  * 16 bit 在 220+ 篇文章规模下冲突概率 ~0.1%，可接受。
  */
 export function computeHash3(body: string): string {
