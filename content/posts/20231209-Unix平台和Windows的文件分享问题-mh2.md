@@ -2,7 +2,6 @@
 title: "Unix平台和Windows的文件分享问题"
 date: 2023-12-09
 tags: ["思考"]
-categories: ["学习思考"]
 author: sdttttt
 draft: false
 cover:

@@ -2,7 +2,6 @@
 title: "关于MosDNS"
 date: 2023-09-26
 tags: ["软路由"]
-categories: ["碎片杂文"]
 author: sdttttt
 draft: false
 cover:
