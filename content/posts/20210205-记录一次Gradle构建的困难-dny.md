@@ -1,7 +1,7 @@
 ---
 title: "记录一次Gradle构建的困难"
 date: 2021-02-05
-description: ""
+description: "记录接手一个 Gradle 构建的 Java 项目后,执行构建命令仅产出 14KB 无效 jar 包的排查过程,提示无主清单属性错误,最终发现源码缺少包路径,通过 IDE 重构补齐后再构建得到正确工程文件的完整经历与 Gradle 打 jar 包的常见坑。"
 tags: ["学习"]
 author: sdttttt
 draft: false

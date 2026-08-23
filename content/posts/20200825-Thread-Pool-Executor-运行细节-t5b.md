@@ -1,6 +1,7 @@
 ---
 title: "Thread Pool Executor 运行细节"
 date: 2020-08-25
+description: "解析 Java 线程池执行器的构造参数与执行流程,说明提交任务时核心线程数、阻塞队列、最大线程数与拒绝策略的判定顺序,以及工作线程循环从阻塞队列取任务的运行机制与各阶段对应的源码细节与线程池调优要点。"
 author: sdttttt
 tags: ["学习"]
 draft: false

@@ -1,7 +1,7 @@
 ---
 title: "Composition Api"
 date: 2021-01-14
-description: ""
+description: "介绍在 Vue2 项目中以插件形式使用组合式 API 的写法,演示类似 React 钩子的自定义函数封装与响应式数据拆分,讨论初始化函数中无法使用 this 时通过获取当前实例等方式访问实例代理的解决办法,以及自动追踪副作用首次执行收集依赖的实现原理。"
 tags: ["学习"]
 author: sdttttt
 draft: false

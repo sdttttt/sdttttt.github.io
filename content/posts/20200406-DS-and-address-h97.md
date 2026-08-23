@@ -1,6 +1,7 @@
 ---
 title: "DS and [address]"
 date: 2020-04-06
+description: "讲解 8086 中 DS 段寄存器存放段地址以及通过 [偏移地址] 访问内存单元的方式,并解释为何不能直接给段寄存器赋值。"
 tags: ["学习"]
 draft: true
 cover:

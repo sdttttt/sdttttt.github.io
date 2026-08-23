@@ -1,6 +1,7 @@
 ---
 title: "Tag和Category？"
 date: 2022-11-16
+description: "记录作者对 Tag 与 Category 概念的理解，以及目前发布文章时只使用标签的实际情况。"
 tags: ["思考"]
 author: sdttttt
 draft: false

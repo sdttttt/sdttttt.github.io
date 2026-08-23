@@ -1,6 +1,7 @@
 ---
 title: "MultiplexingIO"
 date: 2020-04-06
+description: "解释 I/O 多路复用的真正含义,即单线程通过跟踪每个 socket 的状态同时管理多个 I/O 流,并对比 select、poll 和 epoll 的演进。"
 tags: ["学习"]
 draft: false
 cover:

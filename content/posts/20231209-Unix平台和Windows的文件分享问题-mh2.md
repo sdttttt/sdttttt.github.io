@@ -1,6 +1,7 @@
 ---
 title: "Unix平台和Windows的文件分享问题"
 date: 2023-12-09
+description: "比较 NFS 与 SMB 在 Linux、Windows 和 Unix 文件共享中的配置、速度、协议、兼容性与安全性特点，并记录实际使用问题。"
 tags: ["思考"]
 author: sdttttt
 draft: false

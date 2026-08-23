@@ -1,6 +1,7 @@
 ---
 title: "OSI7层在OS是如何实现以及OS如何处理数据包"
 date: 2025-04-10
+description: "按 OSI 分层梳理 Linux 接收网络数据包的完整路径，从网卡、DMA、中断和驱动到 netfilter、IP、TCP/UDP、tc 与应用读取。"
 author: sdttttt
 draft: false
 cover:

@@ -1,6 +1,7 @@
 ---
 title: "The Framework a good design?"
 date: 2020-04-06
+description: "讨论框架为应用层软件工程师解决重复劳动的价值,以 SpringBoot 为例说明其 IOC 理念带来的可扩展性。"
 tags: ["学习"]
 draft: false
 cover:

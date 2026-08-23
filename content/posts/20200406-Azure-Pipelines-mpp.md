@@ -1,6 +1,7 @@
 ---
 title: Azure Pipelines
 date: 2020-04-06
+description: "简介 Azure Pipelines 的免费额度与使用步骤,并给出一个针对 Ruby on Rails 项目的 azure-pipelines.yml 配置示例。"
 tags: ["学习"]
 cover:
   image: "images/covers/20200406-Azure-Pipelines-mpp.svg"

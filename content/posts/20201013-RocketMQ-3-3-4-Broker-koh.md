@@ -1,7 +1,7 @@
 ---
 title: "RocketMQ 3.3.4 Broker"
 date: 2020-10-13
-description: ""
+description: "逐段解析 RocketMQ Broker 启动入口的 main、createBrokerController、start 三个函数,涵盖命令行参数解析、配置类初始化、各层服务启动顺序、定时注册到 NameServer 与删除冗余 Topic 等核心流程,以及控制器内部职责、各组件协作关系、关键源码细节解读与流程串联示意。"
 tags: ["学习"]
 author: sdttttt
 draft: false

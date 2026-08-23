@@ -1,6 +1,7 @@
 ---
 title: "Protobuf 原理"
 date: 2020-03-30
+description: "通过示例讲解 Protobuf 按 TLV 格式序列化时的 Key 编码规则,包括域号大小与字节占用的关系。"
 tags: ["学习", "思考"]
 author: sdttttt
 draft: false

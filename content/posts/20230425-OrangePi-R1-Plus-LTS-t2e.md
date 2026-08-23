@@ -1,6 +1,7 @@
 ---
 title: "OrangePi R1 Plus LTS"
 date: 2023-04-25
+description: "2023年04月25日"
 tags: ["日志", "硬件"]
 author: sdttttt
 draft: false

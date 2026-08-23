@@ -1,6 +1,7 @@
 ---
 title: "Github Actions"
 date: 2020-03-11
+description: "介绍通过 Github Actions 在打 tag 时自动打包并上传项目 Releases 资产的工作流配置示例。"
 cover:
   image: "images/covers/20200311-Github-Actions-3fw.svg"
   alt: ""

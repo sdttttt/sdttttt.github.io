@@ -1,6 +1,7 @@
 ---
 title: "AdGuard Home DNS失效问题"
 date: 2023-09-08
+description: "分析 OpenWrt 中 AdGuard Home 突然不再处理 DNS 请求的现象，结合日志排查后发现关闭 Turbo ACC 的全锥形 NAT 后恢复。"
 tags: ["思考", "硬件"]
 author: sdttttt
 draft: false

@@ -1,6 +1,7 @@
 ---
 title: "DVWA SQL Injection blind 过关秘籍"
 date: 2020-04-10
+description: "通过分析 DVWA 四个难度级别下 SQL 盲注的源码,讲解利用 union 与 sleep 等技巧绕过无回显注入的思路。"
 tags: ["思考"]
 author: sdttttt
 draft: false

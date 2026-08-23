@@ -1,7 +1,7 @@
 ---
 title: "Cache Algorithm"
 date: 2020-10-26
-description: ""
+description: "介绍近期最少使用、最近最久未使用与改进型最近最久未使用三种缓存淘汰算法的核心思想与实现差异,讲解知名缓存框架中伊甸园、缓刑、保护三段队列的大小比例与数据流转规则,以及缓刑队列在淘汰时采用队首队尾皇城 PK 的具体策略与频度阈值设计。"
 tags: ["学习"]
 author: sdttttt
 draft: false

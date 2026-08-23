@@ -1,6 +1,7 @@
 ---
 title: "关于一些Coding Plan体验"
 date: 2026-05-08
+description: "对比体验智谱 Pro、ChatGPT Plus、Claude Pro、GitHub Copilot 等 coding plan 以及 Claude Code、OpenCode、Codex 等 coding agent,记录各家的额度、模型表现和适用场景。"
 cover:
   image: "images/covers/20260508-关于一些Coding-Plan体验-ed2.svg"
   alt: ""

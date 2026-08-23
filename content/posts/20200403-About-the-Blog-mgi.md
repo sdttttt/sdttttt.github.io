@@ -1,6 +1,7 @@
 ---
 title: "About the Blog"
 date: 2020-04-03
+description: "说明本博客的内容来源、所用 Hugo 静态站点生成器、PaperMod 主题以及 utteranc 评论系统的选型理由。"
 cover:
   image: "images/covers/20200403-About-the-Blog-mgi.svg"
   alt: ""

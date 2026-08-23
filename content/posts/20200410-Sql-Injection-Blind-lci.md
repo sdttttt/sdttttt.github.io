@@ -1,6 +1,7 @@
 ---
 title: "Sql Injection Blind"
 date: 2020-04-10
+description: "通过解析 DVWA 四个难度级别的 PHP 源码,讲解 SQL 盲注的判断思路与基于 union、sleep 等构造的绕过 payload。"
 tags: ["安全"]
 draft: false
 cover:

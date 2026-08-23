@@ -1,6 +1,7 @@
 ---
 title: "对我来说的 OpenClaw 用法"
 date: 2026-03-24
+description: "总结 clawdbot(OpenClaw)在自己实际工作流中的定位,认为它在维护现有项目方面不可控性过高,但适合用于博客迁移、编译 OpenWrt 等运维类任务。"
 cover:
   image: "images/covers/20260324-对我来说的-OpenClaw-用法-c2k.svg"
   alt: ""

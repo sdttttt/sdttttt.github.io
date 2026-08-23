@@ -1,6 +1,7 @@
 ---
 title: "DVWA File upload 过关秘籍"
 date: 2020-04-12
+description: "逐级分析 DVWA 文件上传四个难度源码的过滤逻辑,介绍如何通过修改请求、00% 截断与图片木马等方式绕过上传限制。"
 tags: ["思考"]
 author: sdttttt
 draft: false

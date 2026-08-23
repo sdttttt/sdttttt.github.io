@@ -1,6 +1,7 @@
 ---
 title: "关于OpenClash的流量处理"
 date: 2023-10-04
+description: "结合 iptables 规则分析 OpenClash 在 OpenWrt 网关上的透明代理流程，涵盖 Filter、NAT、PREROUTING、OUTPUT 与 TUN 处理。"
 tags: ["硬件"]
 author: sdttttt
 draft: false

@@ -1,6 +1,7 @@
 ---
 title: "Openclash 米家游戏故障"
 date: 2023-09-17
+description: "记录 OpenClash 下米哈游游戏登录失败和延迟升高的问题，比较不同内核版本后确认与未持久化 fake-ip 有关。"
 tags: ["学习"]
 author: sdttttt
 draft: false

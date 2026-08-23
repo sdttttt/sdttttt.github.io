@@ -1,6 +1,7 @@
 ---
 title: "Sqlmap"
 date: 2020-04-08
+description: "汇总使用 sqlmap 自动化进行 SQL 注入测试时的常用命令行选项,以及针对 DVWA 漏洞环境的完整脱库命令示例。"
 tags: ["安全"]
 draft: true
 cover:

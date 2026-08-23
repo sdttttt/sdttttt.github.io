@@ -1,6 +1,7 @@
 ---
 title: Appveyor
 date: 2020-04-06
+description: "介绍 Appveyor 这款支持 Windows、Ubuntu 和 macOS 的 CI/CD 工具,并附上 appveyor.yml 配置项的完整参考。"
 tags: ["学习"]
 cover:
   image: "images/covers/20200406-Appveyor-km4.svg"

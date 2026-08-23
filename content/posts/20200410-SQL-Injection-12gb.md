@@ -1,6 +1,7 @@
 ---
 title: "SQL Injection"
 date: 2020-04-10
+description: "按难度分析 DVWA 中 SQL 注入的源码与绕过方式,并补充二次注入等扩展原理,说明 PDO 等防护手段的作用。"
 tags: ["安全"]
 draft: false
 cover:

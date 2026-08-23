@@ -1,6 +1,7 @@
 ---
 title: "CBC: Padding Oracle 攻击"
 date: 2026-03-12
+description: "研究 TLS 1.2 协议中 CBC 模式加密导致的 Padding Oracle 攻击原理,讲解异或延展性、解密公式以及攻击者如何利用错误响应恢复明文。"
 tags: ["思考"]
 author: sdttttt
 draft: false

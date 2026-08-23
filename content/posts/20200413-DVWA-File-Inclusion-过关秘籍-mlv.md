@@ -1,6 +1,7 @@
 ---
 title: "DVWA File Inclusion 过关秘籍"
 date: 2020-04-13
+description: "梳理 DVWA 文件包含 Low、Medium、High、Impossible 四档源码中的过滤逻辑与绕过方式,涵盖绝对路径直接读取、str_replace 残留字符绕过、文件传输协议前缀以及白名单强匹配等典型利用手法,并讨论各自适用条件与在实际防御中的权衡取舍。"
 tags: ["思考"]
 author: sdttttt
 draft: false

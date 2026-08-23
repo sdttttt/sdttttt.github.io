@@ -1,6 +1,7 @@
 ---
 title: "File Inclusion"
 date: 2020-04-13
+description: "讲解 DVWA 文件包含漏洞从 Low 到 Impossible 四档源码的差异,分析 str_replace 过滤常见协议与上级目录符号的不足与 fnmatch 文件前缀通配的局限,指出基于字符串模式匹配的黑名单几乎都存在绕过手段,最后给出基于白名单强匹配的唯一安全方案。"
 tags: ["安全"]
 draft: true
 cover:

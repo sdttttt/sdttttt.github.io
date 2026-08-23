@@ -1,7 +1,7 @@
 ---
 title: "About Rust"
 date: 2021-04-09
-description: ""
+description: "2021年04月09日"
 tags: ["日志"]
 author: sdttttt
 draft: false

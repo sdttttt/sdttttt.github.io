@@ -1,6 +1,7 @@
 ---
 title: "关于MosDNS"
 date: 2023-09-26
+description: "介绍 MosDNS 作为可编程 DNS 服务器的请求处理和分流能力，并通过示例说明可自定义拒绝、缓存和放行等处理流程。"
 tags: ["硬件"]
 author: sdttttt
 draft: false

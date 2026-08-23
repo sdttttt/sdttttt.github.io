@@ -1,6 +1,7 @@
 ---
 title: "Blog Upgrade"
 date: 2020-08-29
+description: "记录博客主题更换与自动部署流程改造的过程,包括取消双仓库部署策略并在部署任务中采用异步执行,生成与部署速度相比原先提升约 40%,但托管平台国内访问速度依旧较慢的使用体验与后续优化方向。"
 tags: ["学习"]
 author: sdttttt
 draft: false

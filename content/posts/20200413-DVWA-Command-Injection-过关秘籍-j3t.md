@@ -1,6 +1,7 @@
 ---
 title: "DVWA Command Injection 过关秘籍"
 date: 2020-04-13
+description: "对照 DVWA 命令注入 Low、Medium、High 三档源码,指出 Medium 仅过滤与符号与分号的不足、High 仅做一轮字符串替换过滤的弱点,给出每档可用的绕过命令组合与 payload 构造技巧,并讨论实际利用时需要注意的注入点细节与编码绕过思路。"
 tags: ["思考"]
 author: sdttttt
 draft: false

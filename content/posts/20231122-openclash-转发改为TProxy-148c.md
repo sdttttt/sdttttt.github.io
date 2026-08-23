@@ -1,6 +1,7 @@
 ---
 title: "openclash 转发改为TProxy"
 date: 2023-11-22
+description: "说明将 OpenClash 从 TCP Redirect、UDP TProxy 改为 TCP/UDP 统一使用 TProxy 的背景，并列出 mangle 规则与防火墙脚本修改。"
 tags: ["思考", "硬件"]
 author: sdttttt
 draft: false

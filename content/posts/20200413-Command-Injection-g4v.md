@@ -1,6 +1,7 @@
 ---
 title: "Command Injection"
 date: 2020-04-13
+description: "解读 DVWA 命令注入关卡 Low、Medium、High 三个难度等级的源码差异,演示通过与符号、分号、管道符以及重复拼接等方式绕过黑名单过滤的思路,涵盖 Windows 与 Linux 下 shell_exec 调用 ping 命令的代码细节,以及常见可注入的命令组合与利用注意点。"
 tags: ["安全"]
 draft: true
 cover:

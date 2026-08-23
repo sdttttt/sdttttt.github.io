@@ -1,7 +1,7 @@
 ---
 title: "Sql Optimize"
 date: 2020-11-19
-description: ""
+description: "讲解 MySQL 中查询语句的索引优化策略,涵盖 B+ 树索引类型、主键、唯一、组合与普通索引的区别,SHOW INDEX 各字段含义与作用,EXPLAIN 结果中额外列采用索引、采用条件等执行计划代表的查询方式,以及索引条件下推等重要特性。"
 tags: ["学习"]
 author: sdttttt
 draft: false

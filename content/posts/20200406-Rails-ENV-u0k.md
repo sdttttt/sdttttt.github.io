@@ -1,6 +1,7 @@
 ---
 title: Rails ENV
 date: 2020-04-06
+description: "记录在 Windows 10 和 Ubuntu 上搭建 Ruby on Rails 开发环境的步骤、踩过的坑,以及 Bootstrap 集成与 RVM 依赖问题的解决方法。"
 tags: ["学习"]
 cover:
   image: "images/covers/20200406-Rails-ENV-u0k.svg"

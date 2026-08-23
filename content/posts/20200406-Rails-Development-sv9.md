@@ -1,6 +1,7 @@
 ---
 title: Rails Development
 date: 2020-04-06
+description: "汇总 Rails 6 开发中的 Webpacker 安装、生产环境 master.key 生成、资产预编译以及静态文件托管等常用配置。"
 tags: ["学习"]
 cover:
   image: "images/covers/20200406-Rails-Development-sv9.svg"

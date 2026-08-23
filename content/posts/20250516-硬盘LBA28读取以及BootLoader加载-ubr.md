@@ -1,6 +1,7 @@
 ---
 title: "硬盘LBA28读取以及BootLoader加载"
 date: 2025-05-16
+description: "讲解硬盘 LBA28 寻址方式的工作原理,以及 BootLoader 如何通过硬盘读写把操作系统代码加载到内存中执行的硬件层细节。"
 author: sdttttt
 draft: false
 cover:
