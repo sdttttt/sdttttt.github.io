@@ -1,7 +1,7 @@
 ---
 title: "关于OpenClash的流量处理"
 date: 2023-10-04
-tags: ["软路由"]
+tags: ["硬件"]
 author: sdttttt
 draft: false
 cover:

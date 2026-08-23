@@ -1,7 +1,7 @@
 ---
 title: "openclash 转发改为TProxy"
 date: 2023-11-22
-tags: ["思考", "软路由"]
+tags: ["思考", "硬件"]
 author: sdttttt
 draft: false
 cover:

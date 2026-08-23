@@ -1,7 +1,7 @@
 ---
 title: "AdGuard Home DNS失效问题"
 date: 2023-09-08
-tags: ["思考", "软路由"]
+tags: ["思考", "硬件"]
 author: sdttttt
 draft: false
 cover:
