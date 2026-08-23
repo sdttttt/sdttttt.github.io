@@ -72,7 +72,7 @@ deno task format-markdown-check
 - 文章自动部署：推送到 master 分支即可触发 CI/CD
 - 维护日志目录：`content/claudelog/`
 - **脚本运行时是 Deno，不是 Node.js**：`deno task test` 跑测试；`deno run -A scripts/xxx.ts` 跑单脚本。所有 `node:` 内置 API + `npm:sharp` 都直接可用，无需 `tsc` 编译或 `node_modules`
-- 唯一保留 Node 依赖：prettier（仅 `deploy.yml` 里 `format-markdown.ts` 调用，需要 `setup-node@v4` + `npm install -g prettier@3.9.6`）
+- prettier 通过 `deno install -g -A npm:prettier@3.9.6` 安装到 `~/.deno/bin/`（`denoland/setup-deno@v2` 已将该目录加入 PATH），无需 setup-node
 
 ---
 

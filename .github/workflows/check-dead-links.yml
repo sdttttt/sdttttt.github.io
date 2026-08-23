@@ -14,6 +14,8 @@ on:
 
 jobs:
   check:
+    # 跳过 github-actions[bot] 的 push：避免 auto-fix commit 触发新一轮检查
+    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

@@ -2,7 +2,7 @@
 /**
  * 格式化 Markdown 文件
  *
- * 依赖：需要全局安装 prettier（npm install -g prettier）
+ * 依赖：需要全局安装 prettier（`deno install -g -A npm:prettier@3.9.6`，wrapper 落在 `~/.deno/bin/`）
  *
  * 用法：
  *   deno task format-markdown          # 格式化所有 .md
