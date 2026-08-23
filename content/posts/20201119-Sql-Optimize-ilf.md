@@ -2,7 +2,7 @@
 title: "Sql Optimize"
 date: 2020-11-19
 description: ""
-tags: ["开发"]
+tags: ["学习"]
 author: sdttttt
 draft: false
 cover:

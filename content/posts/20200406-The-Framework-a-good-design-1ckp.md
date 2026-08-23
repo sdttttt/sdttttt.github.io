@@ -1,7 +1,7 @@
 ---
 title: "The Framework a good design?"
 date: 2020-04-06
-tags: ["开发"]
+tags: ["学习"]
 draft: false
 cover:
   image: "images/covers/20200406-The-Framework-a-good-design-1ckp.svg"

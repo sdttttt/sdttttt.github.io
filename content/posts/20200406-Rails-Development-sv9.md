@@ -1,7 +1,7 @@
 ---
 title: Rails Development
 date: 2020-04-06
-tags: ["开发"]
+tags: ["学习"]
 cover:
   image: "images/covers/20200406-Rails-Development-sv9.svg"
   alt: ""

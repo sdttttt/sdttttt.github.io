@@ -1,7 +1,7 @@
 ---
 title: "Blog Upgrade"
 date: 2020-08-29
-tags: ["开发"]
+tags: ["学习"]
 author: sdttttt
 draft: false
 cover:

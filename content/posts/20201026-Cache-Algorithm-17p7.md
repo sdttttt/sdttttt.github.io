@@ -2,7 +2,7 @@
 title: "Cache Algorithm"
 date: 2020-10-26
 description: ""
-tags: ["开发"]
+tags: ["学习"]
 author: sdttttt
 draft: false
 cover:

@@ -1,7 +1,7 @@
 ---
 title: "Stack by Rust implement"
 date: 2020-05-20
-tags: ["开发", "学习"]
+tags: ["学习"]
 draft: false
 cover:
   image: "images/covers/20200520-Stack-by-Rust-implement-3di.svg"

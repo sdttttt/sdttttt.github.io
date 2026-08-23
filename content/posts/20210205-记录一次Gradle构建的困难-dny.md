@@ -2,7 +2,7 @@
 title: "记录一次Gradle构建的困难"
 date: 2021-02-05
 description: ""
-tags: ["开发"]
+tags: ["学习"]
 author: sdttttt
 draft: false
 cover:

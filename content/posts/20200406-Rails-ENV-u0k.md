@@ -1,7 +1,7 @@
 ---
 title: Rails ENV
 date: 2020-04-06
-tag: ["开发"]
+tags: ["学习"]
 cover:
   image: "images/covers/20200406-Rails-ENV-u0k.svg"
   alt: ""

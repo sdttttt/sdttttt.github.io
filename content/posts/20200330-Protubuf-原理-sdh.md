@@ -2,7 +2,7 @@
 title: "Protubuf 原理"
 date: 2020-03-30
 draft: false
-tags: ["开发"]
+tags: ["学习"]
 cover:
   image: "images/covers/20200330-Protubuf-原理-sdh.svg"
   alt: ""

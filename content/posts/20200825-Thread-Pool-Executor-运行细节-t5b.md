@@ -2,7 +2,7 @@
 title: "Thread Pool Executor 运行细节"
 date: 2020-08-25
 author: sdttttt
-tags: ["开发"]
+tags: ["学习"]
 draft: false
 cover:
   image: "images/covers/20200825-Thread-Pool-Executor-运行细节-t5b.svg"
