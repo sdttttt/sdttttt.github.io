@@ -1,0 +1,28 @@
+---
+title: "關於MosDNS"
+date: 2023-09-26
+description: "介紹 MosDNS 作為可編程 DNS 服務器的請求處理和分流能力，並通過示例說明可自定義拒絕、緩存和放行等處理流程。"
+tags: ["硬件"]
+author: sdttttt
+draft: false
+cover:
+  image: "images/covers/20230926-關於MosDNS-vdg.svg"
+  alt: ""
+  hidden: false
+aliases: ["/posts/202309260673s4/"]
+language: "zh-tw"
+---
+
+其實在翻SmartDNS文檔的時候找到了另一個DNS服務器, 那就是MosDNS.
+
+“一個 DNS 轉發器” MosDNS官方是這麼介紹這個DNS的, 但是實際上我更願意稱它是一個**可編程的DNS服務器.**
+
+MosDNS對比其他DNS服務器不同之處就是它的在請求的邏輯處理能力, 以及分流能力非常優秀.
+
+這麼說可能不太好理解, 舉個例子, MosDNS可以通過DNS協議請求某個值, 來做一些其他的處理 ,例如拒絕, 通過, 緩存等等行為.
+
+可以以編寫代碼的方式來自定義一個屬於自己網絡特點的DNS的處理流程.
+
+不過MosDNS並不適合我, 如果你的使用Passwall或者其他沒有很強分流能力的網絡工具, MosDNS或許你用的上.
+
+我使用的是OpenClash的方案, Clash自身已經集成了很強的分流規則. 不需要更多的分流處理. 所以我使用的是SmartDNS.

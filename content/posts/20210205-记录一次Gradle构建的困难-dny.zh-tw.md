@@ -1,0 +1,37 @@
+---
+title: "記錄一次Gradle構建的困難"
+date: 2021-02-05
+description: "記錄接手一個 Gradle 構建的 Java 項目後,執行構建命令僅產出 14KB 無效 jar 包的排查過程,提示無主清單屬性錯誤,最終發現源碼缺少包路徑,通過 IDE 重構補齊後再構建得到正確工程文件的完整經歷與 Gradle 打 jar 包的常見坑。"
+tags: ["學習"]
+author: sdttttt
+draft: false
+cover:
+  image: "images/covers/20210205-記錄一次Gradle構建的困難-dny.svg"
+  alt: ""
+  hidden: false
+aliases: ["/posts/2021020502p6dj/"]
+language: "zh-tw"
+---
+
+受@idiotc4t所託, 我拿到了一個Java項目, 目的是要把這玩意編譯出來, 最初我還以為和以前的Java項目類似,
+只要`mvn build` 就能一了百了, 沒想到這次拿到的是一個使用gradle構建的項目.
+
+> gradle的出現比maven晚, 它們都是用來構建運行在JVM上的應用使用的, gradle可以使用編程語言來自定義你的構建流程, 類似C的makefile(這個比喻不太好其實), 或者是JavaScript的gulp. gradle解決了maven的一些特點, 比如xml的配置繁瑣, 看著就頭大, 以及構建步驟的靈活控制. 總之很牛逼就是了, 也比較難上手.
+
+由於我以前使用過一段時間的gradle, 所以我知道用gradle打jar包的困難. (gradle這個工具通常都是給Android開發者用的, 默認沒有提供打成Jar包的選項, 所以打出來什麼包, 得看緣分.)
+
+當我運行`gradle build`後, **光速**構建完成, 我定神一看, 沒有工程文件目錄, 倒是有一個jar包 ,這個jar包就14KB, 好傢伙, 肯定沒構建成功. (正常的java程序絕對不會這麼小, 一般肯定是1MB以上) 輸入`java -jar`一看, 果然:
+
+```
+...jar: 沒有主清單屬性
+```
+
+總之我在網上查了半天都沒發現解決方法. 最後把目光轉向代碼, 最後發現在代碼中都沒有聲明包路徑...
+
+> (嘶....這廝在README裡是怎麼打包的???我懷疑有這B留了一手)
+
+最後用宇宙第一IDE(IDEA)重構了整個包的代碼, 補上了包路徑. 再次嘗試`gradle build`,終於看到了工程文件.
+
+總之, 還好老子技高一籌.
+
+寫完了, 摸了.
