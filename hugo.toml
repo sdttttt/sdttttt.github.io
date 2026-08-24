@@ -1,13 +1,10 @@
 baseURL = "https://sdttttt.online/"
+title = "Last Regrets"
 author = "sdttttt"
 copyright = "© 2026, sdttttt"
-theme = "PaperMod"
-
-# 多语言配置:简体 zh(主,URL 不带前缀) + 繁体 zh-tw(副,URL 带 /zh-tw/)
-defaultContentLanguage = "zh"
-defaultContentLanguageInSubdir = false
+locale = "zh"
+DefaultContentLanguage = "zh"
 hasCJKLanguage = true
-
 enableInlineShortcodes = true
 enableRobotsTXT = true
 enableEmoji = true
@@ -16,186 +13,55 @@ enableGitInfo = true
 summaryLength = 100
 rssLimit = 20
 
-[languages]
-  [languages.zh]
-    weight = 1
-    locale = "zh-CN"
-    title = "Last Regrets"
+theme = "PaperMod"
 
-    [languages.zh.params]
-      description = ""
-      keywords = ["网络日志"]
-      env = "production"
-      defaultTheme = "dark"
-      DateFormat = "2006年01月02日"
-      ShowReadingTime = true
-      ShowShareButtons = false
-      ShowPostNavLinks = true
-      ShowBreadCrumbs = true
-      ShowCodeCopyButtons = true
-      ShowRssButtonInSectionTermList = true
-      UseHugoToc = true
-      ShowWordCount = true
-      ShowLastMod = true
-      ShowLoadingBar = true
-      underlineLinks = true
-      externalLinksInNewTab = true
+[params]
+  description = ""
+  keywords = ["网络日志"]
+  env = "production"
+  defaultTheme = "dark"
+  DateFormat = "2006年01月02日"
+  ShowReadingTime = true
+  ShowShareButtons = false
+  ShowPostNavLinks = true
+  ShowBreadCrumbs = true
+  ShowCodeCopyButtons = true
+  ShowRssButtonInSectionTermList = true
+  UseHugoToc = true
+  ShowWordCount = true
+  ShowLastMod = true
+  ShowLoadingBar = true
+  underlineLinks = true
+  externalLinksInNewTab = true
 
-      [languages.zh.params.homeInfoParams]
-        Title = "sdttttt"
-        Content = "假如我走进海里，你会拉住我么？"
+  [params.homeInfoParams]
+    Title = "sdttttt"
+    Content = "假如我走进海里，你会拉住我么？"
 
-      [[languages.zh.params.socialIcons]]
-        name = "github"
-        url = "https://github.com/sdttttt"
-      [[languages.zh.params.socialIcons]]
-        name = "email"
-        url = "mailto:shiinatohka@gmail.com"
+  [[params.socialIcons]]
+    name = "github"
+    url = "https://github.com/sdttttt"
+  [[params.socialIcons]]
+    name = "email"
+    url = "mailto:shiinatohka@gmail.com"
 
-      [languages.zh.params.assets]
-        favicon = "/favicon.svg"
-        apple = "/apple-touch-icon.png"
-        safari = "/safari-pinned-tab.svg"
-        msapplication = "/mstile-150x150.png"
-        theme = "#1a1a1a"
+  [params.assets]
+    favicon = "/favicon.svg"
+    apple = "/apple-touch-icon.png"
+    safari = "/safari-pinned-tab.svg"
+    msapplication = "/mstile-150x150.png"
+    theme = "#1a1a1a"
 
-      [languages.zh.params.editPost]
-        URL = "https://github.com/sdttttt/sdttttt.github.io/edit/master/content/"
+  [params.editPost]
+    URL = "https://github.com/sdttttt/sdttttt.github.io/edit/master/content/"
 
-      [languages.zh.params.schema]
-        publisherType = "Person"
-        sameAs = ["https://github.com/sdttttt"]
+  [params.schema]
+    publisherType = "Person"
+    sameAs = ["https://github.com/sdttttt"]
 
-      [languages.zh.params.cover]
-        responsiveImages = true
-        linkFullImages = false
-
-    [languages.zh.menu]
-      [[languages.zh.menu.main]]
-        identifier = "posts"
-        name = "Posts"
-        url = "/posts/"
-        weight = 1
-      [[languages.zh.menu.main]]
-        identifier = "claudelog"
-        name = "ClaudeLog"
-        url = "/claudelog/"
-        weight = 2
-      [[languages.zh.menu.main]]
-        identifier = "source"
-        name = "Source"
-        url = "https://github.com/sdttttt/sdttttt.github.io"
-        weight = 3
-      [[languages.zh.menu.main]]
-        identifier = "archives"
-        name = "Archives"
-        url = "/archives/"
-        weight = 5
-      [[languages.zh.menu.main]]
-        identifier = "search"
-        name = "Search"
-        url = "/search/"
-        weight = 10
-      [[languages.zh.menu.main]]
-        identifier = "tags"
-        name = "Tags"
-        url = "/tags/"
-        weight = 15
-      [[languages.zh.menu.main]]
-        identifier = "about"
-        name = "About"
-        url = "/about/"
-        weight = 20
-
-  [languages.zh-tw]
-    weight = 2
-    locale = "zh-TW"
-    title = "Last Regrets"
-
-    [languages.zh-tw.params]
-      description = ""
-      keywords = ["網路日誌"]
-      env = "production"
-      defaultTheme = "dark"
-      DateFormat = "2006年01月02日"
-      ShowReadingTime = true
-      ShowShareButtons = false
-      ShowPostNavLinks = true
-      ShowBreadCrumbs = true
-      ShowCodeCopyButtons = true
-      ShowRssButtonInSectionTermList = true
-      UseHugoToc = true
-      ShowWordCount = true
-      ShowLastMod = true
-      ShowLoadingBar = true
-      underlineLinks = true
-      externalLinksInNewTab = true
-
-      [languages.zh-tw.params.homeInfoParams]
-        Title = "sdttttt"
-        Content = "假如我走進海裡，你會拉住我麼？"
-
-      [[languages.zh-tw.params.socialIcons]]
-        name = "github"
-        url = "https://github.com/sdttttt"
-      [[languages.zh-tw.params.socialIcons]]
-        name = "email"
-        url = "mailto:shiinatohka@gmail.com"
-
-      [languages.zh-tw.params.assets]
-        favicon = "/favicon.svg"
-        apple = "/apple-touch-icon.png"
-        safari = "/safari-pinned-tab.svg"
-        msapplication = "/mstile-150x150.png"
-        theme = "#1a1a1a"
-
-      [languages.zh-tw.params.editPost]
-        URL = "https://github.com/sdttttt/sdttttt.github.io/edit/master/content/"
-
-      [languages.zh-tw.params.schema]
-        publisherType = "Person"
-        sameAs = ["https://github.com/sdttttt"]
-
-      [languages.zh-tw.params.cover]
-        responsiveImages = true
-        linkFullImages = false
-
-    [languages.zh-tw.menu]
-      [[languages.zh-tw.menu.main]]
-        identifier = "posts"
-        name = "文章"
-        url = "/zh-tw/posts/"
-        weight = 1
-      [[languages.zh-tw.menu.main]]
-        identifier = "claudelog"
-        name = "維護日誌"
-        url = "/zh-tw/claudelog/"
-        weight = 2
-      [[languages.zh-tw.menu.main]]
-        identifier = "source"
-        name = "原始碼"
-        url = "https://github.com/sdttttt/sdttttt.github.io"
-        weight = 3
-      [[languages.zh-tw.menu.main]]
-        identifier = "archives"
-        name = "彙整"
-        url = "/zh-tw/archives/"
-        weight = 5
-      [[languages.zh-tw.menu.main]]
-        identifier = "search"
-        name = "搜尋"
-        url = "/zh-tw/search/"
-        weight = 10
-      [[languages.zh-tw.menu.main]]
-        identifier = "tags"
-        name = "標籤"
-        url = "/zh-tw/tags/"
-        weight = 15
-      [[languages.zh-tw.menu.main]]
-        identifier = "about"
-        name = "關於"
-        url = "/zh-tw/about/"
-        weight = 20
+  [params.cover]
+    responsiveImages = true
+    linkFullImages = false
 
 [outputs]
   home = ["HTML", "RSS", "JSON"]
@@ -208,6 +74,43 @@ rssLimit = 20
   disableSVG = false
   disableXML = false
   minifyOutput = true
+
+[menu]
+  [[menu.main]]
+    identifier = "posts"
+    name = "Posts"
+    url = "/posts/"
+    weight = 1
+  [[menu.main]]
+    identifier = "claudelog"
+    name = "ClaudeLog"
+    url = "/claudelog/"
+    weight = 2
+  [[menu.main]]
+    identifier = "source"
+    name = "Source"
+    url = "https://github.com/sdttttt/sdttttt.github.io"
+    weight = 3
+  [[menu.main]]
+    identifier = "archives"
+    name = "Archives"
+    url = "/archives/"
+    weight = 5
+  [[menu.main]]
+    identifier = "search"
+    name = "Search"
+    url = "/search/"
+    weight = 10
+  [[menu.main]]
+    identifier = "tags"
+    name = "Tags"
+    url = "/tags/"
+    weight = 15
+  [[menu.main]]
+    identifier = "about"
+    name = "About"
+    url = "/about/"
+    weight = 20
 
 [taxonomies]
 tag = "tags"
