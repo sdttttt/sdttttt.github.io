@@ -11,7 +11,7 @@ import {
   patternTriangles,
   patternWave,
   patternDots,
-  parseArgs as parseGenCoversArgs,
+  parseCli,
   listPosts,
   readPost,
   ensureDir,
@@ -123,25 +123,67 @@ describe('genSvg', () => {
   });
 });
 
-describe('parseGenCoversArgs', () => {
-  test('--all 模式', () => {
+describe('parseCli', () => {
+  test('--all 模式（默认 dryRun=false）', () => {
     process.argv = ['node', 'script', '--all'];
-    expect(parseGenCoversArgs()).toEqual({ mode: 'all', force: false, inject: false });
+    expect(parseCli(process.argv)).toEqual({
+      mode: 'all',
+      force: false,
+      inject: false,
+      dryRun: false,
+    });
   });
 
-  test('无参数为 dry-run 模式', () => {
+  test('--all --dry-run 真正生效', () => {
+    process.argv = ['node', 'script', '--all', '--dry-run'];
+    expect(parseCli(process.argv)).toEqual({
+      mode: 'all',
+      force: false,
+      inject: false,
+      dryRun: true,
+    });
+  });
+
+  test('无参数为 sample 模式（dryRun 始终 true）', () => {
     process.argv = ['node', 'script'];
-    expect(parseGenCoversArgs()).toEqual({ mode: 'dry-run', force: false, inject: false });
+    expect(parseCli(process.argv)).toEqual({
+      mode: 'sample',
+      force: false,
+      inject: false,
+      dryRun: true,
+    });
   });
 
   test('传入文件名为 files 模式', () => {
     process.argv = ['node', 'script', 'a.md', 'b.md'];
-    expect(parseGenCoversArgs()).toEqual({ mode: 'files', files: ['a.md', 'b.md'], force: false, inject: false });
+    expect(parseCli(process.argv)).toEqual({
+      mode: 'files',
+      files: ['a.md', 'b.md'],
+      force: false,
+      inject: false,
+      dryRun: false,
+    });
+  });
+
+  test('files 模式 + --dry-run 也生效', () => {
+    process.argv = ['node', 'script', 'a.md', '--dry-run'];
+    expect(parseCli(process.argv)).toEqual({
+      mode: 'files',
+      files: ['a.md'],
+      force: false,
+      inject: false,
+      dryRun: true,
+    });
   });
 
   test('--force 和 --inject-fm 被解析', () => {
     process.argv = ['node', 'script', '--all', '--force', '--inject-fm'];
-    expect(parseGenCoversArgs()).toEqual({ mode: 'all', force: true, inject: true });
+    expect(parseCli(process.argv)).toEqual({
+      mode: 'all',
+      force: true,
+      inject: true,
+      dryRun: false,
+    });
   });
 });
 

@@ -18,7 +18,7 @@
 import { execSync } from 'node:child_process';
 import { pathToFileURL } from 'node:url';
 import { parseArgs, getString, getBoolean } from './lib/args.js';
-import { gitExec, gitHasStagedChanges, setupBotIdentity } from './lib/git.js';
+import { gitExec, gitExecArgs, gitHasStagedChanges, setupBotIdentity } from './lib/git.js';
 
 /**
  * 仅当作为 CLI 直接运行时执行顶层逻辑，被 import 时只暴露分类函数给测试用。
@@ -55,8 +55,9 @@ if (isMain) {
     console.log(`[fallback] ${finalMessage}`);
   }
 
-  const escapedMessage = finalMessage.replace(/"/g, '\\"');
-  gitExec(`commit -m "${escapedMessage}"`, { dryRun });
+  // 用 spawn 数组参数提交 commit，避开 shell 解释（commit message 含
+  // 用户输入，不能用 gitExec 拼字符串）。dry-run 也走同一条路径仅打印。
+  await gitExecArgs(['commit', '-m', finalMessage], { dryRun });
   // 兜底：吸收运行期间出现的远端新提交，避免 push 被拒
   gitExec('pull --rebase', { dryRun });
   gitExec('push', { dryRun });

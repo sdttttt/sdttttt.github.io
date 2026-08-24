@@ -14,6 +14,7 @@
 import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, basename, extname } from 'node:path';
 import { parseFrontMatter } from './lib/frontmatter.js';
+import { parseArgs, getBoolean, getStrings } from './lib/args.js';
 
 // ─────────────────────────────────────────────────────────────
 // 配置
@@ -316,31 +317,46 @@ export async function generateFor(files: string[], { force, dryRun }: { force: b
 // CLI
 // ─────────────────────────────────────────────────────────────
 
-export function parseArgs(): {
-  mode: 'dry-run' | 'all' | 'files';
+export interface ParsedArgs {
+  mode: 'sample' | 'all' | 'files';
   files?: string[];
   force: boolean;
   inject: boolean;
-} {
-  const args = process.argv.slice(2);
-  const force = args.includes('--force');
-  const inject = args.includes('--inject-fm');
-  const filtered = args.filter((a) => !a.startsWith('--'));
+  dryRun: boolean;
+}
 
-  if (args.includes('--all')) {
-    return { mode: 'all', force, inject };
+/**
+ * 解析 CLI 参数（统一用 lib/args.ts 的 parseArgs，便于 --dry-run 一致性）。
+ *
+ * 行为：
+ *   --all                   → 全部生成
+ *   --files a.md b.md       → 给指定文件生成
+ *   --force                 → 覆盖已有 cover
+ *   --inject-fm             → 给 front matter 注入 cover 字段
+ *   --dry-run               → 只打印，不写文件
+ *   无参数                  → 取 5 篇有代表性的样本生成（相当于默认 dry-run）
+ */
+export function parseCli(argv: string[]): ParsedArgs {
+  const args = parseArgs(argv);
+  const positional = getStrings(args, '_');
+  const force = getBoolean(args, 'force');
+  const inject = getBoolean(args, 'inject-fm');
+  const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
+
+  if (getBoolean(args, 'all')) {
+    return { mode: 'all', force, inject, dryRun };
   }
-  if (filtered.length === 0) {
-    return { mode: 'dry-run', force, inject };
+  if (positional.length > 0) {
+    return { mode: 'files', files: positional, force, inject, dryRun };
   }
-  return { mode: 'files', files: filtered, force, inject };
+  return { mode: 'sample', force, inject, dryRun: true /* sample 始终 dry-run */ };
 }
 
 async function main() {
-  const { mode, files, force, inject } = parseArgs();
+  const { mode, files, force, inject, dryRun } = parseCli(process.argv);
 
-  if (mode === 'dry-run') {
-    // 选 5 篇有代表性的：最近 + 老文章 + 不同长度
+  if (mode === 'sample') {
+    // 选 5 篇有代表性的：最新 + 老文章 + 不同长度
     const all = await listPosts();
     const picks = [
       all[all.length - 1]!,        // 最新
@@ -355,18 +371,18 @@ async function main() {
   }
 
   if (mode === 'files') {
-    await generateFor(files!, { force, dryRun: false });
-    if (inject) await injectCoverField(files!, { dryRun: false });
+    await generateFor(files!, { force, dryRun });
+    if (inject) await injectCoverField(files!, { dryRun });
     return;
   }
 
   // mode === 'all'
   const all = await listPosts();
-  console.log(`批量生成 ${all.length} 个封面...\n`);
-  await generateFor(all, { force, dryRun: false });
+  console.log(`批量生成 ${all.length} 个封面...${dryRun ? '（dry-run）' : ''}\n`);
+  await generateFor(all, { force, dryRun });
   if (inject) {
-    console.log(`\n注入 front matter...\n`);
-    await injectCoverField(all, { dryRun: false });
+    console.log(`\n注入 front matter...${dryRun ? '（dry-run）' : ''}\n`);
+    await injectCoverField(all, { dryRun });
   }
 }
 

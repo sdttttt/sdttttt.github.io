@@ -10,18 +10,30 @@
  */
 
 import { execSync } from 'node:child_process';
-import { parseArgs, getBoolean } from './lib/args.js';
+import { parseArgs, getBoolean, type ParsedArgs } from './lib/args.js';
 
-const args = parseArgs(process.argv);
-const check = getBoolean(args, 'check');
+/**
+ * 构造 prettier 命令。导出供测试覆盖参数解析逻辑。
+ *
+ * - `--check` → prettier --check 模式
+ * - 默认      → prettier --write 模式
+ * - pattern 固定为全部 .md
+ */
+export function buildCommand(args: ParsedArgs): string {
+  const check = getBoolean(args, 'check');
+  const sub = check ? '--check' : '--write';
+  return `prettier ${sub} "**/*.md"`;
+}
 
-const patterns = ['"**/*.md"'];
-const cmd = ['prettier', check ? '--check' : '--write', ...patterns];
-const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
+if (import.meta.main) {
+  const args = parseArgs(process.argv);
+  const cmd = buildCommand(args);
+  const shell = process.platform === 'win32' ? 'cmd.exe' : '/bin/sh';
 
-try {
-  execSync(cmd.join(' '), { stdio: 'inherit', shell });
-} catch {
-  // prettier --check 发现未格式化文件时会返回非零退出码
-  process.exit(1);
+  try {
+    execSync(cmd, { stdio: 'inherit', shell });
+  } catch {
+    // prettier --check 发现未格式化文件时会返回非零退出码
+    process.exit(1);
+  }
 }
