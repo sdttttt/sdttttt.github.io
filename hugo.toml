@@ -114,7 +114,6 @@ theme = "PaperMod"
 
 [taxonomies]
 tag = "tags"
-series = "series"
 
 [markup]
   [markup.goldmark]
