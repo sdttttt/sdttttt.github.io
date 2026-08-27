@@ -15,10 +15,11 @@
  *   deno run -A scripts/optimize-images.ts --force             # 即使体积变大也强制写入
  */
 
-import { readdir, readFile, writeFile } from 'node:fs/promises';
-import { join, extname } from 'node:path';
+import { readFile, writeFile } from 'node:fs/promises';
+import { extname } from 'node:path';
 import sharp from 'sharp';
 import { parseArgs, getString, getNumber, getBoolean } from './lib/args.js';
+import { walkFiles } from './lib/fs.js';
 
 const SUPPORTED = new Set(['.png', '.jpg', '.jpeg', '.webp', '.avif', '.gif', '.tiff']);
 
@@ -129,20 +130,6 @@ async function optimizeFile(filePath: string, opts: Options) {
   }
 }
 
-async function walk(dir: string): Promise<string[]> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  const files: string[] = [];
-  for (const entry of entries) {
-    const full = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      files.push(...(await walk(full)));
-    } else {
-      files.push(full);
-    }
-  }
-  return files;
-}
-
 async function main() {
   const args = parseArgs(process.argv);
   const variantsOnly = getBoolean(args, 'variants-only');
@@ -156,7 +143,7 @@ async function main() {
     force: getBoolean(args, 'force'),
   };
 
-  const files = await walk(opts.dir);
+  const files = await walkFiles(opts.dir);
   const targets = files.filter((f) => SUPPORTED.has(extname(f).toLowerCase()));
   if (targets.length === 0) {
     console.log(`未在 ${opts.dir} 找到支持的图片`);

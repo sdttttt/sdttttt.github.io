@@ -9,11 +9,11 @@
  *   deno run -A scripts/check-dead-links.ts --timeout 10000
  */
 
-import { readdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { readFile } from 'node:fs/promises';
 import { parseArgs, getNumber, getBoolean } from './lib/args.js';
+import { walkMarkdown } from './lib/fs.js';
+import { CONTENT_DIR } from './lib/paths.js';
 
-const CONTENT_DIR = 'content';
 const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;
 const FENCE_REGEX = /^(`{3,}|~{3,})/;
 
@@ -27,17 +27,7 @@ interface DeadLink {
   status: number | string;
 }
 
-export async function* walkMarkdown(dir: string): AsyncGenerator<string> {
-  const entries = await readdir(dir, { withFileTypes: true });
-  for (const entry of entries) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      yield* walkMarkdown(path);
-    } else if (entry.isFile() && entry.name.endsWith('.md')) {
-      yield path;
-    }
-  }
-}
+export { walkMarkdown };
 
 export async function checkUrl(url: string, ms: number = timeout): Promise<{ ok: boolean; status: number | string }> {
   try {

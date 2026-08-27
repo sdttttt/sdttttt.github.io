@@ -15,13 +15,12 @@ import { readdir, readFile, writeFile, mkdir } from 'node:fs/promises';
 import { join, basename, extname } from 'node:path';
 import { parseFrontMatter } from './lib/frontmatter.js';
 import { parseArgs, getBoolean, getStrings } from './lib/args.js';
+import { POSTS_DIR, COVERS_DIR } from './lib/paths.js';
 
 // ─────────────────────────────────────────────────────────────
 // 配置
 // ─────────────────────────────────────────────────────────────
 
-const POSTS_DIR = 'content/posts';
-const COVERS_DIR = 'static/images/covers';
 const W = 1200;
 const H = 630;
 
@@ -227,6 +226,67 @@ export async function ensureDir(dir: string): Promise<void> {
 }
 
 /**
+ * 在 front matter 文本中查找已有的 cover 块。
+ *
+ * 支持三种写法（都来自真实文章）：
+ *   1. 多行（2 空格缩进）：
+ *        cover:
+ *          image: "..."
+ *          alt: ""
+ *          hidden: false
+ *   2. 单行内联：
+ *        cover: { image: "...", alt: "", hidden: false }
+ *   3. 单行 flow：
+ *        cover: [image: "...", alt: "", hidden: false]
+ *
+ * 返回 `{ match, body, start, end }`：
+ *   - match: 整个 cover 块（含 `cover:` 起始行）
+ *   - body:  cover 块内除 `cover:` 起始行外的剩余内容（缩进后的子字段）
+ *   - start/end: 在原始 fm 字符串中的 [start, end) 切片索引（用于替换）
+ *
+ * 找不到时返回 null。
+ */
+export function findExistingCoverBlock(fm: string): {
+  match: string;
+  body: string;
+  start: number;
+  end: number;
+} | null {
+  // 1) 多行块：`cover:` 后跟若干缩进行（任意缩进宽度，1-N 个空格或制表符）
+  const multi = fm.match(/^cover:[ \t]*\n((?:[ \t]+.+(?:\n|$))+)/m);
+  if (multi && multi.index !== undefined) {
+    const start = multi.index;
+    const end = start + multi[0].length;
+    return { match: multi[0], body: multi[1]!, start, end };
+  }
+
+  // 2) 单行内联（花括号 / 方括号都允许）
+  const inline = fm.match(/^cover:[ \t]*[{[].+[}\]]\s*$/m);
+  if (inline && inline.index !== undefined) {
+    const start = inline.index;
+    const end = start + inline[0].length;
+    return { match: inline[0], body: inline[0].slice('cover:'.length), start, end };
+  }
+
+  return null;
+}
+
+/** 从 cover body 中提取 image 字段的值（去掉引号） */
+export function extractCoverImageValue(body: string): string | null {
+  const m = body.match(/^\s*image:\s*(.+)$/m);
+  if (!m) return null;
+  return m[1]!.trim().replace(/^["']|["']$/g, '');
+}
+
+/** 是否属于占位封面（不应该跳过） */
+export function isPlaceholderCover(imageVal: string): boolean {
+  return (
+    imageVal === 'images/cover-default.svg' ||
+    imageVal.startsWith('images/covers/')
+  );
+}
+
+/**
  * 给文章 front matter 注入 cover 字段（指向生成的 SVG）
  * 已有 cover 字段且 image 非 cover-default.svg 的跳过（保留真实封面）
  */
@@ -242,13 +302,12 @@ export async function injectCoverField(files: string[], { dryRun }: { dryRun: bo
 
     const fm = fmMatch[1]!;
 
-    // 已有 cover 且不是 cover-default 占位 → 跳过
-    if (/^cover:\s*$/m.test(fm)) {
-      const coverBlock = fm.match(/^cover:\s*\n((?:  .+\n?)+)/m);
-      const coverBody = coverBlock?.[1] ?? '';
-      const imageMatch = coverBody.match(/^\s*image:\s*(.+)$/m);
-      const imageVal = imageMatch?.[1]?.trim().replace(/^["']|["']$/g, '');
-      if (imageVal && imageVal !== 'images/cover-default.svg' && !imageVal.startsWith('images/covers/')) {
+    // 已有 cover 块：识别后判断 image 是否占位/已生成，是则替换，否则跳过
+    const existing = findExistingCoverBlock(fm);
+    if (existing) {
+      const imageVal = extractCoverImageValue(existing.body);
+      if (imageVal && !isPlaceholderCover(imageVal)) {
+        // 真实封面（外链 / 自定义路径 / 已生成的 covers/*.svg） → 跳过
         skipped++;
         continue;
       }
@@ -256,10 +315,9 @@ export async function injectCoverField(files: string[], { dryRun }: { dryRun: bo
 
     const newCover = `cover:\n  image: "images/covers/${slug}.svg"\n  alt: ""\n  hidden: false`;
     let newFm: string;
-    if (/^cover:\s*$/m.test(fm)) {
-      // 替换已有 cover 块（cover-default 占位 → 新封面）
-      // 确保 front matter 内容以换行结尾，便于下面拼装时保留分隔
-      newFm = fm.replace(/^cover:\s*\n((?:  .+\n?)+)/m, newCover + '\n');
+    if (existing) {
+      // 替换已有 cover 块（占位 → 新封面）
+      newFm = fm.slice(0, existing.start) + newCover + '\n' + fm.slice(existing.end);
     } else {
       // 追加 cover 块（在 front matter 末尾）
       newFm = fm.trimEnd() + '\n' + newCover;

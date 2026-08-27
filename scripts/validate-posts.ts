@@ -13,11 +13,10 @@
  *   deno task validate-posts
  */
 
-import { readdir, readFile, stat } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseFrontMatter } from './lib/frontmatter.js';
-
-const POSTS_DIR = 'content/posts';
+import { POSTS_DIR, exists } from './lib/paths.js';
 
 interface Issue {
   file: string;
@@ -26,15 +25,6 @@ interface Issue {
 
 export function isValidDate(s: string): boolean {
   return !Number.isNaN(Date.parse(s));
-}
-
-async function exists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 /** Hugo 资源路径：cover.image 相对于 assets/ 或 static/ */

@@ -16,15 +16,13 @@
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
 
-import { readdir, readFile, rename, stat, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { parseFrontMatter, extractFrontMatterBlock } from './lib/frontmatter.js';
 import { parseArgs, getBoolean } from './lib/args.js';
-
-const POSTS_DIR = 'content/posts';
-const COVERS_DIR = 'static/images/covers';
+import { POSTS_DIR, COVERS_DIR, exists } from './lib/paths.js';
 
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
@@ -110,16 +108,6 @@ export function rewriteCoverImage(raw: string, oldSlug: string, newSlug: string)
   const oldPath = `images/covers/${oldSlug}.svg`;
   const newPath = `images/covers/${newSlug}.svg`;
   return raw.replace(oldPath, newPath);
-}
-
-/** 文件是否存在 */
-async function exists(path: string): Promise<boolean> {
-  try {
-    await stat(path);
-    return true;
-  } catch {
-    return false;
-  }
 }
 
 interface CoverUpdate {

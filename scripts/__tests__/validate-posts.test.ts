@@ -95,13 +95,17 @@ describe('validate', () => {
       expect(issues.some((i) => i.message.includes('date'))).toBe(true);
     }));
 
-  test('重复 slug', () =>
+  test('slug 不重复时不报错', () =>
     inTempDir(async () => {
       mkdirSync('content/posts', { recursive: true });
+      // 注：旧版这个测试名叫"重复 slug"，但实际只验证了"两个不同 slug 不报错"。
+      // 真正能造出"裸名相同的两个不同文件"需要 mock readdir，POSIX 下几乎做不到；
+      // slug 去重的核心逻辑只有一行（`slugs.has(slug)`），集成测试覆盖成本太高，
+      // 直接删掉旧断言，避免误导未来的读者以为它在测"重复"。
       writeFileSync('content/posts/hello.md', '---\ntitle: Hello\ndate: 2024-01-15\n---\n');
-      writeFileSync('content/posts/hello-copy.md', '---\ntitle: Hello 2\ndate: 2024-01-16\n---\n');
+      writeFileSync('content/posts/world.md', '---\ntitle: World\ndate: 2024-01-16\n---\n');
       const issues = await validate();
-      expect(issues.some((i) => i.message.includes('slug'))).toBe(false);
+      expect(issues.some((i) => i.message.includes('slug 重复'))).toBe(false);
     }));
 
   test('private 非布尔', () =>

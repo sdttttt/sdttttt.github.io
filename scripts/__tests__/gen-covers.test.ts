@@ -17,6 +17,9 @@ import {
   ensureDir,
   injectCoverField,
   generateFor,
+  findExistingCoverBlock,
+  extractCoverImageValue,
+  isPlaceholderCover,
 } from '../gen-covers.js';
 import { expect } from './expect.js';
 import { inTempDir } from './temp-dir.js';
@@ -258,5 +261,150 @@ describe('generateFor', () => {
       writeFileSync('content/posts/hello.md', '---\ntitle: Hello\n---\n');
       await generateFor(['hello.md'], { force: false, dryRun: true });
       expect(existsSync('static/images/covers/hello.svg')).toBe(false);
+    }));
+});
+
+describe('findExistingCoverBlock', () => {
+  test('多行 2 空格缩进 → 返回块及 body', () => {
+    const fm = `title: x
+cover:
+  image: "images/covers/foo.svg"
+  alt: ""
+  hidden: false
+tags: ["a"]`;
+    const r = findExistingCoverBlock(fm);
+    expect(r).not.toBeNull();
+    expect(r!.match).toContain('cover:');
+    expect(r!.body).toContain('image: "images/covers/foo.svg"');
+  });
+
+  test('1 空格缩进也能识别', () => {
+    const fm = `title: x
+cover:
+ image: "a.svg"
+ alt: ""
+tags: ["a"]`;
+    const r = findExistingCoverBlock(fm);
+    expect(r).not.toBeNull();
+  });
+
+  test('单行内联花括号 → 返回块', () => {
+    const fm = `title: x
+cover: { image: "a.svg", alt: "", hidden: false }
+tags: ["a"]`;
+    const r = findExistingCoverBlock(fm);
+    expect(r).not.toBeNull();
+    expect(r!.body).toContain('image: "a.svg"');
+  });
+
+  test('单行内联方括号 → 返回块', () => {
+    const fm = `title: x
+cover: [image: "a.svg", alt: "", hidden: false]
+tags: ["a"]`;
+    const r = findExistingCoverBlock(fm);
+    expect(r).not.toBeNull();
+  });
+
+  test('没有 cover 字段 → 返回 null', () => {
+    const fm = `title: x\ndate: 2024-01-15\ntags: ["a"]`;
+    expect(findExistingCoverBlock(fm)).toBeNull();
+  });
+
+  test('替换时能用 start/end 切片', () => {
+    const fm = `title: x
+cover:
+  image: "images/cover-default.svg"
+  alt: ""
+tags: ["a"]`;
+    const r = findExistingCoverBlock(fm)!;
+    const replaced = fm.slice(0, r.start) + 'cover:\n  image: "new.svg"\n' + fm.slice(r.end);
+    expect(replaced).toContain('image: "new.svg"');
+    expect(replaced).not.toContain('cover-default');
+  });
+});
+
+describe('extractCoverImageValue', () => {
+  test('去掉双引号', () => {
+    expect(extractCoverImageValue('  image: "a.svg"\n  alt: ""')).toBe('a.svg');
+  });
+
+  test('去掉单引号', () => {
+    expect(extractCoverImageValue("  image: 'a.svg'\n  alt: ''")).toBe('a.svg');
+  });
+
+  test('无引号原样返回', () => {
+    expect(extractCoverImageValue('  image: a.svg\n')).toBe('a.svg');
+  });
+
+  test('找不到 image 字段返回 null', () => {
+    expect(extractCoverImageValue('  alt: ""')).toBeNull();
+  });
+});
+
+describe('isPlaceholderCover', () => {
+  test('cover-default.svg 视为占位', () => {
+    expect(isPlaceholderCover('images/cover-default.svg')).toBe(true);
+  });
+
+  test('images/covers/ 视为占位（已被 gen-covers 处理过）', () => {
+    expect(isPlaceholderCover('images/covers/foo.svg')).toBe(true);
+  });
+
+  test('自定义路径视为真实', () => {
+    expect(isPlaceholderCover('images/custom/foo.png')).toBe(false);
+  });
+
+  test('外链视为真实', () => {
+    expect(isPlaceholderCover('https://example.com/cover.jpg')).toBe(false);
+  });
+});
+
+describe('injectCoverField', () => {
+  test('无 cover 字段 → 追加', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/posts/x.md', '---\ntitle: X\ndate: 2024-01-15\n---\n');
+      await injectCoverField(['x.md'], { dryRun: false });
+      const out = readFileSync('content/posts/x.md', 'utf8');
+      expect(out).toContain('images/covers/x.svg');
+    }));
+
+  test('cover 占位（cover-default） → 替换', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync(
+        'content/posts/x.md',
+        '---\ntitle: X\ncover:\n  image: "images/cover-default.svg"\n  alt: ""\n---\n',
+      );
+      await injectCoverField(['x.md'], { dryRun: false });
+      const out = readFileSync('content/posts/x.md', 'utf8');
+      expect(out).toContain('images/covers/x.svg');
+      expect(out).not.toContain('cover-default');
+    }));
+
+  test('cover 已指向真实路径 → 跳过（保留）', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync(
+        'content/posts/x.md',
+        '---\ntitle: X\ncover:\n  image: "https://example.com/cover.png"\n---\n',
+      );
+      await injectCoverField(['x.md'], { dryRun: false });
+      const out = readFileSync('content/posts/x.md', 'utf8');
+      expect(out).toContain('https://example.com/cover.png');
+      expect(out).not.toContain('images/covers/x.svg');
+    }));
+
+  test('cover 单行内联 → 也能被识别/替换', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync(
+        'content/posts/x.md',
+        '---\ntitle: X\ncover: { image: "images/cover-default.svg", alt: "" }\n---\n',
+      );
+      await injectCoverField(['x.md'], { dryRun: false });
+      const out = readFileSync('content/posts/x.md', 'utf8');
+      expect(out).toContain('images/covers/x.svg');
+      expect(out).not.toContain('cover-default');
     }));
 });

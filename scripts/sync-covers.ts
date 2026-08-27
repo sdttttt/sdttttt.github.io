@@ -13,9 +13,7 @@ import { readdir, readFile, unlink } from 'node:fs/promises';
 import { join, basename } from 'node:path';
 import { parseFrontMatter } from './lib/frontmatter.js';
 import { parseArgs, getBoolean } from './lib/args.js';
-
-const POSTS_DIR = 'content/posts';
-const COVERS_DIR = 'static/images/covers';
+import { POSTS_DIR, COVERS_DIR } from './lib/paths.js';
 
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
