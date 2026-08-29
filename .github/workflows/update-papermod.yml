@@ -9,6 +9,7 @@ on:
 
 permissions:
   contents: write
+  actions: write # 更新后触发 deploy.yml 的 workflow_dispatch
 
 jobs:
   update-submodule:
@@ -37,9 +38,30 @@ jobs:
             echo "has_changes=true" >> $GITHUB_OUTPUT
           fi
 
+      # 推送前先用与 deploy 相同的固定版本 Hugo 冒烟构建：
+      # 上游 breaking 改动直接失败在本工作流，不会落进 master
+      - name: Setup Hugo
+        if: steps.check.outputs.has_changes == 'true'
+        uses: peaceiris/actions-hugo@v3
+        with:
+          hugo-version: '0.161.1'
+          extended: true
+
+      - name: Smoke build
+        if: steps.check.outputs.has_changes == 'true'
+        run: hugo --minify
+
       - name: Commit and push changes
         if: steps.check.outputs.has_changes == 'true'
         run: |
           git add themes/PaperMod
           git commit -m "chore: update PaperMod theme to latest version"
           git push
+
+      # GITHUB_TOKEN 的 push 不会触发任何 workflow，这里显式 dispatch 部署，
+      # 否则主题更新要等下一次人工 push 才会上线
+      - name: Trigger deploy
+        if: steps.check.outputs.has_changes == 'true'
+        run: gh workflow run deploy.yml --ref master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -6,15 +6,22 @@ on:
     # 每周一 03:17 UTC 自动清理
     - cron: '17 3 * * 1'
 
+permissions:
+  contents: write
+  actions: write # 清理后触发 deploy.yml 的 workflow_dispatch
+
 jobs:
   sync:
     runs-on: ubuntu-latest
     if: github.actor != 'github-actions[bot]'
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      # git-commit-push.ts 无变更时静默退出，靠 HEAD 是否前移判断真清理过
+      - name: Record HEAD before sync
+        id: head
+        run: echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - uses: denoland/setup-deno@v2
         with:
@@ -27,3 +34,20 @@ jobs:
         run: >
           deno run -A scripts/git-commit-push.ts
           --message "chore(assets): remove orphan cover images"
+
+      - name: Check if pushed
+        id: pushed
+        run: |
+          if [ "$(git rev-parse HEAD)" = "${{ steps.head.outputs.sha }}" ]; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      # GITHUB_TOKEN 的 push 不会触发任何 workflow，这里显式 dispatch 部署，
+      # 让被清理的封面尽快从线上消失（无变更则不浪费一次部署）
+      - name: Trigger deploy
+        if: steps.pushed.outputs.changed == 'true'
+        run: gh workflow run deploy.yml --ref master
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

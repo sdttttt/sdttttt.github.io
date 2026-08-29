@@ -6,11 +6,20 @@ on:
     branches:
       - master
 
+# 同一时刻只允许一个部署，后到的 push 取消进行中的旧构建，
+# 避免旧 artifact 后完成、覆盖新内容的乱序。
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 跳过 github-actions[bot] 的 push：避免 auto-fix commit 触发新一轮自部署
-    if: github.actor != 'github-actions[bot]'
+    # 仅跳过 github-actions[bot] 的 push：避免 auto-fix commit 触发新一轮自部署。
+    # workflow_dispatch 放行 bot：sync-covers / update-papermod 推完改动后会用
+    # gh workflow run 显式触发部署（GITHUB_TOKEN 的 push 本就不会触发任何 workflow，
+    # 不放行的话这些维护改动要等下一次人工 push 才上线）。
+    if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
     permissions:
       contents: write # 自动修复结果需要提交回仓库
     steps:
@@ -43,10 +52,17 @@ jobs:
       - name: Format Markdown files
         run: deno task format-markdown
 
+      # 发布前最后门槛：front matter 缺字段 / 封面路径失效的内容就地失败，
+      # 不带病构建上线。放在 gen-covers 之后，注入的 cover 路径已落盘。
+      - name: Validate posts
+        run: deno task validate-posts
+
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
-          hugo-version: 'latest'
+          # 固定版本，避免上游 breaking change 无预警打挂部署；升级时手动改这里，
+          # 并与 update-papermod.yml 的冒烟构建保持一致
+          hugo-version: '0.161.1'
           extended: true
 
       - name: Build
