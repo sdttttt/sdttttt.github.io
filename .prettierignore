@@ -1,0 +1,6 @@
+themes/PaperMod
+node_modules
+.tools
+.npm-cache
+public
+
