@@ -1,0 +1,160 @@
+#!/usr/bin/env node
+/**
+ * 检查 Markdown 中的死链
+ *
+ * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
+ *
+ * 用法：
+ *   node scripts/dist/check-dead-links.js
+ *   node scripts/dist/check-dead-links.js --timeout 10000
+ */
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
+import { parseArgs, getNumber, getBoolean } from './lib/args.js';
+const CONTENT_DIR = 'content';
+const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;
+const FENCE_REGEX = /^(`{3,}|~{3,})/;
+const args = parseArgs(process.argv);
+const timeout = getNumber(args, 'timeout') ?? 10000;
+const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
+export async function* walkMarkdown(dir) {
+    const entries = await readdir(dir, { withFileTypes: true });
+    for (const entry of entries) {
+        const path = join(dir, entry.name);
+        if (entry.isDirectory()) {
+            yield* walkMarkdown(path);
+        }
+        else if (entry.isFile() && entry.name.endsWith('.md')) {
+            yield path;
+        }
+    }
+}
+export async function checkUrl(url, ms = timeout) {
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        const res = await fetch(url, {
+            method: 'HEAD',
+            signal: controller.signal,
+            redirect: 'follow',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; blog-link-checker)',
+            },
+        });
+        clearTimeout(timer);
+        // 405 Method Not Allowed 时换 GET 再试一次
+        if (res.status === 405) {
+            return await checkUrlGet(url);
+        }
+        return { ok: res.ok, status: res.status };
+    }
+    catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+            return { ok: false, status: 'timeout' };
+        }
+        return { ok: false, status: `error: ${err.message}` };
+    }
+}
+export async function checkUrlGet(url, ms = timeout) {
+    try {
+        const controller = new AbortController();
+        const timer = setTimeout(() => controller.abort(), ms);
+        const res = await fetch(url, {
+            method: 'GET',
+            signal: controller.signal,
+            redirect: 'follow',
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (compatible; blog-link-checker)',
+            },
+        });
+        clearTimeout(timer);
+        return { ok: res.ok, status: res.status };
+    }
+    catch (err) {
+        if (err instanceof Error && err.name === 'AbortError') {
+            return { ok: false, status: 'timeout' };
+        }
+        return { ok: false, status: `error: ${err.message}` };
+    }
+}
+export function shouldSkip(url) {
+    try {
+        const u = new URL(url);
+        return u.hostname === 'localhost' || u.hostname === '127.0.0.1';
+    }
+    catch {
+        return true;
+    }
+}
+/**
+ * 提取 Markdown 文本中位于围栏代码块之外的链接。
+ *
+ * 支持 ` ``` ` 与 `~~~` 形式的围栏代码块，只处理代码块外的文本。
+ */
+export function extractLinksOutsideCodeBlocks(raw) {
+    const lines = raw.split('\n');
+    const outside = [];
+    let inCodeBlock = false;
+    let fenceChar = '';
+    for (const line of lines) {
+        const trimmed = line.trim();
+        const fenceMatch = trimmed.match(FENCE_REGEX);
+        if (fenceMatch) {
+            const fence = fenceMatch[1];
+            if (!inCodeBlock) {
+                inCodeBlock = true;
+                fenceChar = fence[0];
+            }
+            else if (fence[0] === fenceChar) {
+                inCodeBlock = false;
+                fenceChar = '';
+            }
+            continue;
+        }
+        if (!inCodeBlock) {
+            outside.push(line);
+        }
+    }
+    return outside.join('\n').match(LINK_REGEX) ?? [];
+}
+async function main() {
+    const dead = [];
+    const checked = new Map();
+    for await (const path of walkMarkdown(CONTENT_DIR)) {
+        const raw = await readFile(path, 'utf8');
+        const matches = extractLinksOutsideCodeBlocks(raw);
+        const unique = [...new Set(matches)];
+        for (const url of unique) {
+            if (shouldSkip(url))
+                continue;
+            if (!checked.has(url)) {
+                if (dryRun) {
+                    console.log(`[dry-run] 将检查: ${url}`);
+                    checked.set(url, { ok: true, status: 'skipped' });
+                    continue;
+                }
+                const result = await checkUrl(url);
+                checked.set(url, result);
+                if (!result.ok) {
+                    console.log(`✗ ${url} → ${result.status}`);
+                }
+            }
+            const result = checked.get(url);
+            if (!result.ok) {
+                dead.push({ file: path, url, status: result.status });
+            }
+        }
+    }
+    if (dead.length === 0) {
+        console.log('✓ 未发现死链');
+        process.exit(0);
+    }
+    console.error(`\n发现 ${dead.length} 个死链:\n`);
+    for (const { file, url, status } of dead) {
+        console.error(`  ${file}: ${url} (${status})`);
+    }
+    process.exit(1);
+}
+if (import.meta.main) {
+    await main();
+}
