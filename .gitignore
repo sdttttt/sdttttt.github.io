@@ -12,3 +12,7 @@ hugo_stats.json
 # Local Deno toolchain (binary + module cache)
 .tools/
 .npm-cache/
+
+# Scripts: Deno runs .ts directly, scripts/dist/ is a dead artifact
+# from an old Node.js-era snapshot. Never commit it.
+scripts/dist/
