@@ -15,7 +15,7 @@ date: 2020-04-03
 >
 > ——《以赛亚书》第35章
 
-<img width="552" height="785" alt="a6841def004e6c7c38dd0a4b3f0fbc8e" src="https://github.com/user-attachments/assets/9a38610f-b3cc-4239-b940-e4b123d20ebe" />
+<img width="1384" height="2048" alt="008" src="https://github.com/user-attachments/assets/aa345f31-58ac-4cb7-9428-754d81241aee" />
 
 宫城志绪理和仙台叶月，特别是宫城，我真心喜欢的角色，自从入宅之后，我有多少年没有像这样沉迷了呢。
 
