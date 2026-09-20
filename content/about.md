@@ -14,7 +14,7 @@ date: 2020-04-03
 >
 > ——《以赛亚书》第35章
 
-<img width="800" height="1124" alt="008" src="https://github.com/user-attachments/assets/aa345f31-58ac-4cb7-9428-754d81241aee" />
+<img width="400" height="600" alt="008" src="https://github.com/user-attachments/assets/aa345f31-58ac-4cb7-9428-754d81241aee" />
 
 <details>
 
