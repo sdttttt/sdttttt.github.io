@@ -17,6 +17,7 @@ date: 2020-04-03
 <img width="400" height="600" alt="008" src="https://github.com/user-attachments/assets/aa345f31-58ac-4cb7-9428-754d81241aee" />
 
 <details>
+<summary>百合悟道，无药可救。</summary>
 
 我想。
 
