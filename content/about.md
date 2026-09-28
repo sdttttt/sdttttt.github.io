@@ -11,7 +11,7 @@ date: 2020-04-03
 >
 > ——《以赛亚书》第35章
 
-<img width="400" height="600" alt="008" src="https://github.com/user-attachments/assets/aa345f31-58ac-4cb7-9428-754d81241aee" />
+<img width="400" height="600" src="https://github.com/user-attachments/assets/4fc5227e-b0ba-49aa-8107-df03104feb8c" />
 
 <details>
 <summary>百合悟道，无药可救。</summary>
@@ -34,7 +34,7 @@ _这不是什么想要自杀之类的念头，只是因为我真正想要的东�
 
 _但是我依然会继续就这样活着，感受一下，这次作为“我”活着的人生，这个世界。_
 
-_当某个时刻来临之后，我就会离开这里。_
+_当某个时刻来临之后，我就会带着我所积累的，所有的爱，记忆，以及旅途离开这里。_
 
 _去回到我真正的归宿，去到那里。_
 
