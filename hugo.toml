@@ -36,7 +36,7 @@ theme = "PaperMod"
 
   [params.homeInfoParams]
     Title = "sdttttt"
-    Content = "假如我走进海里，你会拉住我么？"
+    Content = "我，想去看海。"
 
   [[params.socialIcons]]
     name = "github"
