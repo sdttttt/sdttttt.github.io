@@ -5,10 +5,6 @@ description: "介绍在 Vue2 项目中以插件形式使用组合式 API 的写�
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20210114-Composition-Api-15o6.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/20210114088byn/"]
 ---
 

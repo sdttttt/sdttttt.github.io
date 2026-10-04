@@ -4,10 +4,6 @@ date: 2023-09-21
 description: "说明 SmartDNS 的测速、域名解析、隐私保护和广告过滤能力，并提供日志、缓存、上游分组及 DoT/DoH 配置示例。"
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20230921-SmartDNS-配置-3tg.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023092100r5kh/"]
 ---
 

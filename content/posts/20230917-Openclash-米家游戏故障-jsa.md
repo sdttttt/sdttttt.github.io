@@ -5,10 +5,6 @@ description: "记录 OpenClash 下米哈游游戏登录失败和延迟升高的�
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20230917-Openclash-米家游戏故障-jsa.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023091703wp89/"]
 ---
 

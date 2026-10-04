@@ -5,10 +5,6 @@ description: "比较 NFS 与 SMB 在 Linux、Windows 和 Unix 文件共享中的
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20231209-Unix平台和Windows的文件分享问题-mh2.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023120904fth1/"]
 ---
 

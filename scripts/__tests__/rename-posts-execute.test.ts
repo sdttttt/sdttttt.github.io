@@ -40,7 +40,6 @@ async function setupTempGitRepo(): Promise<{ workDir: string; restore: () => voi
   await runShell(['git', 'config', 'user.email', 'test@test']);
   await runShell(['git', 'config', 'user.name', 'test']);
   mkdirSync('content/posts', { recursive: true });
-  mkdirSync('assets/images/covers', { recursive: true });
 
   return {
     workDir,
@@ -62,23 +61,18 @@ describe('executePlan（真实 git repo 集成）', () => {
     state.restore();
   });
 
-  test('rename + cover 重写后 commit 拿到的内容是新内容（不是 index 旧内容）', async () => {
+  test('rename + frontmatter 改写后 commit 拿到的内容是新内容（不是 index 旧内容）', async () => {
     const oldSlug = '2020-01-01-hello';
-    const oldCover = `assets/images/covers/${oldSlug}.svg`;
     const newSlug = '20200101-hello-zzz';
-    const newCover = `assets/images/covers/${newSlug}.svg`;
     const mdContent = `---
 title: Hello
 date: 2020-01-01
-cover:
-  image: "images/covers/${oldSlug}.svg"
-  alt: ""
-  hidden: false
+tags:
+  - old
 ---
 hello body content`;
 
     writeFileSync(`content/posts/${oldSlug}.md`, mdContent);
-    writeFileSync(oldCover, '<svg></svg>');
     await runShell(['git', 'add', '.']);
     await runShell(['git', 'commit', '-q', '-m', 'initial']);
 
@@ -91,11 +85,6 @@ hello body content`;
       hash3: 'zzz',
       title: 'Hello',
       oldUrl: `/posts/20200101hello/`,
-      cover: {
-        oldCoverPath: oldCover,
-        newCoverPath: newCover,
-        newImageField: `images/covers/${newSlug}.svg`,
-      },
       body: 'hello body content',
     };
 
@@ -104,32 +93,28 @@ hello body content`;
     // 1) 文件系统状态：旧路径消失，新路径存在
     expect(existsSync(plan.oldPath)).toBe(false);
     expect(existsSync(plan.newPath)).toBe(true);
-    expect(existsSync(oldCover)).toBe(false);
-    expect(existsSync(newCover)).toBe(true);
 
-    // 2) Working tree 内容是新 cover 路径
+    // 2) Working tree 内容应保留 frontmatter
     const wtContent = readFileSync(plan.newPath, 'utf8');
-    expect(wtContent).toContain(`images/covers/${newSlug}.svg`);
-    expect(wtContent).not.toContain(`images/covers/${oldSlug}.svg`);
+    expect(wtContent).toContain('title: Hello');
+    expect(wtContent).toContain('date: 2020-01-01');
 
-    // 3) Git index 也应该是新内容（关键回归测试）：
-    //    直接 commit 验证 index 已经被正确更新（无需 git add）
+    // 3) Git commit 应能成功（验证 index 已被正确更新，无需 git add）
     const commit = await runShell(['git', 'commit', '-q', '-m', 'rename']);
     expect(commit.exit).toBe(0);
     const committed = (await runShell(['git', 'show', `HEAD:content/posts/${newSlug}.md`])).stdout;
-    expect(committed).toContain(`images/covers/${newSlug}.svg`);
-    expect(committed).not.toContain(`images/covers/${oldSlug}.svg`);
+    expect(committed).toContain('title: Hello');
 
     // 4) Git status 应干净
     const status = (await runShell(['git', 'status', '--porcelain'])).stdout;
     expect(status.trim()).toBe('');
   });
 
-  test('没有 cover 时也能正常 rename', async () => {
-    const oldSlug = '2020-02-02-no-cover';
-    const newSlug = '20200202-no-cover-xxx';
+  test('纯 rename（无 frontmatter 改动）也能正常执行', async () => {
+    const oldSlug = '2020-02-02-no-fm-change';
+    const newSlug = '20200202-no-fm-change-xxx';
     const mdContent = `---
-title: No Cover
+title: No Change
 date: 2020-02-02
 ---
 body`;
@@ -145,9 +130,8 @@ body`;
       newSlug,
       yyyymmdd: '20200202',
       hash3: 'xxx',
-      title: 'No Cover',
-      oldUrl: `/posts/20200202nocover/`,
-      cover: null,
+      title: 'No Change',
+      oldUrl: `/posts/20200202nofmchange/`,
       body: 'body',
     };
 
@@ -157,6 +141,6 @@ body`;
     const commit = await runShell(['git', 'commit', '-q', '-m', 'rename']);
     expect(commit.exit).toBe(0);
     const committed = (await runShell(['git', 'show', `HEAD:content/posts/${newSlug}.md`])).stdout;
-    expect(committed).toContain('title: No Cover');
+    expect(committed).toContain('title: No Change');
   });
 });

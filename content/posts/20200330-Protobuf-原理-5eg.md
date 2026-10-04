@@ -5,10 +5,6 @@ description: "通过示例讲解 Protobuf 按 TLV 格式序列化时的 Key 编�
 tags: ["学习", "思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200330-Protobuf-原理-5eg.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/20200330012er8/"]
 ---
 

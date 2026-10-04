@@ -5,10 +5,6 @@ description: "记录博客主题更换与自动部署流程改造的过程,包�
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200829-Blog-Upgrade-wfd.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020082906elcw/"]
 ---
 

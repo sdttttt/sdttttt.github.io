@@ -6,8 +6,6 @@
  * - slug 由 frontmatter `title` 自动 slugify（保留中文 unicode）
  * - 3 位 hash 是 body 内容的 SHA-256 前 2 字节（16 bit → base36）
  *   用于兜底去重，绝大多数情况下文件名长度 = `YYYYMMDD-slug-XXX`
- * - 配套封面 static/images/covers/{oldSlug}.svg 同步重命名
- * - frontmatter 中 cover.image 引用同步更新
  *
  * 用法：
  *   deno run -A scripts/rename-posts.ts --dry-run --verbose   # 预览计划
@@ -16,13 +14,13 @@
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
 
-import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { readdir, readFile, rename } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
 import { parseFrontMatter, extractFrontMatterBlock } from './lib/frontmatter.js';
 import { parseArgs, getBoolean } from './lib/args.js';
-import { POSTS_DIR, COVERS_DIR, exists } from './lib/paths.js';
+import { POSTS_DIR } from './lib/paths.js';
 
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
@@ -53,11 +51,16 @@ export function normalizeDate(s: unknown): string | null {
 /**
  * 去掉开头的 frontmatter 块，返回剩余正文。
  * 没有 frontmatter 时返回原文。
+ *
+ * 块以 `\n---` 结尾（不含尾部换行），后面紧跟的换行是 frontmatter 与
+ * 正文之间的分隔符，一并跳掉，避免正文开头出现多余的空行。
  */
 export function extractBody(raw: string): string {
   const block = extractFrontMatterBlock(raw);
   if (!block) return raw;
-  return raw.slice(block.length);
+  let body = raw.slice(block.length);
+  if (body.startsWith('\n')) body = body.slice(1);
+  return body;
 }
 
 /**
@@ -100,49 +103,6 @@ export function slugify(title: string): string {
   return s || 'untitled';
 }
 
-/**
- * 精确改写 frontmatter 中 `cover.image` 那一行。
- * 仅在调用方已确认 raw 中包含精确路径时使用。
- */
-export function rewriteCoverImage(raw: string, oldSlug: string, newSlug: string): string {
-  const oldPath = `images/covers/${oldSlug}.svg`;
-  const newPath = `images/covers/${newSlug}.svg`;
-  return raw.replace(oldPath, newPath);
-}
-
-interface CoverUpdate {
-  oldCoverPath: string; // 物理路径
-  newCoverPath: string;
-  newImageField: string; // 写入 frontmatter 的值（不含引号包裹）
-}
-
-/**
- * 决策是否要重命名配套封面。
- * 仅在 cover.image 形如 `images/covers/{oldSlug}.svg` 且物理文件存在时返回。
- * 其他情况（用户自定义封面路径、外链、封面缺失）一律返回 null。
- */
-export async function computeCoverUpdate(
-  meta: ReturnType<typeof parseFrontMatter>,
-  oldSlug: string,
-  newSlug: string,
-): Promise<CoverUpdate | null> {
-  const cover = meta.cover as Record<string, unknown> | undefined;
-  const image = cover?.image;
-  if (typeof image !== 'string') return null;
-
-  const expected = `images/covers/${oldSlug}.svg`;
-  if (image !== expected) return null; // 用户自定义了别的封面路径，不动
-
-  const oldCoverPath = join(COVERS_DIR, `${oldSlug}.svg`);
-  if (!(await exists(oldCoverPath))) return null;
-
-  return {
-    oldCoverPath,
-    newCoverPath: join(COVERS_DIR, `${newSlug}.svg`),
-    newImageField: `images/covers/${newSlug}.svg`,
-  };
-}
-
 // ─────────────────────────────────────────────────────────────
 // 计划 / 跳过 / 报告
 // ─────────────────────────────────────────────────────────────
@@ -155,8 +115,7 @@ export interface RenamePlan {
   yyyymmdd: string;
   hash3: string;
   title: string;
-  oldUrl: string;  // 例如 "/posts/2026081705hog4/" 用于写入 aliases
-  cover: CoverUpdate | null;
+  oldUrl: string; // 例如 "/posts/2026081705hog4/" 用于写入 aliases
   body: string; // 用于 verbose 输出
 }
 
@@ -223,7 +182,6 @@ export async function buildReport(): Promise<Report> {
     }
 
     const oldSlug = basename(f, '.md');
-    const cover = await computeCoverUpdate(meta, oldSlug, newSlug);
 
     plans.push({
       oldPath,
@@ -234,7 +192,6 @@ export async function buildReport(): Promise<Report> {
       hash3,
       title,
       oldUrl: oldUrlFromSlug(oldSlug),
-      cover,
       body,
     });
   }
@@ -274,20 +231,6 @@ async function moveFile(oldPath: string, newPath: string): Promise<{ usedGit: bo
 }
 
 /**
- * 同步 index 与 working tree。
- *
- * 关键：tracked 文件 `writeFile` 只会改 working tree，**index 不会自动更新**。
- * 如果不 `git add`，下一步 `git mv` 会把 index 里的**旧内容**搬到新路径，
- * commit 时拿到的就是「新路径 + 旧内容」（历史上的 bug）。
- *
- * 不可用时静默返回 false，由调用方自行决定是否降级。
- */
-async function gitAdd(path: string): Promise<boolean> {
-  const { ok } = await runGit(['add', path]);
-  return ok;
-}
-
-/**
  * 跑 git 子命令，捕获退出码。不可用/失败时返回 ok=false。
  */
 async function runGit(args: string[]): Promise<{ ok: boolean; exit: number }> {
@@ -305,20 +248,8 @@ async function runGit(args: string[]): Promise<{ ok: boolean; exit: number }> {
 }
 
 export async function executePlan(plan: RenamePlan): Promise<void> {
-  // 1) 改写 frontmatter（如果 cover 需要更新）
-  if (plan.cover) {
-    const raw = await readFile(plan.oldPath, 'utf8');
-    const updated = rewriteCoverImage(raw, plan.oldSlug, plan.newSlug);
-    await writeFile(plan.oldPath, updated);
-    // 关键：让 index 知道 OLD 路径有新内容，下一步 git mv 才会搬新内容
-    await gitAdd(plan.oldPath);
-  }
-  // 2) mv .md
+  // mv .md
   await moveFile(plan.oldPath, plan.newPath);
-  // 3) mv cover SVG（独立路径，不存在 index 同步问题）
-  if (plan.cover) {
-    await moveFile(plan.cover.oldCoverPath, plan.cover.newCoverPath);
-  }
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -332,11 +263,6 @@ function printPlan(p: RenamePlan, prefix: string): void {
     console.log(`    title: ${p.title}`);
     console.log(`    hash:  ${p.hash3} (body ${p.body.length} chars)`);
     console.log(`    alias: ${p.oldUrl}`);
-  }
-  if (p.cover) {
-    console.log(
-      `    封面: ${basename(p.cover.oldCoverPath)} → ${basename(p.cover.newCoverPath)}`,
-    );
   }
 }
 

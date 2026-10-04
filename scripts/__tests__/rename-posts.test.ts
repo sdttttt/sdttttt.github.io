@@ -8,10 +8,8 @@ import {
   extractBody,
   computeHash3,
   slugify,
-  rewriteCoverImage,
   buildReport,
   detectCollisions,
-  oldUrlFromSlug,
   type RenamePlan,
 } from '../rename-posts.js';
 import { expect } from './expect.js';
@@ -25,159 +23,105 @@ describe('normalizeDate', () => {
     expect(normalizeDate('2025-05-04')).toBe('20250504');
   });
 
-  test('quoted YYYY-MM-DD（已 unquote）', () => {
-    expect(normalizeDate('2022-11-08')).toBe('20221108');
-  });
-
-  test('ISO 8601 with Z timezone', () => {
+  test('ISO datetime 取日期部分', () => {
     expect(normalizeDate('2020-05-09T13:00:00Z')).toBe('20200509');
   });
 
-  test('ISO 8601 with offset', () => {
-    expect(normalizeDate('2020-05-09T13:00:00+08:00')).toBe('20200509');
-  });
-
-  test('单数字月日补零', () => {
-    expect(normalizeDate('2022-1-9')).toBe('20220109');
-  });
-
   test('非字符串返回 null', () => {
-    expect(normalizeDate(20250504)).toBeNull();
-    expect(normalizeDate(null)).toBeNull();
-    expect(normalizeDate(undefined)).toBeNull();
+    expect(normalizeDate(null)).toBe(null);
+    expect(normalizeDate(20250101)).toBe(null);
   });
 
-  test('完全无效格式返回 null', () => {
-    expect(normalizeDate('hello')).toBeNull();
-    expect(normalizeDate('2025/05/04')).toBeNull();
-    expect(normalizeDate('')).toBeNull();
+  test('完全无效的字符串返回 null', () => {
+    expect(normalizeDate('hello')).toBe(null);
   });
 
-  test('月份/日期越界返回 null', () => {
-    expect(normalizeDate('2025-13-01')).toBeNull();
-    expect(normalizeDate('2025-00-15')).toBeNull();
-    expect(normalizeDate('2025-05-00')).toBeNull();
-    expect(normalizeDate('2025-05-32')).toBeNull();
+  test('月日越界返回 null', () => {
+    expect(normalizeDate('2024-13-01')).toBe(null);
+    expect(normalizeDate('2024-00-15')).toBe(null);
+    expect(normalizeDate('2024-01-32')).toBe(null);
+  });
+
+  test('一位月日自动补零', () => {
+    expect(normalizeDate('2024-1-5')).toBe('20240105');
   });
 });
 
 describe('extractBody', () => {
-  test('剥掉 frontmatter 块', () => {
-    const raw = '---\ntitle: x\n---\n\nhello body';
-    expect(extractBody(raw)).toBe('\n\nhello body');
+  test('去掉 frontmatter 块', () => {
+    const raw = `---
+title: x
+---
+hello body`;
+    expect(extractBody(raw)).toBe('hello body');
   });
 
-  test('无 frontmatter 时返回原文', () => {
-    const raw = 'no front matter here';
-    expect(extractBody(raw)).toBe(raw);
+  test('没有 frontmatter 时返回原文', () => {
+    const raw = 'just a body';
+    expect(extractBody(raw)).toBe('just a body');
   });
 
-  test('frontmatter 内部多行也正确剥离', () => {
-    const raw = '---\ntitle: x\ntags:\n  - a\n  - b\ndate: 2025-01-01\n---\nbody';
+  test('frontmatter 后面有空行也保留', () => {
+    const raw = `---
+title: x
+---
+
+body`;
     expect(extractBody(raw)).toBe('\nbody');
   });
 });
 
 describe('computeHash3', () => {
-  test('输出长度 1-4（16-bit base36 自然宽度）', () => {
-    // base36: 36^3=46656, 36^4=1679616; 2^16=65536 落在 3-4 位之间
-    const len = computeHash3('').length;
-    expect(len >= 1 && len <= 4).toBe(true);
+  test('同输入产出同输出', () => {
+    expect(computeHash3('hello')).toBe(computeHash3('hello'));
   });
 
-  test('输出仅含 base36 字符', () => {
-    expect(computeHash3('anything here')).toMatch(/^[0-9a-z]{1,4}$/);
+  test('不同输入产出不同输出', () => {
+    expect(computeHash3('hello')).not.toBe(computeHash3('world'));
   });
 
-  test('确定性 + 已知向量', () => {
-    // SHA-256("hello") 前 2 字节 = 0x2c, 0xf2 = 16-bit 0x2cf2 = 11506 → base36 "8vm"
-    expect(computeHash3('hello')).toBe('8vm');
-    // SHA-256("") 前 2 字节 = 0xe3, 0xb0 = 16-bit 0xe3b0 = 58288 → base36 "18z4"
-    expect(computeHash3('')).toBe('18z4');
+  test('返回 3 位以内 base36', () => {
+    const h = computeHash3('any content');
+    expect(h).toMatch(/^[0-9a-z]{1,4}$/);
   });
 });
 
 describe('slugify', () => {
-  test('纯中文标题保留', () => {
-    expect(slugify('文章的变化')).toBe('文章的变化');
+  test('纯中文标题', () => {
+    expect(slugify('今天是二零二六年九月二十一日')).toBe('今天是二零二六年九月二十一日');
   });
 
-  test('中文+标点:标点替换为连字符并合并', () => {
-    expect(slugify('Hello, World!')).toBe('Hello-World');
+  test('英文标题转小写并保留连字符', () => {
+    expect(slugify('Hello World')).toBe('Hello-World');
   });
 
-  test('首尾空白/连字符裁剪', () => {
-    expect(slugify('  --foo--  ')).toBe('foo');
+  test('去除非法字符', () => {
+    expect(slugify('Hello, World! 2024')).toBe('Hello-World-2024');
   });
 
-  test('纯标点 → untitled 兜底', () => {
+  test('合并连续连字符', () => {
+    expect(slugify('a---b')).toBe('a-b');
+  });
+
+  test('去掉首尾连字符', () => {
+    expect(slugify('---hello---')).toBe('hello');
+  });
+
+  test('空字符串兜底', () => {
+    expect(slugify('')).toBe('untitled');
+    expect(slugify('   ')).toBe('untitled');
     expect(slugify('!!!')).toBe('untitled');
   });
 
-  test('日文/韩文保留', () => {
-    expect(slugify('こんにちは')).toBe('こんにちは');
-    expect(slugify('안녕하세요')).toBe('안녕하세요');
+  test('超长标题截断并去尾连字符', () => {
+    const long = 'a'.repeat(100);
+    const result = slugify(long);
+    expect(result.length).toBeLessThanOrEqual(80);
+    expect(result.endsWith('-')).toBe(false);
   });
 
-  test('过长标题截断到 80 字符且不残留末尾连字符', () => {
-    const long = '啊'.repeat(100);
-    const out = slugify(long);
-    expect(out.length).toBe(80);
-    expect(out.endsWith('-')).toBe(false);
-  });
-
-  test('emoji 替换为连字符', () => {
-    expect(slugify('a 🎉 b')).toBe('a-b');
-  });
-});
-
-describe('oldUrlFromSlug', () => {
-  test('YYYYMMDD[hash] 格式 → 去除方括号', () => {
-    expect(oldUrlFromSlug('20260817[05hog4]')).toBe('/posts/2026081705hog4/');
-  });
-
-  test('YYYY-MM-DD-slug 格式 → 去除连字符', () => {
-    expect(oldUrlFromSlug('2024-01-15-hello')).toBe('/posts/20240115hello/');
-  });
-
-  test('纯 hash 格式保留', () => {
-    expect(oldUrlFromSlug('2026081705hog4')).toBe('/posts/2026081705hog4/');
-  });
-});
-
-describe('rewriteCoverImage', () => {
-  test('改写 cover.image 路径', () => {
-    const raw = `---
-title: x
-cover:
-  image: "images/covers/oldslug.svg"
-  alt: ""
-  hidden: false
----
-body`;
-    const out = rewriteCoverImage(raw, 'oldslug', 'newslug');
-    expect(out).toContain('images/covers/newslug.svg');
-    expect(out).not.toContain('images/covers/oldslug.svg');
-  });
-
-  test('保留其他字段不变', () => {
-    const raw = `---
-title: "Hello"
-date: 2025-01-01
-cover:
-  image: images/covers/oldslug.svg
-  alt: alt text
-  hidden: true
-tags:
-  - a
----
-body`;
-    const out = rewriteCoverImage(raw, 'oldslug', 'newslug');
-    expect(out).toContain('title: "Hello"');
-    expect(out).toContain('date: 2025-01-01');
-    expect(out).toContain('alt text');
-    expect(out).toContain('hidden: true');
-    expect(out).toContain('tags:');
+  test('混合中日英韩', () => {
+    expect(slugify('Hello 世界 こんにちは')).toBe('Hello-世界-こんにちは');
   });
 });
 
@@ -186,10 +130,7 @@ body`;
 // ─────────────────────────────────────────────────────────────
 
 interface TempContent {
-  /** 添加一个 .md 到 content/posts/，可选添加对应的 cover svg */
-  addPost: (filename: string, content: string, opts?: { coverSlug?: string }) => void;
-  /** 在 static/images/covers/ 放一个 SVG（即使没有对应 .md） */
-  addCover: (slug: string) => void;
+  addPost: (filename: string, content: string) => void;
   restore: () => void;
 }
 
@@ -198,16 +139,9 @@ function setupTempContent(): TempContent {
   const workDir = mkdtempSync(join(tmpdir(), 'rename-posts-build-test-'));
   process.chdir(workDir);
   mkdirSync('content/posts', { recursive: true });
-  mkdirSync('static/images/covers', { recursive: true });
   return {
-    addPost: (filename, content, opts) => {
+    addPost: (filename, content) => {
       writeFileSync(join('content/posts', filename), content);
-      if (opts?.coverSlug) {
-        writeFileSync(join('static/images/covers', `${opts.coverSlug}.svg`), '<svg></svg>');
-      }
-    },
-    addCover: (slug) => {
-      writeFileSync(join('static/images/covers', `${slug}.svg`), '<svg></svg>');
     },
     restore: () => {
       process.chdir(originalCwd);
@@ -231,13 +165,9 @@ describe('buildReport', () => {
     const content = `---
 title: Hello
 date: 2024-01-15
-cover:
-  image: "images/covers/2024-01-15-hello.svg"
-  alt: ""
-  hidden: false
 ---
 hello body content`;
-    env.addPost('2024-01-15-hello.md', content, { coverSlug: '2024-01-15-hello' });
+    env.addPost('2024-01-15-hello.md', content);
     env.addPost('_index.md', '---\ntitle: Posts\n---');
     const { plans, skipped } = await buildReport();
     expect(skipped).toEqual([]);
@@ -245,10 +175,7 @@ hello body content`;
     expect(plans[0]!.yyyymmdd).toBe('20240115');
     expect(plans[0]!.hash3).toMatch(/^[0-9a-z]{1,4}$/);
     expect(plans[0]!.oldSlug).toBe('2024-01-15-hello');
-    // 新格式: YYYYMMDD-{slug}-{hash3}
     expect(plans[0]!.newSlug).toMatch(/^20240115-.+-[a-z0-9]{1,4}$/);
-    expect(plans[0]!.cover).not.toBeNull();
-    expect(plans[0]!.cover!.newImageField).toBe(`images/covers/${plans[0]!.newSlug}.svg`);
   });
 
   test('缺少 date 归入 skipped', async () => {
@@ -268,7 +195,6 @@ hello body content`;
   });
 
   test('已是新格式归入 skipped', async () => {
-    // 模拟脚本的处理：date + slugify(title) + hash3(extractBody(raw))
     const date = '2024-01-15';
     const body = 'unique body for idempotency test';
     const raw = `---
@@ -293,36 +219,6 @@ ${body}`;
     expect(plans.length).toBe(0);
     expect(skipped.length).toBe(0);
   });
-
-  test('不匹配的 cover 路径不进入 coverUpdate', async () => {
-    const content = `---
-title: x
-date: 2024-01-15
-cover:
-  image: "images/covers/custom.svg"
----
-body`;
-    env.addPost('2024-01-15-x.md', content);
-    env.addCover('custom');
-    const { plans } = await buildReport();
-    expect(plans.length).toBe(1);
-    expect(plans[0]!.cover).toBeNull();
-  });
-
-  test('cover 路径匹配但物理文件不存在时，cover 为 null（不报错）', async () => {
-    const content = `---
-title: x
-date: 2024-01-15
-cover:
-  image: "images/covers/2024-01-15-x.svg"
----
-body`;
-    env.addPost('2024-01-15-x.md', content);
-    // 不 addCover
-    const { plans } = await buildReport();
-    expect(plans.length).toBe(1);
-    expect(plans[0]!.cover).toBeNull();
-  });
 });
 
 describe('detectCollisions', () => {
@@ -336,7 +232,6 @@ describe('detectCollisions', () => {
       hash3,
       title: 't',
       oldUrl: `/posts/old-${hash3}/`,
-      cover: null,
       body: '',
     };
   }

@@ -9,7 +9,6 @@
  * 自动 commit message 分类（仅当 staged 内容来自 deploy.yml 的 auto-fix 流水线时生效）：
  *   - 全部是 rename → chore(rename): sync post slug
  *   - 全部是新增/删除 posts → chore(posts): add/remove
- *   - 全部是新增/删除 cover → chore(covers): add/remove
  *   - 全部是 markdown 格式化（无文件增减、仅内容微调）→ chore(format): prettier
  *   - 全部是 frontmatter 字段新增/删除（仅 YAML 块变化）→ chore(fm): inject frontmatter
  *   - 混合或无法识别 → 回退到 --message-fallback 或 --message
@@ -109,7 +108,7 @@ function readStagedEntries(): DiffEntry[] {
 /**
  * 判断一个 M 修改是不是只动了 frontmatter（YAML 块）。
  * 思路：拿 staged 版本和 HEAD 版本做 diff，如果 diff 完全落在 frontmatter 范围内，
- *       就认为是 frontmatter-only 修改（gen-covers inject-fm 的典型场景）。
+ *       就认为是 frontmatter-only 修改（例如 add tags / 调整日期等）。
  */
 function isFrontmatterOnlyChange(path: string): boolean {
   let staged: string;
@@ -145,14 +144,8 @@ function isFrontmatterOnlyChange(path: string): boolean {
 function isPost(p: string): boolean {
   return p.startsWith('content/posts/');
 }
-function isCover(p: string): boolean {
-  return p.startsWith('static/images/covers/');
-}
 function isMarkdown(p: string): boolean {
   return p.endsWith('.md');
-}
-function isSvg(p: string): boolean {
-  return p.endsWith('.svg');
 }
 
 /**
@@ -177,7 +170,7 @@ export function classifyStagedChanges(): string | null {
   }
 
   // 2) 只改 markdown（M）+ 没有 A/D/R —— 可能是 prettier 格式化
-  //    先按"纯 frontmatter 修改"精确判断（gen-covers inject-fm 的典型场景），
+  //    先按"纯 frontmatter 修改"精确判断（例如批量加 tag、调日期），
   //    不满足则退回 "prettier" 文案。
   if (mods.length === total && mods.every((m) => isMarkdown(m.newPath))) {
     let allFmOnly = mods.every((m) => isFrontmatterOnlyChange(m.newPath));
@@ -187,19 +180,7 @@ export function classifyStagedChanges(): string | null {
     return `chore(format): prettier markdown (${total} files)`;
   }
 
-  // 3) 只新增/删除 cover svg（同步孤儿封面清理）
-  const onlyCoverIO =
-    adds.length + dels.length === total &&
-    adds.every((a) => isCover(a.newPath) && isSvg(a.newPath)) &&
-    dels.every((d) => isCover(d.newPath) && isSvg(d.newPath));
-  if (onlyCoverIO) {
-    const parts: string[] = [];
-    if (adds.length) parts.push(`+${adds.length}`);
-    if (dels.length) parts.push(`-${dels.length}`);
-    return `chore(covers): ${parts.join('/')} cover image${total > 1 ? 's' : ''}`;
-  }
-
-  // 4) 只新增/删除 posts（极少发生，AI 创建/删除文章时）
+  // 3) 只新增/删除 posts（极少发生，AI 创建/删除文章时）
   const onlyPostIO =
     adds.length + dels.length === total &&
     adds.every((a) => isPost(a.newPath) && isMarkdown(a.newPath)) &&

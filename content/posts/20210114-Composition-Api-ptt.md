@@ -4,10 +4,6 @@ date: 2021-01-14
 description: "再次结合 Vue2 项目实践讲解组合式 API 的使用方式,通过自定义函数封装与响应式数据展示逻辑拆分思路,讨论自动追踪副作用在页面渲染后首次执行时收集依赖从而实现自动追踪的魔法原理与副作用机制在 Vue 中的实现细节。"
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20210114-Composition-Api-ptt.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/20210114053o1c/"]
 ---
 

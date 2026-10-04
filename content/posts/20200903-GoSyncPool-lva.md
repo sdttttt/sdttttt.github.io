@@ -5,10 +5,6 @@ tags: ["学习"]
 description: "sync.pool 一个Go底层的内存复用池."
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200903-GoSyncPool-lva.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020090304bikc/"]
 ---
 

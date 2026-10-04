@@ -5,10 +5,6 @@ description: "逐段解析 RocketMQ Broker 启动入口的 main、createBrokerCo
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20201013-RocketMQ-3-3-4-Broker-koh.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020101304327j/"]
 ---
 

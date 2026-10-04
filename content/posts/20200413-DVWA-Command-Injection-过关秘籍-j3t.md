@@ -5,10 +5,6 @@ description: "对照 DVWA 命令注入 Low、Medium、High 三档源码,指出 M
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200413-DVWA-Command-Injection-过关秘籍-j3t.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020041303rv5p/"]
 ---
 

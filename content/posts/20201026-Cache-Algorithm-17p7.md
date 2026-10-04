@@ -5,10 +5,6 @@ description: "介绍近期最少使用、最近最久未使用与改进型最近
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20201026-Cache-Algorithm-17p7.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020102608mr9f/"]
 ---
 

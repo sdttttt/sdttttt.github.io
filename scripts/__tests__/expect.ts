@@ -63,6 +63,10 @@ export function expect<T>(actual: T) {
     assert.ok(typeof actual === 'number' && actual >= expected);
   }
 
+  function toBeLessThanOrEqual(expected: number) {
+    assert.ok(typeof actual === 'number' && actual <= expected);
+  }
+
   function toHaveBeenCalled(this: void) {
     const mock = actual as unknown as MockLike;
     assert.ok(mock.mock && mock.mock.calls.length > 0, 'expected function to have been called');
@@ -100,6 +104,7 @@ export function expect<T>(actual: T) {
     toMatch,
     toBeGreaterThan,
     toBeGreaterThanOrEqual,
+    toBeLessThanOrEqual,
     toHaveBeenCalled,
     toHaveBeenCalledWith,
     not: {

@@ -59,10 +59,6 @@ theme = "PaperMod"
     publisherType = "Person"
     sameAs = ["https://github.com/sdttttt"]
 
-  [params.cover]
-    responsiveImages = true
-    linkFullImages = false
-
 [outputs]
   home = ["HTML", "RSS", "JSON"]
 

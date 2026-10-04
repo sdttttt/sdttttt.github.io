@@ -2,7 +2,7 @@
  * 通用的目录遍历工具。
  *
  * `walkMarkdown` 之前只在 check-dead-links.ts 里手写，但 validate-posts /
- * sync-covers / gen-covers 都按各自习惯遍历 content/posts/，容易重复。
+ * rename-posts 等都按各自习惯遍历 content/posts/，容易重复。
  * 统一在这里，未来加 .mdignore / 按 frontmatter 过滤等特性只需改一处。
  */
 

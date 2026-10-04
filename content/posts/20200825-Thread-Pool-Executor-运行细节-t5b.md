@@ -5,10 +5,6 @@ description: "解析 Java 线程池执行器的构造参数与执行流程,说�
 author: sdttttt
 tags: ["学习"]
 draft: false
-cover:
-  image: "images/covers/20200825-Thread-Pool-Executor-运行细节-t5b.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020082505r9um/"]
 ---
 

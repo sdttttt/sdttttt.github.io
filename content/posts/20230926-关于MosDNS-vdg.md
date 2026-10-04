@@ -5,10 +5,6 @@ description: "介绍 MosDNS 作为可编程 DNS 服务器的请求处理和分�
 tags: ["硬件"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20230926-关于MosDNS-vdg.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/202309260673s4/"]
 ---
 

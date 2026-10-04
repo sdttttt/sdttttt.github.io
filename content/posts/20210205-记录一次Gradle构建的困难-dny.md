@@ -5,10 +5,6 @@ description: "记录接手一个 Gradle 构建的 Java 项目后,执行构建命
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20210205-记录一次Gradle构建的困难-dny.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2021020502p6dj/"]
 ---
 

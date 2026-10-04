@@ -5,10 +5,6 @@ description: "通过分析 DVWA 四个难度级别下 SQL 盲注的源码,讲解
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200410-DVWA-SQL-Injection-blind-过关秘籍-w2f.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020041006c1bb/"]
 ---
 

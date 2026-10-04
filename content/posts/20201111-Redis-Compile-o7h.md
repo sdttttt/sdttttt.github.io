@@ -5,10 +5,6 @@ description: "2020年11月11日"
 tags: ["日志"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20201111-Redis-Compile-o7h.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020111104s57w/"]
 ---
 

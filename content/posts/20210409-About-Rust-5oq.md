@@ -5,10 +5,6 @@ description: "2021年04月09日"
 tags: ["日志"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20210409-About-Rust-5oq.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/20210409014fzy/"]
 ---
 

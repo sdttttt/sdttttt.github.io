@@ -5,10 +5,6 @@ description: "分析 OpenWrt 中 AdGuard Home 突然不再处理 DNS 请求的�
 tags: ["思考", "硬件"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20230908-AdGuard-Home-DNS失效问题-1ejy.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023090809zhyq/"]
 ---
 

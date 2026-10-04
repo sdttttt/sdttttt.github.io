@@ -1,5 +1,5 @@
 import { describe, test } from 'node:test';
-import { isValidDate, coverExists, validate } from '../validate-posts.js';
+import { isValidDate, validate } from '../validate-posts.js';
 import { expect } from './expect.js';
 import { inTempDir } from './temp-dir.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
@@ -16,42 +16,6 @@ describe('isValidDate', () => {
   test('空字符串返回 false', () => {
     expect(isValidDate('')).toBe(false);
   });
-});
-
-describe('coverExists', () => {
-  test('http 外链直接返回 true', async () => {
-    expect(await coverExists('http://example.com/cover.svg')).toBe(true);
-  });
-
-  test('https 外链直接返回 true', async () => {
-    expect(await coverExists('https://example.com/cover.svg')).toBe(true);
-  });
-
-  test('assets 下存在返回 true', () =>
-    inTempDir(async () => {
-      mkdirSync('assets/images/covers', { recursive: true });
-      writeFileSync('assets/images/covers/cover.svg', '<svg></svg>');
-      expect(await coverExists('images/covers/cover.svg')).toBe(true);
-    }));
-
-  test('static 下存在返回 true', () =>
-    inTempDir(async () => {
-      mkdirSync('static/images/covers', { recursive: true });
-      writeFileSync('static/images/covers/cover.svg', '<svg></svg>');
-      expect(await coverExists('images/covers/cover.svg')).toBe(true);
-    }));
-
-  test('缺失返回 false', () =>
-    inTempDir(async () => {
-      expect(await coverExists('images/covers/missing.svg')).toBe(false);
-    }));
-
-  test('带前导斜杠正确处理', () =>
-    inTempDir(async () => {
-      mkdirSync('assets/images/covers', { recursive: true });
-      writeFileSync('assets/images/covers/cover.svg', '<svg></svg>');
-      expect(await coverExists('/images/covers/cover.svg')).toBe(true);
-    }));
 });
 
 describe('validate', () => {
@@ -114,16 +78,5 @@ describe('validate', () => {
       writeFileSync('content/posts/hello.md', '---\ntitle: Hello\ndate: 2024-01-15\nprivate: "yes"\n---\n');
       const issues = await validate();
       expect(issues.some((i) => i.message.includes('private'))).toBe(true);
-    }));
-
-  test('本地封面文件不存在', () =>
-    inTempDir(async () => {
-      mkdirSync('content/posts', { recursive: true });
-      writeFileSync(
-        'content/posts/hello.md',
-        '---\ntitle: Hello\ndate: 2024-01-15\ncover:\n  image: images/covers/missing.svg\n---\n',
-      );
-      const issues = await validate();
-      expect(issues.some((i) => i.message.includes('封面文件不存在'))).toBe(true);
     }));
 });

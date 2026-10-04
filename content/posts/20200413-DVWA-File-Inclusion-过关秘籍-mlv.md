@@ -5,10 +5,6 @@ description: "梳理 DVWA 文件包含 Low、Medium、High、Impossible 四档�
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200413-DVWA-File-Inclusion-过关秘籍-mlv.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020041304grjt/"]
 ---
 

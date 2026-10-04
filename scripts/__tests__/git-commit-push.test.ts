@@ -123,34 +123,6 @@ describe('classifyStagedChanges', () => {
     });
   });
 
-  test('只新增 cover svg → chore(covers) +N', async () => {
-    await inTempDir(() => {
-      initRepo();
-      // 需要先有 commit，否则第一个 commit 就被当成 A
-      writeFileSync('README.md', '# readme');
-      gitAdd();
-      gitCommit('init');
-
-      mkdirSync('static/images/covers', { recursive: true });
-      writeFileSync('static/images/covers/20240115-foo-bar-aaa.svg', '<svg/>');
-      gitAdd();
-      expect(classifyStagedChanges()).toBe('chore(covers): +1 cover image');
-    });
-  });
-
-  test('只删除 cover svg → chore(covers) -N', async () => {
-    await inTempDir(() => {
-      initRepo();
-      mkdirSync('static/images/covers', { recursive: true });
-      writeFileSync('static/images/covers/old.svg', '<svg/>');
-      gitAdd();
-      gitCommit('init');
-
-      execSync('git rm -q static/images/covers/old.svg', { stdio: 'pipe' });
-      expect(classifyStagedChanges()).toBe('chore(covers): -1 cover image');
-    });
-  });
-
   test('混合 rename + fm 修改 → null（无法精确分类）', async () => {
     await inTempDir(() => {
       initRepo();

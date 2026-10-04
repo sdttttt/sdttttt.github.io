@@ -5,10 +5,6 @@ description: "逐级分析 DVWA 文件上传四个难度源码的过滤逻辑,�
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20200412-DVWA-File-upload-过关秘籍-43l.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020041200t5kg/"]
 ---
 

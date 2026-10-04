@@ -5,10 +5,6 @@ description: "用示例代码对比 Rust 中两个关键字的语义差异,说�
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20201112-关于Rust中的关键词-impl-和-dyn-2qo.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020111200jhq0/"]
 ---
 

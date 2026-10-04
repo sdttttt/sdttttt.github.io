@@ -5,10 +5,6 @@ description: "2021年04月16日"
 tags: ["日志"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20210416-Free-Software-7hu.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2021041601haug/"]
 ---
 

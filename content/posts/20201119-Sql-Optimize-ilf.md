@@ -5,10 +5,6 @@ description: "讲解 MySQL 中查询语句的索引优化策略,涵盖 B+ 树索
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20201119-Sql-Optimize-ilf.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020111903o8c3/"]
 ---
 

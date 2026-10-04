@@ -5,10 +5,6 @@ description: "结合 iptables 规则分析 OpenClash 在 OpenWrt 网关上的透
 tags: ["硬件"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20231004-关于OpenClash的流量处理-i0c.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023100403k2e5/"]
 ---
 

@@ -44,16 +44,10 @@ jobs:
       - name: Rename posts
         run: deno task rename-posts
 
-      # 先生成封面并注入 front matter，再交给 prettier 统一格式化，
-      # 这样注入的 YAML 不会留下待格式化的残留。
-      - name: Generate covers and inject front matter
-        run: deno run -A scripts/gen-covers.ts --all --inject-fm
-
       - name: Format Markdown files
         run: deno task format-markdown
 
-      # 发布前最后门槛：front matter 缺字段 / 封面路径失效的内容就地失败，
-      # 不带病构建上线。放在 gen-covers 之后，注入的 cover 路径已落盘。
+      # 发布前最后门槛：front matter 缺字段的就地失败，不带病构建上线。
       - name: Validate posts
         run: deno task validate-posts
 

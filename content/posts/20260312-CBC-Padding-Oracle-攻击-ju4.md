@@ -5,10 +5,6 @@ description: "研究 TLS 1.2 协议中 CBC 模式加密导致的 Padding Oracle 
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20260312-CBC-Padding-Oracle-攻击-ju4.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2026031203x24o/"]
 ---
 

@@ -5,10 +5,6 @@ description: "2023年04月25日"
 tags: ["日志", "硬件"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20230425-OrangePi-R1-Plus-LTS-t2e.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023042505qp2y/"]
 ---
 

@@ -4,10 +4,6 @@ date: 2024-06-15
 description: "记录 ImmortalWrt 编译时启用 BPF 相关构建后遇到的 LLVM/clang 版本过低问题，并给出安装 12 以上版本的命令示例。"
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20240615-ImmortalWrt的编译踩坑-vc6.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/20240615066upj/"]
 ---
 

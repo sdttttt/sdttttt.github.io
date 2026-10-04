@@ -5,10 +5,6 @@ description: "记录作者对 Tag 与 Category 概念的理解，以及目前发
 tags: ["思考"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20221116-Tag和Category-wgs.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2022111606evbk/"]
 ---
 

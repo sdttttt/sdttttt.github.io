@@ -4,10 +4,6 @@ date: 2020-05-25
 description: "复习红黑树五条核心性质的含义,详细推导插入新红色节点时在根节点为空、父节点为黑色、叔父节点为红色、叔父为黑色且方向相同、方向不同等多种情形下所需做的左右旋转与变色修复策略,并配以多张示意图辅助说明。"
 tags: ["学习"]
 draft: false
-cover:
-  image: "images/covers/20200525-Red-Black-Tree-ykg.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2020052506ttjs/"]
 ---
 

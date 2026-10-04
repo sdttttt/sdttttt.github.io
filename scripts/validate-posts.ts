@@ -1,12 +1,11 @@
 #!/usr/bin/env deno
 /**
- * 校验文章 front matter 和封面一致性
+ * 校验文章 front matter
  *
  * 检查项：
  *   - title / date 必填
  *   - date 格式为 YYYY-MM-DD
  *   - slug 不重复
- *   - 如声明 cover.image，对应 SVG 文件必须存在
  *   - private 如存在必须是布尔值
  *
  * 用法：
@@ -16,7 +15,7 @@
 import { readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { parseFrontMatter } from './lib/frontmatter.js';
-import { POSTS_DIR, exists } from './lib/paths.js';
+import { POSTS_DIR } from './lib/paths.js';
 
 interface Issue {
   file: string;
@@ -25,15 +24,6 @@ interface Issue {
 
 export function isValidDate(s: string): boolean {
   return !Number.isNaN(Date.parse(s));
-}
-
-/** Hugo 资源路径：cover.image 相对于 assets/ 或 static/ */
-export async function coverExists(coverImage: string): Promise<boolean> {
-  if (coverImage.startsWith('http://') || coverImage.startsWith('https://')) {
-    return true; // 外链封面，不校验本地文件
-  }
-  const relative = coverImage.startsWith('/') ? coverImage.slice(1) : coverImage;
-  return (await exists(`assets/${relative}`)) || (await exists(`static/${relative}`));
 }
 
 export async function validate(): Promise<Issue[]> {
@@ -65,13 +55,6 @@ export async function validate(): Promise<Issue[]> {
 
     if (meta.private !== undefined && typeof meta.private !== 'boolean') {
       issues.push({ file: f, message: 'private 必须是布尔值' });
-    }
-
-    const coverImage = (meta.cover as Record<string, unknown> | undefined)?.image;
-    if (typeof coverImage === 'string' && coverImage.trim() !== '') {
-      if (!(await coverExists(coverImage))) {
-        issues.push({ file: f, message: `封面文件不存在: ${coverImage}` });
-      }
     }
   }
 

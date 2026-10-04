@@ -5,10 +5,6 @@ description: "说明将 OpenClash 从 TCP Redirect、UDP TProxy 改为 TCP/UDP �
 tags: ["思考", "硬件"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20231122-openclash-转发改为TProxy-148c.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2023112207y3a0/"]
 ---
 

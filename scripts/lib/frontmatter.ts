@@ -4,7 +4,7 @@
  * 仅支持 Hugo/PaperMod 中实际用到的 YAML 子集：
  * - 标量字符串、数字、布尔、null
  * - 简单数组
- * - 一级嵌套对象（如 cover: { image, alt, hidden }）
+ * - 一级嵌套对象（如 { image: ..., alt: ... }）
  */
 
 export interface FrontMatter {

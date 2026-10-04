@@ -5,10 +5,6 @@ description: "简述 Go 中不安全指针与无符号整型指针的区别,前�
 tags: ["学习"]
 author: sdttttt
 draft: false
-cover:
-  image: "images/covers/20210408-Go-Unsafe-rk7.svg"
-  alt: ""
-  hidden: false
 aliases: ["/posts/2021040805fzpw/"]
 ---
 
