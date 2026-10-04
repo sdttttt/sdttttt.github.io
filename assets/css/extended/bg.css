@@ -1,0 +1,160 @@
+/*
+ * Page-level decorative background.
+ *
+ * Goals:
+ *   - Image is pinned (fixed) to the viewport bottom-left, so it stays
+ *     glued to the corner no matter where the user is in the document.
+ *   - But the image is only VISIBLE once the user has scrolled to the
+ *     bottom of the document. Showing it requires JS (scroll listener
+ *     that toggles html.at-bottom) — CSS can't observe scroll position.
+ *   - One image per page load — picked at random, no looping animation.
+ *   - Never block reading: pointer-events off, sits behind body content.
+ *   - Honor prefers-reduced-motion.
+ *   - Fake "background removal" via CSS: the image is blended with the
+ *     page background using `mix-blend-mode`, so flat / simple backgrounds
+ *     dissolve into the page instead of looking like a sticker. This is
+ *     a poor man's auto-cutout — see block comment below.
+ */
+
+/* Move body bg to html so the .page-bg layer underneath is visible.
+   PaperMod paints its own bg on body (var(--theme) / var(--code-bg));
+   we override it here in the extended bundle (loaded after core.css). */
+html {
+    background-color: var(--theme);
+}
+
+body,
+body.list {
+    background-color: transparent;
+}
+
+/* Container: fixed to the viewport, behind everything, ignores pointer. */
+.page-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+    background: transparent;
+}
+
+/* Sizing variables so the @media block can override width without
+   duplicating the aspect-ratio / mask rules. */
+:root {
+    --page-bg-w: clamp(220px, 24vw, 320px);
+    --page-bg-ratio: 5 / 7;
+}
+
+.page-bg__img {
+    position: absolute;
+    /* Pin to the viewport's bottom-left. */
+    left: 0;
+    bottom: 0;
+
+    width: var(--page-bg-w);
+    aspect-ratio: var(--page-bg-ratio);
+
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+
+    /* === Fake "background removal" via mix-blend-mode ===
+       `luminosity` keeps the image's hue + saturation (so the subject's
+       colors stay true) but adopts the *luminosity* (lightness profile)
+       of whatever sits behind the element — which is the html background
+       (var(--theme)). The result:
+         - White / solid-color backgrounds in the image adopt the page
+           background tone and effectively dissolve.
+         - The subject still carries its original colors.
+         - Semi-transparent PNGs / soft-edge gradients also blend in
+           gracefully.
+       This is NOT real segmentation — complex photographic backgrounds
+       will still show through — but for the flat-color illustrations
+       common as blog art it gets us 80% of the way there with zero
+       model downloads, zero PNG inflation, zero extra requests. */
+    mix-blend-mode: luminosity;
+
+    opacity: 0;
+    filter: blur(0.3px) saturate(0.95);
+
+    /* Soft radial fade that covers the WHOLE rectangle, including its
+       four corners. Now that the source PNGs are pre-cut (background
+       removed by @imgly/background-removal-node), the subject is solid
+       to its own alpha edge -- we don't need a hard-core center or a
+       dramatic mid-band. The mask can be much softer: most of the
+       rectangle stays fully opaque so the subject reads cleanly, and
+       only the outermost ~25% of the radius (and the four corners)
+       fades to transparent to blend into the page.
+
+       Old curve (7 stops, sharp):
+         #000 6% / .78 22% / .5 45% / .22 68% / .06 85% / 0 100%
+       New curve (5 stops, gentle):
+         #000 30% / .92 50% / .65 75% / .25 90% / 0 100% */
+    -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%,
+            #000 0%,
+            #000 30%,
+            rgba(0, 0, 0, 0.92) 50%,
+            rgba(0, 0, 0, 0.65) 75%,
+            rgba(0, 0, 0, 0.25) 90%,
+            transparent 100%);
+    mask-image: radial-gradient(circle farthest-corner at 50% 50%,
+            #000 0%,
+            #000 30%,
+            rgba(0, 0, 0, 0.92) 50%,
+            rgba(0, 0, 0, 0.65) 75%,
+            rgba(0, 0, 0, 0.25) 90%,
+            transparent 100%);
+
+    transition: opacity 0.8s ease;
+    will-change: opacity;
+}
+
+/* Gate A: JS selected this image (one of the random candidates). */
+.page-bg__img.is-active {
+    opacity: 0;
+}
+
+/* Gate B open: user scrolled to (or near) the bottom of the document.
+   Opacity is held lower than 1 because mix-blend-mode can produce
+   surprisingly strong effects at full strength on saturated subjects. */
+html.at-bottom .page-bg__img.is-active {
+    opacity: 0.85;
+}
+
+/* No-JS fallback: without JS we can't observe scroll, so the first
+   image is always visible. */
+html:not(.js) .page-bg__img:first-of-type {
+    opacity: 0.85;
+}
+
+/* Dark mode: a touch of brightness/saturation control so the image
+   doesn't pop too loudly against the near-black canvas after the
+   luminosity blend. */
+[data-theme="dark"] .page-bg__img {
+    filter: brightness(0.9) saturate(0.85) blur(0.3px);
+}
+
+/* Small screens: shrink the badge so it doesn't take over the page,
+   and nudge it slightly further off the left edge. */
+@media (max-width: 768px) {
+    :root {
+        --page-bg-w: min(170px, 46vw);
+    }
+    .page-bg__img {
+        left: -3vw;
+    }
+}
+
+/* Honor the OS-level "reduce motion" preference: drop the fade-in
+   transition. */
+@media (prefers-reduced-motion: reduce) {
+    .page-bg__img {
+        transition: none;
+    }
+    html:not(.js) .page-bg__img:first-of-type {
+        opacity: 0.7;
+    }
+    html.at-bottom .page-bg__img.is-active {
+        opacity: 0.7;
+    }
+}

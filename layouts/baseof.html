@@ -1,0 +1,138 @@
+{{- if lt hugo.Version "0.146.0" }}
+{{- errorf "=> hugo v0.146.0 or greater is required to build " }}
+{{- end -}}
+
+<!DOCTYPE html>
+{{- $theme := site.Params.defaultTheme | default "auto" }}
+{{- if eq $theme "dark" }}
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}" data-theme="dark" class="no-js">
+{{- else if eq $theme "light" }}
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}" data-theme="light" class="no-js">
+{{- else }}
+<html lang="{{ site.Language }}" dir="{{ .Language.LanguageDirection | default "auto" }}" data-theme="auto" class="no-js">
+{{- end }}
+
+<head>
+    {{- partial "head.html" . }}
+</head>
+
+{{- if (or (ne .Kind `page` ) (eq .Layout `archives`) (eq .Layout `search`)) }}
+<body class="list" id="top">
+{{- else }}
+<body id="top">
+{{- end }}
+
+{{/*
+  Page-level decorative background.
+
+  Why:
+    Render images from /static/bg/ as a soft "bloom" badge at the
+    bottom-left of the viewport, visible only after the user scrolls to
+    the document's bottom.
+
+  Source of truth:
+    Auto-discover files in static/bg/. For each basename, the cutout
+    / lossless version (.png / .webp / .svg) wins over the original
+    .jpg / .jpeg, so the original JPG can stay on disk as a fallback
+    while the cutout PNG renders. Within the same tier, the newer
+    mtime wins.
+
+  Override:
+    Set params.bg = [...] in hugo.toml to use an explicit list instead.
+*/}}
+{{- $bgImages := slice }}
+{{- if (and site.Params.bg (reflect.IsSlice site.Params.bg)) }}
+    {{- $bgImages = site.Params.bg }}
+{{- else if (and site.Params.bg (reflect.IsMap site.Params.bg)) }}
+    {{- range site.Params.bg }}{{ $bgImages = $bgImages | append . }}{{ end }}
+{{- else }}
+    {{- $byBase := dict }}
+    {{- range readDir "static/bg" }}
+        {{- if and (not .IsDir) (in (slice ".jpg" ".jpeg" ".png" ".webp" ".gif" ".svg") (path.Ext .Name)) }}
+            {{- if not (hasPrefix .Name ".") }}
+                {{- $base := .Name | replaceRE "\\.(jpg|jpeg|png|webp|gif|svg)$" "" }}
+                {{- $ext := lower (path.Ext .Name) }}
+                {{- $isCutout := in (slice ".png" ".webp" ".svg") $ext }}
+                {{- $existing := index $byBase $base }}
+                {{- if not $existing }}
+                    {{- $byBase = merge $byBase (dict $base .) }}
+                {{- else if and $isCutout (not (in (slice ".png" ".webp" ".svg") (lower (path.Ext $existing.Name)))) }}
+                    {{/* Cutout version beats the original JPG. */}}
+                    {{- $byBase = merge $byBase (dict $base .) }}
+                {{- else if .ModTime.After $existing.ModTime }}
+                    {{- $byBase = merge $byBase (dict $base .) }}
+                {{- end }}
+            {{- end }}
+        {{- end }}
+    {{- end }}
+    {{- range $byBase }}
+        {{- $bgImages = $bgImages | append (printf "bg/%s" .Name) }}
+    {{- end }}
+{{- end }}
+{{- with $bgImages }}
+<div class="page-bg" aria-hidden="true">
+    {{- range $bgImages }}
+    {{- $src := printf "%s%s" site.BaseURL (strings.TrimPrefix "/" .) }}
+    <div class="page-bg__img" style="background-image:url('{{ $src }}')"></div>
+    {{- end }}
+</div>
+{{- end }}
+
+{{ partialCached "header.html" . .Page -}}
+<main class="main">
+    {{- block "main" . }}{{ end }}
+</main>
+{{ partialCached "footer.html" . .Layout .Kind (.Param "hideFooter") (.Param "ShowCodeCopyButtons") -}}
+
+{{/*
+  Pick one image at random and gate visibility on scroll position.
+  Three things the script does:
+    1. Mark JS as available (remove html.no-js, add html.js) so the
+       no-JS CSS fallback stops applying.
+    2. Pick one .page-bg__img at random and tag it .is-active.
+    3. Toggle html.at-bottom whenever scrollTop + viewportHeight is
+       within 8px of document.scrollHeight. CSS uses this class to
+       reveal the image.
+  Without (3) the CSS has no way to know "the user has reached the
+  end of the page" -- that's why this lives in JS, not in CSS.
+*/}}
+{{- with $bgImages }}
+<script>
+(function () {
+  var root = document.documentElement;
+  if (root) {
+    root.classList.remove('no-js');
+    root.classList.add('js');
+  }
+
+  // 1) Random pick
+  var imgs = document.querySelectorAll('.page-bg__img');
+  if (imgs.length) {
+    var idx = Math.floor(Math.random() * imgs.length);
+    imgs[idx].classList.add('is-active');
+  }
+
+  // 2) Scroll-position gate
+  function checkAtBottom() {
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var winHeight = window.innerHeight;
+    var docHeight = doc.scrollHeight;
+    // 8px tolerance -- feels instant, no flicker on rubber-banding
+    var atBottom = scrollTop + winHeight >= docHeight - 8;
+    if (root) {
+      root.classList.toggle('at-bottom', atBottom);
+    }
+  }
+  window.addEventListener('scroll', checkAtBottom, { passive: true });
+  window.addEventListener('resize', checkAtBottom, { passive: true });
+  // Run now, and once more after a tick in case fonts/layout shifted
+  // between this script and the final layout pass.
+  checkAtBottom();
+  setTimeout(checkAtBottom, 50);
+})();
+</script>
+{{- end }}
+</body>
+
+</html>
