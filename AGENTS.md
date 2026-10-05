@@ -9,17 +9,21 @@
 - `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
   - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
-  - `layouts/partials/bg.html` — 装饰背景图（3 张 cutout，scroll-gated）
+  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**，双击可切回真实 PNG（滚到底部才揭示）
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
   - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
-  - `assets/custom.css` — 自定义 CSS（背景图样式在此）
+  - `layouts/_default/particles.html` — `/particles/` 粒子演示页
+  - `assets/custom.css` — 自定义 CSS（徽标 + 粒子页样式）
+  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
+  - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
 
   （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
 
 - `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
+- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari / `bg/` cutouts）。
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义。
+- `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
 首次克隆不需要 submodule：`git clone`。
 
@@ -51,7 +55,8 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - Markdown 由全局安装的 Prettier 3 格式化（`deno install -g -A npm:prettier@3.9.6`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `deno task format-markdown`。
 - 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。
 - Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。
-- 背景图 cutouts：`static/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切）。
+- 背景图 cutouts：`static/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切）。新增/删除图片会在左下角徽标和 `/particles/` 自动生效（两处都靠 `readDir` 发现）。
+- **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
 
 ## 测试指南
 

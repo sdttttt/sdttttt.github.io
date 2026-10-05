@@ -1,0 +1,19 @@
+[package]
+name = "particles"
+version = "0.1.0"
+edition = "2021"
+description = "WASM particle-image assembler for sdttttt.online (/particles/)"
+
+[lib]
+crate-type = ["cdylib"]
+path = "src/lib.rs"
+
+# 裸导出（不用 wasm-bindgen）：只导出 C-ABI 函数，JS 侧手写 glue。
+# 构建：
+#   cargo build --release --target wasm32-unknown-unknown
+[profile.release]
+opt-level = 3        # 热循环（采样 + 物理 + 光栅化）优先速度
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true

@@ -2,26 +2,21 @@
 @reference './app.css';
 
 /*
- * Page-level decorative background.
+ * Page-level decorative background (bottom-left badge).
  *
- * Goals:
- *   - Image is pinned (fixed) to the viewport bottom-left, so it stays
- *     glued to the corner no matter where the user is in the document.
- *   - But the image is only VISIBLE once the user has scrolled to the
- *     bottom of the document. Showing it requires JS (scroll listener
- *     that toggles html.at-bottom) — CSS can't observe scroll position.
- *   - One image per page load — picked at random, no looping animation.
- *   - Never block reading: pointer-events off, sits behind body content.
- *   - Honor prefers-reduced-motion.
- *   - Blends via mix-blend-mode: luminosity so the subject's colors stay
- *     true while flat / simple backgrounds dissolve into the page.
+ * Structure:
+ *   .page-bg          固定视口、位于内容之后、不吃指针事件
+ *     .page-bg__box   尺寸 / 遮罩 / 混合模式 / 淡入 —— 两个子层共用它
+ *       .page-bg__png    真实 PNG（无 JS 时的内容，也是双击切换的目标）
+ *       .page-bg__canvas WASM 粒子画布
  *
- * Note: hugo-paper paints its own background via a `--bg` CSS variable
- * on `<html>`, so we don't need to relocate the body bg here (that was
- * a PaperMod-specific workaround).
+ * State classes toggled on <html> by assets/js/page-bg.js:
+ *   .pt-bg-ready  WASM 粒子就绪 → canvas 接管
+ *   .pt-bg-photo  双击切回真实 PNG
+ *   .at-bottom    滚到文档底部   → 盒子淡入
  */
 
-/* Container: fixed to the viewport, behind everything, ignores pointer. */
+/* Container: fixed behind everything; children opt back into pointer events. */
 .page-bg {
     position: fixed;
     inset: 0;
@@ -38,31 +33,25 @@
     --page-bg-ratio: 5 / 7;
 }
 
-.page-bg__img {
+/* Geometry + fade-in gate + the visual treatment. The mask lives on the BOX
+   so it clips both children identically — the particle render and the photo
+   then transition into each other with no seam. */
+.page-bg__box {
     position: absolute;
-    /* Pin to the viewport's bottom-left. */
     left: 0;
     bottom: 0;
-
     width: var(--page-bg-w);
     aspect-ratio: var(--page-bg-ratio);
 
-    background-repeat: no-repeat;
-    background-position: center;
-    background-size: contain;
-
-    /* luminosity keeps the image's hue + saturation but adopts the
-       luminosity of the layer behind it (the page background). Flat /
-       solid backgrounds in the image dissolve into the page. */
-    mix-blend-mode: luminosity;
-
     opacity: 0;
+    /* luminosity keeps the subject's colors but adopts the page's
+       luminosity, so flat backgrounds dissolve into the page. */
+    mix-blend-mode: luminosity;
     filter: blur(0.3px) saturate(0.95);
 
-    /* Soft radial fade that covers the WHOLE rectangle, including its
-       four corners. `circle farthest-corner` sizes the mask so it passes
-       through the farthest corner of the box, so the whole 5/7 rectangle
-       is inside the mask and every pixel participates in the fade. */
+    /* Soft radial fade covering the WHOLE rectangle (including corners):
+       `circle farthest-corner` sizes the mask so it passes through the
+       farthest corner, so every pixel participates in the fade. */
     -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%,
             #000 0%,
             #000 30%,
@@ -82,52 +71,145 @@
     will-change: opacity;
 }
 
-/* Gate A: JS selected this image (one of the random candidates). */
-.page-bg__img.is-active {
+/* Both layers occupy the same box.
+   NOTE: pointer-events here is moot — .page-bg is z-index:-1 so the whole
+   badge is painted *behind* the content and can never win a hit test
+   (elementFromPoint returns MAIN). The double-click is therefore caught by a
+   document-level listener in page-bg.js that does a rect test. */
+.page-bg__png,
+.page-bg__canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    transition: opacity 0.35s ease;
+}
+
+/* Real image: default layer (no-JS state, and the double-click target). */
+.page-bg__png {
+    object-fit: contain;
+    object-position: center;
+    opacity: 1;
+}
+
+/* Particle layer: hidden until the WASM engine is ready. */
+.page-bg__canvas {
+    display: block;
     opacity: 0;
 }
 
-/* Gate B open: user scrolled to (or near) the bottom of the document.
-   Opacity is held lower than 1 because mix-blend-mode can produce
-   surprisingly strong effects at full strength on saturated subjects. */
-html.at-bottom .page-bg__img.is-active {
+/* WASM ready -> the canvas takes over from the photo. */
+html.pt-bg-ready:not(.pt-bg-photo) .page-bg__png {
+    opacity: 0;
+}
+
+html.pt-bg-ready:not(.pt-bg-photo) .page-bg__canvas {
+    opacity: 1;
+}
+
+/* Double-clicked -> back to the real PNG. */
+html.pt-bg-photo .page-bg__png {
+    opacity: 1;
+}
+
+html.pt-bg-photo .page-bg__canvas {
+    opacity: 0;
+}
+
+/* Reveal gate: only once the user has scrolled to (or near) the bottom.
+   Held below 1 because mix-blend-mode gets loud at full strength. */
+html.at-bottom .page-bg__box {
     opacity: 0.85;
 }
 
-/* No-JS fallback: without JS we can't observe scroll, so the first
-   image is always visible. */
-html:not(.js) .page-bg__img:first-of-type {
+/* No-JS fallback: we can't observe scroll, so just show it. */
+html:not(.js) .page-bg__box {
     opacity: 0.85;
 }
 
-/* Dark mode: a touch of brightness/saturation control so the image
-   doesn't pop too loudly against the near-black canvas after the
-   luminosity blend. */
-[data-theme="dark"] .page-bg__img {
+/* Dark mode: keep it from popping against the near-black canvas. */
+[data-theme="dark"] .page-bg__box {
     filter: brightness(0.9) saturate(0.85) blur(0.3px);
 }
 
-/* Small screens: shrink the badge so it doesn't take over the page,
-   and nudge it slightly further off the left edge. */
+/* Small screens: shrink the badge and nudge it further off the left edge. */
 @media (max-width: 768px) {
     :root {
         --page-bg-w: min(170px, 46vw);
     }
-    .page-bg__img {
+    .page-bg__box {
         left: -3vw;
     }
 }
 
-/* Honor the OS-level "reduce motion" preference: drop the fade-in
-   transition. */
+/* Honor the OS-level "reduce motion" preference. */
 @media (prefers-reduced-motion: reduce) {
-    .page-bg__img {
+    .page-bg__box,
+    .page-bg__png,
+    .page-bg__canvas {
         transition: none;
     }
-    html:not(.js) .page-bg__img:first-of-type {
+    html.at-bottom .page-bg__box {
         opacity: 0.7;
     }
-    html.at-bottom .page-bg__img.is-active {
+    html:not(.js) .page-bg__box {
         opacity: 0.7;
+    }
+}
+
+/*
+ * Particle demo page (/particles/).
+ *
+ * Pure Canvas 2D: the stage is just a framed box, the canvas fills it and
+ * draws the assembled particle image. `not-prose` on the wrapping section
+ * already neutralizes hugo-paper's typographic rules.
+ */
+.pt-stage {
+    position: relative;
+    width: 100%;
+    height: min(76vh, 680px);
+    border-radius: 16px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    background: radial-gradient(
+        120% 100% at 50% 0%,
+        rgba(0, 0, 0, 0.04),
+        transparent 70%
+    );
+}
+
+#pt-canvas {
+    display: block;
+    width: 100%;
+    height: 100%;
+    /* display-only effect: never swallow clicks / scrolls meant for the page */
+    pointer-events: none;
+}
+
+/* shown by the script when an image fails to load / decode */
+.pt-error::after {
+    content: "图片加载失败";
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.875rem;
+    opacity: 0.6;
+}
+
+/* Dark theme: soften the frame against the near-black canvas. */
+[data-theme="dark"] .pt-stage {
+    border-color: rgba(255, 255, 255, 0.1);
+    background: radial-gradient(
+        120% 100% at 50% 0%,
+        rgba(255, 255, 255, 0.06),
+        transparent 70%
+    );
+}
+
+@media (max-width: 640px) {
+    .pt-stage {
+        height: 62vh;
     }
 }

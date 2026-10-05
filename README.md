@@ -7,7 +7,8 @@
 ## 特性
 
 - 默认亮色主题（不跟随系统 / 手动可切暗色）
-- 装饰背景图：滚到底部时随机显示一张预切的 PNG cutout
+- 左下角装饰徽标：**WASM 粒子渲染**（滚到页面底部揭示，双击切回真实 PNG）
+- `/particles/`：粒子效果演示页（同一套 WASM 引擎；`?engine=js` 可切到纯 Canvas 2D 版对比）
 - 中英混排友好（`hasCJKLanguage = true`）
 - AI 维护日志：`content/claudelog/YYYY-MM-DD.md`，每个 commit 都留痕
 
@@ -19,11 +20,13 @@
 │   └── claudelog/     AI 维护日志（每日一份 YYYY-MM-DD.md）
 ├── themes/
 │   ├── sdttttt-paper/ 自定义子主题（覆盖父主题同名文件）
-│   │   ├── theme.toml
-│   │   ├── layouts/_default/baseof.html
 │   │   ├── layouts/partials/{bg,header,footer}.html
+│   │   ├── layouts/_default/particles.html
+│   │   ├── assets/js/       pt-wasm / page-bg / particles-wasm / particles
+│   │   ├── assets/wasm/     particles.wasm（Rust 构建产物）
 │   │   └── assets/custom.css
 │   └── hugo-paper/    父主题（vendor-in，同步上游需手动 patch）
+├── wasm/particles/    WASM 引擎源码（Rust 裸导出；deno task build-wasm）
 ├── static/            原样拷贝的静态资源（apple-touch-icon / favicon / bg/ cutouts）
 ├── scripts/           维护脚本（Deno + TypeScript）
 │   ├── *.ts           入口脚本（validate-posts / rename-posts / git-commit-push / ...）

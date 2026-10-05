@@ -1,0 +1,72 @@
+{{/*
+  Particle-effect page (content/particles.md sets `layout: particles`).
+
+  主引擎是 Rust 编译的 WASM 模块（assets/wasm/particles.wasm，裸导出），
+  assets/js/particles-wasm.js 负责加载它；如果 WASM 不可用，会动态注入
+  assets/js/particles.js（纯 Canvas 2D 引擎）作为降级，所以两条路径都保留。
+
+  图片列表用和 partials/bg.html 相同的 readDir 规则自动发现，
+  连同各资源 URL 一起通过 <script type="application/json"> 交给 JS。
+*/}}
+
+{{- define "main" -}}
+
+{{- $urls := slice -}}
+{{- range readDir "static/bg" -}}
+  {{- if and (not .IsDir) (eq (path.Ext .Name) ".png") -}}
+    {{- $urls = $urls | append (absURL (printf "bg/%s" .Name)) -}}
+  {{- end -}}
+{{- end -}}
+
+{{- $loader := resources.Get "js/pt-wasm.js" | minify | fingerprint -}}
+{{- $engine := resources.Get "js/particles-wasm.js" | minify | fingerprint -}}
+{{- $fallback := resources.Get "js/particles.js" | minify | fingerprint -}}
+{{- $wasm := resources.Get "wasm/particles.wasm" | fingerprint -}}
+{{- $cfg := dict
+      "images" $urls
+      "pitchCss" 2
+      "maxParticles" 150000
+      "sizeRatio" 0.85
+      "fitW" 0.8
+      "fitH" 0.86
+      "dprCap" 1.5
+      "wasm" $wasm.RelPermalink
+      "fallback" $fallback.RelPermalink -}}
+
+<article>
+  <header class="mb-10">
+    <h1 class="my-0! pb-2.5">{{- .Title -}}</h1>
+    {{- with .Description -}}
+    <p class="text-sm antialiased opacity-60">{{- . -}}</p>
+    {{- end -}}
+  </header>
+
+  <section class="not-prose">
+    <div class="pt-stage">
+      <canvas id="pt-canvas" aria-label="粒子效果：图片由彩色粒子聚集而成"></canvas>
+    </div>
+  </section>
+</article>
+
+<script id="pt-config" type="application/json">
+  {{- $cfg | jsonify | safeJS -}}
+</script>
+{{/* Preload every candidate so the assembler can start immediately instead of
+     waiting on a cold fetch after the deferred script runs. */}}
+{{- range $urls }}
+<link rel="preload" as="image" href="{{ . }}" />
+{{- end }}
+<script
+  defer
+  src="{{ $loader.RelPermalink }}"
+  integrity="{{ $loader.Data.Integrity }}"
+  crossorigin="anonymous"
+></script>
+<script
+  defer
+  src="{{ $engine.RelPermalink }}"
+  integrity="{{ $engine.Data.Integrity }}"
+  crossorigin="anonymous"
+></script>
+
+{{- end -}}
