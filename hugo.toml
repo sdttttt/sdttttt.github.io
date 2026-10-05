@@ -49,6 +49,14 @@ theme = ["sdttttt-paper", "hugo-paper"]
     name = "Posts"
     url = "/posts/"
     weight = 1
+  # 归档页（themes/sdttttt-paper/layouts/_default/archives.html 渲染）。
+  # 页面本体的 h1 用的是 content/archives.md 的 title（中文「归档」），
+  # 导航标签这里跟 Posts / Source / About 保持英文。
+  [[menu.main]]
+    identifier = "archive"
+    name = "Archive"
+    url = "/archives/"
+    weight = 2
   # CHANGELOG 已隐藏，不再显示在导航菜单中
   # 如需恢复，取消下面注释
   # [[menu.main]]

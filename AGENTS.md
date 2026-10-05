@@ -5,7 +5,7 @@
 ## 项目结构
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
-- `content/claudelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`）。
+- `content/changelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`；目录在 `99d262c` 由 `content/claudelog/` 改名而来）。
 - `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
   - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
@@ -13,7 +13,8 @@
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
   - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
-  - `assets/custom.css` — 自定义 CSS（徽标 + 粒子页样式）
+  - `layouts/_default/archives.html` — `/archives/` 归档页（`content/archives.md` 的 `layout: archives` 指向它）：按年 → 月分组，每月一段 inline 流；口径是 `where site.RegularPages "Type" "in" site.Params.mainSections`（= 209 篇，自动排除 changelog 与 `build.list: never` 的私密文章）
+  - `assets/custom.css` — 自定义 CSS（徽标 + 粒子页 + 归档页样式）。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`themes/hugo-paper/assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
   - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
 
@@ -72,7 +73,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 
 ## 提交与 PR 规范
 
-- 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(claudelog):` 等。
+- 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(changelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check`；不要提交 `public/` 或临时文件。
 - **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`，把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎。
@@ -103,7 +104,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 
 ## Agent 维护日志
 
-每次对仓库做出修改后，在 `content/claudelog/` 中创建或追加当天的 `YYYY-MM-DD.md`。模板：
+每次对仓库做出修改后，在 `content/changelog/` 中创建或追加当天的 `YYYY-MM-DD.md`。模板：
 
 ```markdown
 ---

@@ -1,0 +1,59 @@
+{{/*
+  Archive page — content/archives.md sets `layout: archives`.
+
+  Every published post, grouped by year → month and newest first inside a
+  month, each month rendered as one compact inline flow
+  (`9月 · title · title …`) so a whole year costs a couple of lines instead
+  of one line per post. Days are deliberately not printed: within a month the
+  order already carries that information and the title stays the only text
+  worth scanning.
+
+  The page list uses the same filter as the theme's own post navigation
+  (themes/hugo-paper/layouts/_default/single.html): only
+  `site.Params.mainSections` (= posts). Changelog entries are RegularPages too
+  and would otherwise be mixed into the archive. Drafts / future-dated posts
+  are dropped by Hugo before a template ever sees them.
+
+  Styling lives in assets/custom.css (`.arch*`) on purpose — hugo-paper's
+  assets/main.css is a checked-in Tailwind build (the site's CI only installs
+  Deno), so utilities that were never compiled into it (grid, text-sm,
+  tabular-nums, …) would silently do nothing here.
+
+  This file is new (no upstream counterpart): nothing to re-sync when bumping
+  hugo-paper. It shadows nothing — upstream has no archives.html either.
+*/}}
+
+{{- define "main" -}}
+
+{{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections -}}
+{{- $years := $pages.GroupByDate "2006" -}}
+
+<div class="arch not-prose">
+  <h1 class="arch__title">{{ .Title }}</h1>
+
+  {{- with $years }}
+  <p class="arch__meta">
+    共 {{ len $pages }} 篇 · {{ (index . (sub (len .) 1)).Key }}–{{ (index . 0).Key }}
+  </p>
+  {{- end }}
+
+  {{- range $years }}
+  {{- $year := .Key }}
+  <section class="arch__year" id="y{{ $year }}">
+    <h2 class="arch__year-head">
+      <span>{{ $year }}</span>
+      <span class="arch__count">{{ len .Pages }}</span>
+    </h2>
+    {{- range .Pages.GroupByDate "01" }}
+    <p class="arch__month" id="y{{ $year }}-{{ .Key }}">
+      <span class="arch__month-label">{{ time.Format "1月" (index .Pages 0).Date }}</span>
+      {{- range .Pages -}}
+      <a class="arch__link" href="{{ .Permalink }}">{{ .Title }}</a>
+      {{- end -}}
+    </p>
+    {{- end }}
+  </section>
+  {{- end }}
+</div>
+
+{{- end -}}

@@ -224,3 +224,126 @@ html:not(.js) .page-bg__box {
         height: 62vh;
     }
 }
+
+/* ==========================================================================
+   Archive page — themes/sdttttt-paper/layouts/_default/archives.html
+
+   Compact year → month listing: a month is one inline flow of titles
+   (`9月 · title · title …`, no day prefix — the order inside a month already
+   says which is newer), so a whole year costs a couple of lines instead of
+   one line per post.
+
+   Colors are never hard-coded: body text inherits `currentColor`, and the
+   dimmed layers use `--arch-dim` (black/white at 60%, the same weight the
+   theme itself uses for secondary text), so both themes come out right.
+   The Tailwind utilities that would normally do this job (`text-sm`,
+   `tabular-nums`, `grid` …) are NOT in the compiled main.css, hence plain
+   CSS here.
+
+   ⚠️ Any font-size set on a heading below needs `!important`: Tailwind v4
+   compiles `h1…h6 { font-size: inherit }` (preflight) and hugo-paper's own
+   `h1, h2, h3 { @apply font-semibold }` with `:not(#\#)` specificity
+   bumpers — (2,0,1) and (5,0,1), see themes/hugo-paper/assets/main.css
+   lines 74 / 1382 — and `:not(#\#)` counts as an ID selector, so no plain
+   class-based rule can ever win. Font-weight is deliberately not declared:
+   the theme's semibold (600) is what every other heading on the site uses.
+   ========================================================================== */
+
+/* Secondary text: 5.6:1 on linen, 6.4:1 on the dark overlay (the ad-hoc
+   `opacity: .45–.55` this replaced only reached ~2.9:1). */
+.arch {
+    --arch-dim: rgba(0, 0, 0, 0.6);
+}
+
+.dark .arch {
+    --arch-dim: rgba(255, 255, 255, 0.6);
+}
+
+.arch__title {
+    margin: 0;
+    font-size: 1.75rem !important;
+    line-height: 1.2;
+}
+
+.arch__meta {
+    margin: 0.4rem 0 0;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--arch-dim);
+}
+
+.arch__year {
+    margin-top: 2.2rem;
+}
+
+.arch__year:first-of-type {
+    margin-top: 2.6rem;
+}
+
+.arch__year-head {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    margin: 0 0 0.5rem;
+    font-size: 1.125rem !important;
+    line-height: 1.2;
+    font-variant-numeric: tabular-nums;
+}
+
+.arch__count {
+    font-size: 0.6875rem;
+    color: var(--arch-dim);
+}
+
+.arch__month {
+    margin: 0;
+    font-size: 0.875rem;
+    line-height: 1.9;
+}
+
+/* Fixed-ish width keeps every month's link flow starting at the same x. */
+.arch__month-label {
+    display: inline-block;
+    min-width: 3em;
+    margin-right: 0.3em;
+    color: var(--arch-dim);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Inside `.not-prose` the typography plugin styles nothing, so links need
+   their own affordance: plain at rest, underlined on hover / keyboard focus. */
+.arch__link {
+    color: inherit;
+    text-decoration: none;
+    font-variant-numeric: tabular-nums;
+}
+
+.arch__link:hover,
+.arch__link:focus-visible {
+    text-decoration: underline;
+    text-underline-offset: 0.22em;
+}
+
+/* Separator between two posts of the same month. Kept out of the markup so
+   it stays a purely visual dot (and never lands in copied text). */
+.arch__link + .arch__link::before {
+    content: "·";
+    margin: 0 0.45em;
+    opacity: 0.55;
+}
+
+@media (max-width: 640px) {
+    .arch__title {
+        font-size: 1.5rem !important;
+    }
+
+    .arch__month {
+        font-size: 0.8125rem;
+        line-height: 1.8;
+    }
+
+    .arch__month-label {
+        min-width: 2.7em;
+        margin-right: 0.2em;
+    }
+}

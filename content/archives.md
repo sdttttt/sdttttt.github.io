@@ -1,5 +1,5 @@
 ---
-title: "Archive"
+title: "归档"
 layout: "archives"
-summary: "archives"
+summary: "按年月索引本站的全部文章。"
 ---
