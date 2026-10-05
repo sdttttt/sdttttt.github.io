@@ -1,13 +1,12 @@
 {{/*
-  Override of hugo-paper's layouts/_default/baseof.html.
+  sdttttt-paper's layouts/_default/baseof.html.
 
-  Identical to the theme version, with one addition: {{ partial "bg.html" . }}
-  is called right before </body> to render the page-level decorative
-  background (random image revealed when the user scrolls to bottom).
+  Originally copied from hugo-paper's layouts/_default/baseof.html;
+  diff is only the trailing `{{ partial "bg.html" . }}` call before
+  </body>.
 
-  Sync against themes/hugo-paper/layouts/_default/baseof.html when
-  bumping hugo-paper upstream; only the trailing partial call should
-  differ.
+  When bumping hugo-paper upstream, sync against
+  themes/hugo-paper/layouts/_default/baseof.html and reapply the diff.
 */}}
 
 <!doctype html>

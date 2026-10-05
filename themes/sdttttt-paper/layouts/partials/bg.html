@@ -1,10 +1,14 @@
 {{/*
-  Page-level decorative background.
+  sdttttt-paper's page-level decorative background partial.
 
-  Auto-discovers images in static/bg/, emits one div per candidate. An
-  inline script picks one at random per page load and toggles
-  `html.at-bottom` when the user scrolls to the document's bottom.
-  CSS lives in assets/custom.css; html.at-bottom / .is-active gates.
+  Called from baseof.html right before </body>. Auto-discovers images
+  in static/bg/ (only *.png), emits one div per candidate. An inline
+  script picks one at random per page load and toggles `html.at-bottom`
+  when the user scrolls to the document's bottom.
+
+  CSS lives in assets/custom.css (auto-resolved via theme inheritance
+  to themes/sdttttt-paper/assets/custom.css); html.at-bottom /
+  .is-active gates.
 
   Behavior summary:
     - Default: every candidate is opacity 0 (invisible).
@@ -13,8 +17,8 @@
     - html.at-bottom + .is-active: opacity → 0.85 (revealed).
     - No JS + first child: opacity 0.85 (always visible fallback).
 
-  Why a partial and not inline in baseof: keeps the override surface
-  small so hugo-paper's baseof.html stays the source of truth for layout.
+  Why a partial: keeps baseof.html focused on layout; background
+  behavior can be tuned / disabled independently.
 */}}
 
 {{- $bgImages := slice -}}

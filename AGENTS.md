@@ -1,22 +1,33 @@
 # 仓库贡献指南（Repository Guidelines）
 
-基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **hugo-paper** 主题（[nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)，vendor-in 到 `themes/hugo-paper/`），默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
+基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`sdttttt-paper` 子主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)，通过 Hugo `[parent]` block 继承上游）。父主题 vendor-in 到 `themes/hugo-paper/`，自定义修改集中在 `themes/sdttttt-paper/`。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
 
 ## 项目结构
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
 - `content/claudelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`）。
-- `layouts/` — hugo-paper 之上的自定义模板覆盖：
-  - `_default/baseof.html` — baseof 覆写，调用 bg partial
-  - `partials/bg.html` — 装饰背景图（3 张 cutout，scroll-gated）
-  - `partials/header.html` — header 覆写，强制默认亮色
-- `assets/custom.css` — hugo-paper 用户 CSS 入口（背景图样式在此）。
-- `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari / `bg/` cutouts）。
-- `themes/hugo-paper/` — vendor-in 的主题（普通目录，不是 submodule）。
-- `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置；`deno.json` — Deno 任务定义。
+- `themes/sdttttt-paper/` — 自定义子主题，通过 Hugo `[parent] name = "Paper"` 继承 `themes/hugo-paper/`：
+  - `theme.toml` — 声明 `[parent]`，让 Hugo modules 把父主题作为组件加载
+  - `layouts/_default/baseof.html` — baseof，调用 bg partial
+  - `layouts/partials/bg.html` — 装饰背景图（3 张 cutout，scroll-gated）
+  - `layouts/partials/header.html` — header 覆写，强制默认亮色
+  - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
+  - `assets/custom.css` — 自定义 CSS（背景图样式在此）
 
-首次克隆不需要 submodule：`git clone`。更新主题：手动 `git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`，再 `diff -ru` 比对，把需要的上游改动 patch 到 `themes/hugo-paper/`。推送到 `master` 分支即触发 GitHub Actions 自动部署。
+  （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
+- `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
+- `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari / `bg/` cutouts）。
+- `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
+- `hugo.toml` — Hugo 配置（`theme = "sdttttt-paper"` + `[module.imports]` 声明父主题）；`deno.json` — Deno 任务定义；`go.mod` — Hugo modules 入口（声明仓库为 Hugo module）。
+
+首次克隆不需要 submodule：`git clone`。
+
+主题同步分两部分（互不干扰）：
+
+1. **同步父主题**（`themes/hugo-paper/`）：手动 `git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`，`diff -ru themes/hugo-paper/ /tmp/hp-clone/`，把需要的上游改动 patch 到 `themes/hugo-paper/`。
+2. **同步子主题自定义 override**（`themes/sdttttt-paper/`）：每个 override 文件头注释已写明 "When bumping hugo-paper upstream, sync against themes/hugo-paper/.../X and reapply the diff"，按注释指引手动同步。
+
+推送到 `master` 分支即触发 GitHub Actions 自动部署。
 
 ## 构建、测试与开发命令
 
@@ -52,6 +63,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(claudelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check`；不要提交 `public/` 或临时文件。
+- **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore(format): prettier markdown` 格式化了你刚改的 markdown），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认
 

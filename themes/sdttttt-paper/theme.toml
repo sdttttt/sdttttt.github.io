@@ -1,0 +1,18 @@
+name = "sdttttt-paper"
+license = "MIT"
+licenselink = "https://github.com/sdttttt/sdttttt.github.io/blob/master/themes/sdttttt-paper/LICENSE"
+description = "sdttttt's personal fork of hugo-paper"
+homepage = "https://sdttttt.online/"
+tags = ["Responsive", "Simple", "Clean", "Light", "Blog"]
+features = ["Responsive", "One Column", "Blog"]
+min_version = "0.100.0"
+
+[author]
+  name = "sdttttt"
+  homepage = "https://sdttttt.online/about/"
+
+# Inherit from upstream hugo-paper via Hugo's [parent] block. Layouts/assets
+# in this theme override the parent's same-path files; everything else
+# (head.html, list.html, etc.) falls through to the parent.
+[parent]
+  name = "Paper"

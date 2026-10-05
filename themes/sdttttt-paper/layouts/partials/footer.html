@@ -1,0 +1,21 @@
+{{/*
+  sdttttt-paper's layouts/partials/footer.html.
+
+  Originally copied from hugo-paper's layouts/partials/footer.html;
+  diff is only the removal of the two trailing right-side <a> tags
+  ("powered by hugo" and "hugo-paper" links).
+
+  When bumping hugo-paper upstream, sync against
+  themes/hugo-paper/layouts/partials/footer.html and reapply the diff.
+*/}}
+
+<footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">
+    {{- if site.Copyright -}} {{- site.Copyright -}} {{- else -}} &copy; {{-
+    now.Year }}
+    <a class="link" href="{{- `` | absURL -}}">{{- site.Title -}}</a>
+    {{- end -}}
+  </div>
+</footer>

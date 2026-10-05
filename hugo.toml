@@ -12,7 +12,18 @@ ignoreErrors = ["error-remote-getjson"]
 enableGitInfo = true
 summaryLength = 100
 
-theme = "hugo-paper"
+theme = "sdttttt-paper"
+
+[module]
+  # Hugo modules required for theme component inheritance. With Hugo
+  # v0.93+ the [parent] block in themes/sdttttt-paper/theme.toml is only
+  # honored when both themes are loaded as modules (not as directory-based
+  # themes). `theme = "sdttttt-paper"` below still drives the "main theme"
+  # convention; module.imports wires up the inheritance chain.
+  [[module.imports]]
+    path = "sdttttt-paper"
+  [[module.imports]]
+    path = "hugo-paper"
 
 [params]
   # Theme color preset: linen / wheat / gray / light
