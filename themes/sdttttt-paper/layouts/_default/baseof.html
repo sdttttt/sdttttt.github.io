@@ -51,6 +51,26 @@
   <body
     class="bg-(--bg) text-black antialiased duration-200 ease-out [-webkit-tap-highlight-color:transparent] dark:text-white"
   >
+    {{/* 必须在首屏前同步标上 .js。
+
+         原因：`html:not(.js)` 是“无 JS 回退”的 CSS 开关（见 custom.css 里左下角
+         徽标那组规则）。如果这个类靠 defer 的外部脚本去加，那么在它执行之前
+         的那段时间里 `:not(.js)` 会匹配 → 徽标先以 opacity:.85 显形，随后脚本
+         把它消掉 → 首次加载时会“闪一下”。
+
+         放在 <body> 开头足够：徽标标记在 body 末尾（partials/bg.html），
+         解析到这里时 .js 已经加上了，所以它从不存在“以无 JS 状态被绘制”的时机。 */}}
+    <script>
+      document.documentElement.classList.add('js');
+      // 兜底：如果 page-bg.js 根本没跑起来（脚本被拦 / SRI 校验失败），
+      // 徽标会永远停在「两层都不可见」。2s 后仍无标记就当作降级 → 显示 PNG。
+      // 注意只判“完全没标记”：page-bg.js 会先同步标上 'pending'（引擎加载中），
+      // 所以网络慢时不会被这个定时器抢答。
+      setTimeout(function () {
+        var r = document.documentElement;
+        if (!r.dataset.ptEngine) r.dataset.ptEngine = 'error';
+      }, 2000);
+    </script>
     {{- partial "header.html" . -}}
 
     <main

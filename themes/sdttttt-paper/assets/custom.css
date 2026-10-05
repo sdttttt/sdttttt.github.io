@@ -85,35 +85,46 @@
     transition: opacity 0.35s ease;
 }
 
-/* Real image: default layer (no-JS state, and the double-click target). */
+/* 两层默认都不可见 —— 下面每条规则正好激活其中一层。
+   这样就不存在“先显示 PNG、等 WASM 就绪再交叉淡入粒子”的中间态了
+   （那个过渡在首屏也会被看成闪一下）。 */
+.page-bg__png,
+.page-bg__canvas {
+    opacity: 0;
+}
+
 .page-bg__png {
     object-fit: contain;
     object-position: center;
-    opacity: 1;
 }
 
-/* Particle layer: hidden until the WASM engine is ready. */
 .page-bg__canvas {
     display: block;
-    opacity: 0;
 }
 
-/* WASM ready -> the canvas takes over from the photo. */
-html.pt-bg-ready:not(.pt-bg-photo) .page-bg__png {
-    opacity: 0;
-}
-
+/* WASM 引擎就绪 → 粒子层 */
 html.pt-bg-ready:not(.pt-bg-photo) .page-bg__canvas {
     opacity: 1;
 }
 
-/* Double-clicked -> back to the real PNG. */
+/* 双击切回真实 PNG */
 html.pt-bg-photo .page-bg__png {
     opacity: 1;
 }
 
-html.pt-bg-photo .page-bg__canvas {
-    opacity: 0;
+/* 降级：不支持 WASM / 加载失败 / 未配置 → 真实 PNG。
+   data-pt-engine 由 assets/js/page-bg.js 写入。 */
+html[data-pt-engine="unsupported"] .page-bg__png,
+html[data-pt-engine="error"] .page-bg__png,
+html[data-pt-engine="png"] .page-bg__png {
+    opacity: 1;
+}
+
+/* 无 JS：既加载不了引擎也观察不了滚动，就直接显示 PNG。
+   `:not(.js)` 靠 baseof.html 里的同步内联脚本消掉 —— 那里注释解释了
+   为什么这个类不能用 defer 加。 */
+html:not(.js) .page-bg__png {
+    opacity: 1;
 }
 
 /* Reveal gate: only once the user has scrolled to (or near) the bottom.

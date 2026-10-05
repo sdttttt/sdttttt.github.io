@@ -62,7 +62,8 @@
   var settled = false;
 
   /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
-     png         未配置 wasm / 加载器没到位 / 其他早退
+     pending     引擎正在加载（baseof 里的兵兵定时器看到这个就不抢答）
+     png         未配置 wasm / 加载器没到位
      unsupported 浏览器不支持 WASM → 直接用 PNG 原图
      error       WASM 下载 / 编译 / 构建失败 → 回退 PNG
      wasm        粒子引擎已就绪 */
@@ -268,6 +269,10 @@
   // 初始 + 下一拍各跑一次（字体/布局变化可能改文档高度）
   syncGate();
   setTimeout(syncGate, 50);
+
+  // 同步标记「引擎正在加载」：baseof 里的 2s 兵兵定时器只在**完全无标记**时
+  // 才当降级，所以这个标记能保护“网络慢但正常”的情况不被误判。
+  mark('pending');
 
   if (!cfg.wasm || !window.ptWasm) {
     mark('png'); // 没配置 / 加载器没来 → 保持 PNG
