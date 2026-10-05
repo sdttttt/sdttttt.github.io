@@ -1,24 +1,30 @@
 /* ---------------------------------------------------------------------------
  * 页面左下角的装饰徽标 —— 用 WASM 粒子渲染，双击切回真实 PNG。
  *
- * 行为（沿用改造前的门控逻辑）：
+ * 呈现方式（2026-10 起）：**淡入淡出，不聚合**。
+ *   粒子在 wasm 里一次 settle() 就位（build 时它们是随机散布的，settle 会
+ *   直接吸附到目标位置），JS 只 putImageData 一帧；之后显隐完全由 CSS 的
+ *   opacity 过渡负责（.page-bg__box / 两个子层）。所以这里**不需要 rAF**。
+ *
+ * 行为：
  *   - 每次加载随机挑一张图；PNG 与粒子用的是同一张
  *   - 默认不可见；滚到文档底部时（html.at-bottom）淡入
  *   - WASM 成功后加 html.pt-bg-ready → canvas 接管，PNG 退到幕后
- *   - 双击（canvas 或 PNG 上都可以）切换 html.pt-bg-photo：
- *       进入 → 显示真实 PNG；再次 → 回到粒子（直接呈现已聚合的成品）
- *   - 任何一步失败 → 什么都不改，就保持原来的 PNG（天然的降级路径）
- *   - prefers-reduced-motion → 不做飞入动画，直接画成品
+ *   - 双击（document 级监听 + 矩形判定，见下）切换 html.pt-bg-photo
+ *   - 任何一步失败 → 什么都不改，保持 PNG（天然的降级路径）
  *
- * 渲染方式与 /particles/ 一致：WASM 负责采样 + 物理 + 软件光栅化，
- * JS 每帧只做一次 putImageData。
+ * 关于监听器为什么在 document 上而不是 box 上：
+ *   `.page-bg` 是 z-index:-1（刻意压在正文之下），而负 z-index 会让它
+ *   **完全收不到指针事件** —— 命中测试会落到正文（elementFromPoint 返回
+ *   MAIN）。复用 `html[data-pt-engine]` 记录当前路径便于排查。
  * ------------------------------------------------------------------------- */
 (function () {
   'use strict';
 
   var root = document.documentElement;
-  root.classList.remove('no-js');
-  root.classList.add('js'); // CSS 的 no-JS fallback 靠 html:not(.js)
+  // baseof.html 已经用同步内联脚本加过 .js（必须在首屏前，否则
+  // html:not(.js) 这条“无 JS 回退”规则会先让徽标闪一下）。这里只是幂等兜底。
+  root.classList.add('js');
 
   var cfgEl = document.getElementById('pt-bg-config');
   var box = document.querySelector('.page-bg__box');
@@ -41,15 +47,12 @@
   // 双击切换不会有尺寸跳变 —— 所以留边系数是 1/1（大画布用的是 0.8/0.86）
   var FIT_W = cfg.fitW || 1;
   var FIT_H = cfg.fitH || 1;
-  // 粒子网格间距（CSS px）—— 视觉密度的**唯一旋钮**。
-  // 早期版本用「画布面积 / N」推目标粒子数，结果徽标（320×448）只分到
-  // ~5000 颗，step 到 10、间距 4 CSS px，明显偏粗；改成间距后就与尺寸解耦了。
+  // 粒子网格间距（CSS px）—— 视觉密度的**唯一旋钮**，与画布尺寸解耦
   var PITCH_CSS = cfg.pitchCss || 2;
   var MAX_PARTICLES = cfg.maxParticles || 60000;
   // 徽标默认开颗粒感：尺寸小时 round 会把 sizeRatio 吃掉（3 × 0.85 → 3，
   // 边长 == 间距 → 缝隙归零 → 成品退化成无缝拼块），改用 floor 保出缝隙。
   var GRAIN = cfg.grain !== false;
-  var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // 一页一图：PNG 与粒子共用同一张
   var SRC = IMAGES[Math.floor(Math.random() * IMAGES.length)];
@@ -58,11 +61,10 @@
   var ctx = canvas.getContext('2d');
   var mod = null;
   var frame = null;
-  var raf = 0;
-  var settled = false;
+  var drawn = false; // 当前 frame 是否已经画到 canvas 上
 
   /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
-     pending     引擎正在加载（baseof 里的兵兵定时器看到这个就不抢答）
+     pending     引擎正在加载（baseof 里的兜底定时器看到这个就不抢答）
      png         未配置 wasm / 加载器没到位
      unsupported 浏览器不支持 WASM → 直接用 PNG 原图
      error       WASM 下载 / 编译 / 构建失败 → 回退 PNG
@@ -99,7 +101,7 @@
     }
   }
 
-  /* ------------------------------------------------------------ 门控 / 渲染 */
+  /* ------------------------------------------------------------ 门控 / 绘制 */
 
   function atBottom() {
     var d = document.documentElement;
@@ -111,80 +113,35 @@
     return root.classList.contains('pt-bg-photo');
   }
 
-  // 已聚合的成品直接画一帧（无动画）
-  function drawSettled() {
+  /* 把粒子吸附到目标位置并绘制一帧。**没有动画**：显隐交给 CSS 的
+     opacity 过渡，所以只需要在内容失效时画一次。 */
+  function draw() {
+    if (!frame) return;
     mod.settle();
     ctx.putImageData(frame, 0, 0);
-    settled = true;
+    drawn = true;
   }
 
-  function loop() {
-    raf = 0;
-    if (!frame || inPhotoMode() || !root.classList.contains('at-bottom')) return;
-    var moving = mod.tick();
-    ctx.putImageData(frame, 0, 0);
-    if (moving) {
-      raf = requestAnimationFrame(loop);
-    } else {
-      settled = true;
-    }
-  }
-
-  function wake() {
-    if (raf || !frame || reduceMotion || inPhotoMode()) return;
-    raf = requestAnimationFrame(loop);
-  }
-
+  /* 唯一的显隐开关：写 html.at-bottom，CSS 负责淡入 / 淡出。 */
   function syncGate() {
     var on = atBottom();
     root.classList.toggle('at-bottom', on);
-    if (!on) {
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-      return;
-    }
-    if (!frame) return;
-    if (reduceMotion || settled) drawSettled();
-    else wake();
+    // 首次（或 resize 后）揭示时才画；之后画布内容一直有效，不必重画
+    if (on && !drawn) draw();
   }
 
   /* ------------------------------------------------------------ 双击切换 */
-  //
-  // 为什么监听器在 document 上而不是 box 上：
-  //   `.page-bg` 是 z-index:-1（**刻意**压在正文之下，避免遮挡阅读）。
-  //   负 z-index 会让它**完全收不到指针事件** —— 命中测试会落到正文
-  //   （实测 elementFromPoint 返回 MAIN）上。所以只能挂 document，
-  //   再用坐标判断是否落在徽标矩形内。
-  //
-  // 代价：徽标收不到 hover，所以 `cursor: pointer` 与 `title` 提示无效，
-  // 双击区域内的文字也仍会被选中（叠加在徽标上的正文）。这是为了保住
-  // “装饰层在正文之下”这个设计所做的取舍。
+
   document.addEventListener('dblclick', function (e) {
     if (!frame) return;
     // 只在徽标已揭示时响应，避免误触看不见的角落
     if (!root.classList.contains('at-bottom')) return;
     var r = box.getBoundingClientRect();
-    if (
-      e.clientX < r.left ||
-      e.clientX > r.right ||
-      e.clientY < r.top ||
-      e.clientY > r.bottom
-    )
-      return;
+    if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
 
-    var toPhoto = !inPhotoMode();
-    root.classList.toggle('pt-bg-photo', toPhoto);
-    if (toPhoto) {
-      if (raf) {
-        cancelAnimationFrame(raf);
-        raf = 0;
-      }
-    } else {
-      // 回到粒子：不重播飞入，直接呈现成品，避免打扰
-      drawSettled();
-    }
+    root.classList.toggle('pt-bg-photo');
+    // 从 PNG 切回粒子时确保画布有内容（正常已画过，这里是兜底）
+    if (!inPhotoMode()) draw();
   });
 
   /* ---------------------------------------------------------------- 启动 */
@@ -206,6 +163,7 @@
       .then(function (img) {
         var iw = img.naturalWidth;
         var ih = img.naturalHeight;
+        // 离屏画布取像素（同源图片，getImageData 不会被 taint）
         var off = document.createElement('canvas');
         off.width = iw;
         off.height = ih;
@@ -259,9 +217,10 @@
       if (!mod || !frame) return;
       var s = sizeCanvas();
       if (mod.resize(s.w, s.h, PITCH_CSS * s.dpr) !== 0) return;
-      frame = makeFrame();
+      frame = makeFrame(); // resize 内部重建，视图要跟着换
       if (!frame) return;
-      drawSettled();
+      drawn = false; // 重新吸附 + 重画（resize 会把粒子位置重新随机）
+      if (atBottom()) draw();
     }, 200);
   });
 
@@ -270,7 +229,7 @@
   syncGate();
   setTimeout(syncGate, 50);
 
-  // 同步标记「引擎正在加载」：baseof 里的 2s 兵兵定时器只在**完全无标记**时
+  // 同步标记「引擎正在加载」：baseof 里的 2s 兜底定时器只在**完全无标记**时
   // 才当降级，所以这个标记能保护“网络慢但正常”的情况不被误判。
   mark('pending');
 
@@ -286,7 +245,9 @@
   window.ptWasm
     .instance(cfg.wasm)
     .then(function (exports) {
-      if (typeof exports.build !== 'function' || typeof exports.tick !== 'function') {
+      // 徽标只用 build / settle / alloc / dealloc / resize / 各访问器，
+      // 不做逐帧动画，所以不需要 tick
+      if (typeof exports.build !== 'function' || typeof exports.settle !== 'function') {
         mark('error');
         return;
       }
