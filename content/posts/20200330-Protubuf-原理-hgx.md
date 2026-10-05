@@ -4,7 +4,7 @@ date: 2020-03-30
 description: "结合示例解析 Protobuf 按 TLV 格式序列化时 Key 的编码方式,说明域号大小对应字节数的影响。"
 draft: false
 tags: ["学习"]
-aliases: ["/posts/2020033005lryr/"]
+aliases: ["/posts/2020033005lryr/", "/posts/20200330-protubuf-原理-hy3/"]
 ---
 
 protobuf 的 message 中有很多字段,每个字段的格式为:

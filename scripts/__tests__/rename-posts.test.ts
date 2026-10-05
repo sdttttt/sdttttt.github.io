@@ -1,5 +1,5 @@
 import { describe, test, afterEach, beforeEach } from 'node:test';
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -10,6 +10,9 @@ import {
   slugify,
   buildReport,
   detectCollisions,
+  oldUrlFromSlug,
+  addAlias,
+  executePlan,
   type RenamePlan,
 } from '../rename-posts.js';
 import { expect } from './expect.js';
@@ -261,5 +264,109 @@ describe('detectCollisions', () => {
     ]);
     expect(collisions.size).toBe(1);
     expect(collisions.get('20240115-aaa-aaa.md')!.length).toBe(3);
+  });
+});
+
+// ─────────────────────────────────────────────────────────────
+// 旧 URL → aliases（保住改名前的链接）
+// ─────────────────────────────────────────────────────────────
+
+describe('oldUrlFromSlug', () => {
+  test('当前格式保留连字符（Hugo 的 URL 就是文件名）', () => {
+    expect(oldUrlFromSlug('20200403-领域逻辑的组织模式-3qj')).toBe(
+      '/posts/20200403-领域逻辑的组织模式-3qj/',
+    );
+  });
+
+  test('ASCII 当前格式，URL 小写化（Hugo 默认 disablePathToLower=false）', () => {
+    expect(oldUrlFromSlug('20200406-MultiplexingIO-13q')).toBe(
+      '/posts/20200406-multiplexingio-13q/',
+    );
+  });
+
+  test('历史格式 YYYYMMDDhash 原样保留', () => {
+    expect(oldUrlFromSlug('2026081705hog4')).toBe('/posts/2026081705hog4/');
+  });
+
+  test('历史格式带方括号时去掉方括号', () => {
+    expect(oldUrlFromSlug('20260805[057m5q]')).toBe('/posts/20260805057m5q/');
+  });
+});
+
+describe('addAlias', () => {
+  const fm = (lines: string, body = '正文') => `---\n${lines}\n---\n${body}`;
+
+  test('已有 inline 数组时追加', () => {
+    const raw = fm('title: x\ndate: 2020-04-03\naliases: ["/posts/20200403037p8f/"]');
+    const out = addAlias(raw, '/posts/20200403-领域逻辑的组织模式-3qj/');
+    expect(out).toContain('aliases: ["/posts/20200403037p8f/", "/posts/20200403-领域逻辑的组织模式-3qj/"]');
+    expect(out).toContain('正文');
+  });
+
+  test('幂等：已存在同一 URL 时原样返回', () => {
+    const raw = fm('aliases: ["/posts/a/"]');
+    expect(addAlias(raw, '/posts/a/')).toBe(raw);
+  });
+
+  test('aliases 为空数组时写入', () => {
+    const raw = fm('title: x\naliases: []');
+    expect(addAlias(raw, '/posts/a/')).toContain('aliases: ["/posts/a/"]');
+  });
+
+  test('没有 aliases 键时新建，且插在 front matter 末尾', () => {
+    const raw = fm('title: x\ndate: 2020-04-03');
+    const out = addAlias(raw, '/posts/a/');
+    expect(out).toContain('date: 2020-04-03\naliases: ["/posts/a/"]\n---');
+  });
+
+  test('YAML 块式 aliases 时追加一行', () => {
+    const raw = fm('title: x\naliases:\n  - "/posts/a/"');
+    const out = addAlias(raw, '/posts/b/');
+    expect(out).toContain('aliases:\n  - "/posts/a/"\n  - "/posts/b/"');
+  });
+
+  test('Prettier 折叠成的「aliases:」+ 缩进数组也能追加', () => {
+    const raw = fm('title: x\naliases:\n  ["/posts/a/", "/posts/b/"]');
+    const out = addAlias(raw, '/posts/c/');
+    expect(out).toContain('aliases:\n  ["/posts/a/", "/posts/b/", "/posts/c/"]');
+  });
+
+  test('没有 front matter 时原样返回', () => {
+    const raw = 'just a body';
+    expect(addAlias(raw, '/posts/a/')).toBe(raw);
+  });
+});
+
+describe('executePlan', () => {
+  let env: TempContent;
+
+  beforeEach(() => {
+    env = setupTempContent();
+  });
+
+  afterEach(() => {
+    env.restore();
+  });
+
+  test('改名后把旧 URL 写进 aliases，并保留正文', async () => {
+    const raw = `---\ntitle: Hello\ndate: 2024-01-15\naliases: ["/posts/legacy/"]\n---\nhello body content`;
+    env.addPost('2024-01-15-hello.md', raw);
+    const { plans } = await buildReport();
+    await executePlan(plans[0]!);
+
+    expect(existsSync(plans[0]!.oldPath)).toBe(false);
+    const updated = readFileSync(plans[0]!.newPath, 'utf8');
+    expect(updated).toContain('aliases: ["/posts/legacy/", "/posts/2024-01-15-hello/"]');
+    expect(updated).toContain('hello body content');
+  });
+
+  test('重复执行同一计划不会重复追加 alias', async () => {
+    const raw = `---\ntitle: Hello\ndate: 2024-01-15\n---\nhello body content`;
+    env.addPost('2024-01-15-hello.md', raw);
+    const { plans } = await buildReport();
+    await executePlan(plans[0]!);
+    const first = readFileSync(plans[0]!.newPath, 'utf8');
+    const second = addAlias(first, plans[0]!.oldUrl);
+    expect(second).toBe(first);
   });
 });

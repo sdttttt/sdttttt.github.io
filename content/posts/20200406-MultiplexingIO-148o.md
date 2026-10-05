@@ -4,7 +4,7 @@ date: 2020-04-06
 description: "解释 I/O 多路复用的真正含义,即单线程通过跟踪每个 socket 的状态同时管理多个 I/O 流,并对比 select、poll 和 epoll 的演进。"
 tags: ["学习"]
 draft: false
-aliases: ["/posts/2020040609je5b/"]
+aliases: ["/posts/2020040609je5b/", "/posts/20200406-multiplexingio-13q/"]
 ---
 
 其实“I/O多路复用”这个坑爹翻译可能是这个概念在中文里面如此难理解的原因。所谓的I/O多路

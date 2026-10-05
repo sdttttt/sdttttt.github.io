@@ -4,7 +4,7 @@ date: 2020-06-02
 description: "总结 CMU 数据库课程存储章节内容,对比元组存储与分槽页两种页内组织方式,讲解头部、槽位数组、元组数组三部分的布局,以及按槽位管理数据带来的维护成本、空间碎片处理机制与按页加槽位索引的查找示例。"
 author: sdttttt
 draft: false
-aliases: ["/posts/20200602013uup/"]
+aliases: ["/posts/20200602013uup/", "/posts/20200602-database-storage-17ho/"]
 ---
 
 **CMU Database System 15-445/645** 储存 Part 1

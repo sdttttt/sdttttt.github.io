@@ -6,6 +6,9 @@
  * - slug 由 frontmatter `title` 自动 slugify（保留中文 unicode）
  * - 3 位 hash 是 body 内容的 SHA-256 前 2 字节（16 bit → base36）
  *   用于兜底去重，绝大多数情况下文件名长度 = `YYYYMMDD-slug-XXX`
+ * - 因为 hash 取自正文，**任何正文改动都会让文件名（也就是 URL）变化**，所以
+ *   每次改名都会把旧 URL 追加进该篇 front matter 的 `aliases`，由 Hugo 生成跳转页
+ *   保住旧链接（幂等，不会重复追加）
  *
  * 用法：
  *   deno run -A scripts/rename-posts.ts --dry-run --verbose   # 预览计划
@@ -14,7 +17,7 @@
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
 
-import { readdir, readFile, rename } from 'node:fs/promises';
+import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
@@ -131,15 +134,68 @@ export interface Report {
 
 /**
  * 从 oldSlug 推导旧 URL。
- * 支持两种历史格式：
- *   - YYYYMMDD[hash]      → /posts/YYYYMMDDhash/
- *   - YYYY-MM-DD-slug     → /posts/YYYY-MM-DD-slug/
+ *
+ * Hugo 的 URL 就是文件名去掉扩展名（再按 Hugo 默认的 disablePathToLower=false
+ * 全部小写化），所以两种格式要分开处理：
+ *   - 当前格式 `YYYYMMDD-slug-XXX` → 原样保留连字符 `/posts/YYYYMMDD-slug-XXX/`
+ *   - 历史格式 `YYYYMMDDhash`（可能带旧版方括号 `20260805[057m5q]`）
+ *     → 去掉方括号 `/posts/YYYYMMDDhash/`
+ *
+ * ⚠️ 早期实现无条件 `replace(/[\[\]-]/g, '')`，会把当前格式的连字符也删掉，
+ * 生成一个线上并不存在的 URL（alias 形同虚设）；用 `-` 是否出现来区分两种格式。
+ * 另：URL 一律小写（中文字符不受影响），别写 `20200406-MultiplexingIO-13q` 这种。
  */
 export function oldUrlFromSlug(oldSlug: string): string {
-  // 合并 YYYYMMDD + 后缀，去掉所有分隔符和方括号
-  // 2026081705hog4 或 20260805[057m5q] 都解析为 2026081705hog4
-  const stripped = oldSlug.replace(/[\[\]-]/g, '');
-  return `/posts/${stripped}/`;
+  const segment = oldSlug.includes('-') ? oldSlug : oldSlug.replace(/[\[\]]/g, '');
+  return `/posts/${segment.toLowerCase()}/`;
+}
+
+/** 拆开 inline 数组 `["/a/", "/b/"]` 的内容，保留各项原始引号 */
+function splitInlineArray(inner: string): string[] {
+  return inner
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s.length > 0);
+}
+
+/**
+ * 把旧 URL 追加进 front matter 的 `aliases`，返回新的文件内容（幂等）。
+ *
+ * - 已有 `aliases: ["/a/"]`：追加一项（Prettier 折叠成 `aliases:` + 缩进的 `[...]`
+ *   时也能识别）
+ * - 已有 YAML 块式 `aliases:` + `  - /a/`：在该行后插一行
+ * - 完全没有 `aliases`：在 front matter 末尾新建
+ * - 该 URL 已存在 / 没有 front matter：原样返回
+ */
+export function addAlias(raw: string, url: string): string {
+  const block = extractFrontMatterBlock(raw);
+  if (!block) return raw;
+  if (block.includes(url)) return raw;
+
+  const inline = block.match(/^aliases:[ \t]*\[(.*)\][ \t]*$/m);
+  if (inline) {
+    const items = splitInlineArray(inline[1]!);
+    const next = `aliases: [${[...items, JSON.stringify(url)].join(', ')}]`;
+    return raw.replace(block, () => block.replace(inline[0]!, next));
+  }
+
+  // Prettier 会把过长的 inline 数组折成 `aliases:` + 缩进的 `["...", "..."]`
+  const indented = block.match(/^(aliases:[ \t]*\n[ \t]+\[)(.*)(\][ \t]*)$/m);
+  if (indented) {
+    const items = splitInlineArray(indented[2]!);
+    const next = `${indented[1]}${[...items, JSON.stringify(url)].join(', ')}${indented[3]}`;
+    return raw.replace(block, () => block.replace(indented[0]!, next));
+  }
+
+  const anchor = block.match(/^aliases:[ \t]*(?:\n[ \t]+-[^\n]*)*/m);
+  if (anchor) {
+    const next = `${anchor[0]}\n  - ${JSON.stringify(url)}`;
+    return raw.replace(block, () => block.replace(anchor[0]!, next));
+  }
+
+  const lines = block.split('\n');
+  lines.splice(lines.length - 1, 0, `aliases: [${JSON.stringify(url)}]`);
+  return raw.replace(block, () => lines.join('\n'));
 }
 
 export async function buildReport(): Promise<Report> {
@@ -248,8 +304,16 @@ async function runGit(args: string[]): Promise<{ ok: boolean; exit: number }> {
 }
 
 export async function executePlan(plan: RenamePlan): Promise<void> {
-  // mv .md
+  // 先读原文（改名前），改名后把旧 URL 写进新文件的 aliases
+  const raw = await readFile(plan.oldPath, 'utf8');
   await moveFile(plan.oldPath, plan.newPath);
+  const updated = addAlias(raw, plan.oldUrl);
+  if (updated !== raw) {
+    await writeFile(plan.newPath, updated, 'utf8');
+    // 让 index 与工作区保持一致：deploy 随后直接 git commit，
+    // 不 add 会留下未暂存的 front matter 改动
+    await runGit(['add', plan.newPath]);
+  }
 }
 
 // ─────────────────────────────────────────────────────────────
