@@ -507,3 +507,38 @@ html:not(.js) .page-bg__box {
         font-size: 1.5rem !important;
     }
 }
+
+/* markdown 占位图：render-image.html 给 /images/image-lost.svg 包了一层 <figure>。
+   margin 必须 !important —— Tailwind v4 preflight 的 *:not(#\#):not(#\#) 会把
+   class 规则里的 margin / padding / border 静默压成 0（见文件顶部说明）。 */
+/* 占位图（原图丢失时统一指向 /images/image-lost.svg）。
+   钩子输出的是 span 包住 img + span 小字，而不是 figure/figcaption —— 渲染钩子里的
+   .IsBlock 在本站 Hugo 版本恒为 false，图片又多嵌在 <p> / <li> 里，块级元素非法。
+   观感上的「占一块」由这里的 display: block 负责。 */
+.img-lost {
+    display: block;
+    margin: 1.4rem 0 !important;
+    text-align: center;
+}
+
+.img-lost img {
+    display: block;
+    width: 100%;
+    /* preflight 的 `img { max-width: 100% }` 带 :not(#\#) 特异性炸弹，不加 !important 会被它压掉 */
+    max-width: 560px !important;
+    height: auto;
+    margin: 0 auto !important;
+    opacity: 0.85;
+}
+
+.img-lost__note {
+    display: block;
+    margin-top: 0.5rem !important;
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: rgba(0, 0, 0, 0.45);
+}
+
+.dark .img-lost__note {
+    color: rgba(255, 255, 255, 0.45);
+}

@@ -38,6 +38,9 @@ theme = ["sdttttt-paper", "hugo-paper"]
   # `site.Params.bio | default (print `A personal blog by ` name)`，空字符串
   # 在 Go 模板里算 falsy，会被 default 接管又显示出来，所以这里必须是个空格。
   bio = " "
+  # 首页 <meta name="description">。父主题 head.html 对非文章页走
+  # `site.Params.description | default "A personal blog"`，不配就是英文兜底。
+  description = "sdttttt 的个人博客：编程笔记与生活随笔。"
   # Hugo 已经在构建时用 Chroma 把代码块高亮成内联样式（见下方 [markup.highlight]
   # 的 noClasses/style），主题再挂一个 highlight.js 只会把同一份代码重新标一遍。
   # 关掉它：227 个页面各省 48KB（gzip 20KB）。

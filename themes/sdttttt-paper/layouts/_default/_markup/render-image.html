@@ -1,0 +1,35 @@
+{{- /*
+  本站的 markdown 图片渲染钩子（upstream hugo-paper 没有这个文件）。
+
+  两个用途：
+  1. 主题自带的 markdown 图片没有任何 loading / decoding 属性，文章里的图全是
+     即时加载；补上 loading="lazy" + decoding="async" 后，屏外的图不再抢首屏带宽。
+  2. 外链原图丢失、改用站内占位图 /images/image-lost.svg 时，把 markdown 的 title
+     渲染成占位图下方的一行小字：原托管方与暂缺原因跟着图走，不会跟正文脱节。
+
+  为什么用 <span> 而不是 <figure>/<figcaption>：渲染钩子里的 .IsBlock 在本站用的
+  Hugo 0.161.1 里对 markdown 图片**恒为 false**（图片独占段落也是 false，见
+  content/changelog/2026-10-05.md 的排查记录），所以「是否块级」无从判断；而图片
+  外面通常套着 <p>，往里塞块级元素是非法 HTML。检测到占位图时统一输出
+
+      <span class="img-lost"><img …><span class="img-lost__note">title</span></span>
+
+  全部是行内元素，嵌在 <p> 或 <li> 里都合法，「占一块」的观感由 custom.css 里的
+  display:block 负责。（layouts/_markup/render-image.html 这个新位置 Hugo 0.161.1
+  不认，别把文件搬过去。）
+
+  When bumping hugo-paper upstream, sync against
+  themes/hugo-paper/layouts/_default/_markup/ —— 上游目前没有同名文件。
+*/ -}}
+{{- $lost := eq (path.Base .Destination) "image-lost.svg" -}}
+{{- if $lost }}<span class="img-lost">{{ end -}}
+<img
+  src="{{ .Destination | safeURL }}"
+  alt="{{ .PlainText }}"
+  {{- with .Title }} title="{{ . }}"{{ end }}
+  {{- range $k, $v := .Attributes }} {{ $k }}="{{ $v }}"{{ end }}
+  loading="lazy"
+  decoding="async"
+/>
+{{- if and $lost .Title }}<span class="img-lost__note">{{ .Title }}</span>{{ end -}}
+{{- if $lost }}</span>{{ end -}}

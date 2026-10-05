@@ -35,9 +35,9 @@ aliases: ["/posts/2020052506ttjs/"]
 
 然后是红黑树节点的左右旋.
 
-![](https://gitee.com/sdttttt/images/raw/master//1323444-ff870251222c460e.gif)
+![红黑树节点左旋示意图（原为动图）](/images/image-lost.svg "原图托管于 Gitee 图床，该仓库已删除，原图暂缺")
 
-![](https://gitee.com/sdttttt/images/raw/master//1323444-3f68be339d2a3983.gif)
+![红黑树节点右旋示意图（原为动图）](/images/image-lost.svg "原图托管于 Gitee 图床，该仓库已删除，原图暂缺")
 
 看懂没? 节点的旋转大概就是这样。
 
@@ -50,13 +50,13 @@ aliases: ["/posts/2020052506ttjs/"]
 - 第三种: node的父节点为红色 (根据性质3，N的祖父节点必为黑色). 这种情况和变换规则都比较多.下面细说...
   - node的叔父节点为红色。这种情况，将N的父节点和叔父节点的颜色都改为黑色，若祖父节点是跟节点就将其改为黑色，否则将其颜色改为红色，并以祖父节点为插入的目标节点开始重新递归修复红黑树.
 
-  ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_3.png)
+  ![插入修复：叔父节点为红色时的变换](/images/image-lost.svg "原图托管于 Gitee 图床，该仓库已删除，原图暂缺")
   - node的叔父节点为黑色，且node和node的父节点在同一边 (即父节点为祖父的左儿子时，N也是父节点的左儿子。父节点为祖父节点的右儿子时。N也是父节点的右儿子)。以父节点为祖父节的左儿子为例，将父节点改为黑色，祖父节点改为红色，然后以祖父节点为基准右旋。(N为父节点右儿子时做相应的左旋)
 
-  ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_5.png)
+  ![插入修复：叔父节点为黑色且与父节点同边时的旋转](/images/image-lost.svg "原图托管于 Gitee 图床，该仓库已删除，原图暂缺")
   - node的叔父节点为黑色，且node和node的父节点不在同一边 (即父节点为祖父的左儿子时，N是父节点的右儿子。父节点为祖父节点的右儿子时。N也是父节点左右儿子)。以父节点为祖父节点的左儿子为例。以父节点为基准，进行左旋，然后以父节点为目标插入节点进入情况3的b情况进行操作。
 
-  ![](https://gitee.com/sdttttt/images/raw/master//Red-black_tree_insert_case_4.png)
+  ![插入修复：叔父节点为黑色且与父节点不同边时的旋转](/images/image-lost.svg "原图托管于 Gitee 图床，该仓库已删除，原图暂缺")
 
 ### Delete
 

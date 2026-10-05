@@ -25,5 +25,23 @@ jobs:
         with:
           deno-version: v2.x
 
+      # 死链不阻塞部署（外链会抖动），但必须留下可见痕迹：命中时写一条
+      # ::warning:: 注解 + job summary。此前的 `|| true` 让这个 job 永远绿着，
+      # 2026-10-05 发现的 9 张静默失效的外链图就是被它吞掉的。
       - name: Check dead links
-        run: deno task check-dead-links || true
+        run: |
+          set +e
+          output=$(deno task check-dead-links 2>&1)
+          status=$?
+          echo "$output"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=死链检查::检查发现失效外链（不阻塞部署），详见 job summary 与上方日志"
+            {
+              echo '## ⚠️ 死链检查发现失效外链'
+              echo ''
+              echo '```'
+              echo "$output"
+              echo '```'
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+          exit 0

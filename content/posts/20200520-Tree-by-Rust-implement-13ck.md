@@ -7,4 +7,4 @@ draft: false
 aliases: ["/posts/2020052002f0di/"]
 ---
 
-![](/code/carbon2.png)
+![Tree in Rust 的实现代码截图](/images/image-lost.svg "原图从未提交进仓库，暂缺"))

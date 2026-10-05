@@ -19,7 +19,7 @@ aliases: ["/posts/20200602013uup/"]
 
 最开始用**Tuple Storage**来尝试改善数据库的存储结构.
 
-![](https://imgkr.cn-bj.ufileos.com/0029ea52-6d5b-4989-a8e0-a7dec2e0d49c.png)
+![Tuple Storage：Page 与 Header 的结构](/images/image-lost.svg "原图托管于 imgkr 图床，该服务已停止，原图暂缺")
 
 它的工作原理比较简单, 每一个**Page**维护一个**Header**,
 Header中会包含一些Page的元数据,以及被存储数据的偏移值.
@@ -35,7 +35,7 @@ Header中会包含一些Page的元数据,以及被存储数据的偏移值.
 在不同数据库中的实现细节可能不同,但是从高级层面来讲,大多数数据库系统,
 用的都是这种方式去存储数据.
 
-![](https://imgkr.cn-bj.ufileos.com/a47909a8-e0e6-48ea-a0b7-e3e327d7fdf2.png)
+![Slotted Pages：Header / SlotArray / Tuple 三段结构](/images/image-lost.svg "原图托管于 imgkr 图床，该服务已停止，原图暂缺")
 
 每个Page中有三个部分:
 

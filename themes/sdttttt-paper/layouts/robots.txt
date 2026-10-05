@@ -1,0 +1,7 @@
+# 覆写 Hugo 内置的 robots.txt：本站 enableRobotsTXT = true，但没有自定义模板时
+# 内置模板只输出 "User-agent: *"，漏掉 Sitemap 行（站点地图本身一直在生成）。
+# 放在子主题而不是 static/，这样改 baseURL 时 Sitemap 行会跟着变。
+User-agent: *
+Allow: /
+
+Sitemap: {{ "sitemap.xml" | absURL }}
