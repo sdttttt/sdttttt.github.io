@@ -30,6 +30,9 @@ theme = ["sdttttt-paper", "hugo-paper"]
   # Without this, hugo-paper's list.html pulls every RegularPage and the
   # claudelog entries would crowd the home feed.
   mainSections = ["posts"]
+  # Avatar: local image in static/ (served at /avatar.jpg).
+  avatar = "/avatar.jpg"
+  name = "SDTTTTT"
 
 [menu]
   [[menu.main]]

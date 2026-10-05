@@ -32,6 +32,8 @@
 {{- if site.Params.avatar -}}<!---->
 {{- if in site.Params.avatar "http" -}}<!---->
 {{- $.Scratch.Set "avatar_url" site.Params.avatar -}}<!---->
+{{- else if hasPrefix site.Params.avatar "/" -}}<!---->
+{{- $.Scratch.Set "avatar_url" (absURL site.Params.avatar) -}}<!---->
 {{- else -}}<!---->
 {{- $official_cdn := "https://www.gravatar.com/avatar/" -}}<!---->
 {{- $cdn := (site.Params.gravatarCdn | default $official_cdn) -}}<!---->
