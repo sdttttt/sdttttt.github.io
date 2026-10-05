@@ -40,11 +40,13 @@ theme = ["sdttttt-paper", "hugo-paper"]
     name = "Posts"
     url = "/posts/"
     weight = 1
-  [[menu.main]]
-    identifier = "claudelog"
-    name = "ClaudeLog"
-    url = "/claudelog/"
-    weight = 2
+  # CHANGELOG 已隐藏，不再显示在导航菜单中
+  # 如需恢复，取消下面注释
+  # [[menu.main]]
+  #   identifier = "changelog"
+  #   name = "CHANGELOG"
+  #   url = "/changelog/"
+  #   weight = 2
   [[menu.main]]
     identifier = "source"
     name = "Source"
