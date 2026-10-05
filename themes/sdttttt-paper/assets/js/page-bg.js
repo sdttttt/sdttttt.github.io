@@ -61,6 +61,15 @@
   var raf = 0;
   var settled = false;
 
+  /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
+     png         未配置 wasm / 加载器没到位 / 其他早退
+     unsupported 浏览器不支持 WASM → 直接用 PNG 原图
+     error       WASM 下载 / 编译 / 构建失败 → 回退 PNG
+     wasm        粒子引擎已就绪 */
+  function mark(engine) {
+    root.dataset.ptEngine = engine;
+  }
+
   /* ------------------------------------------------------------ 画布尺寸 */
 
   function sizeCanvas() {
@@ -220,17 +229,24 @@
           GRAIN ? 1 : 0,
         );
         mod.dealloc(p, rgba.length);
-        if (rc !== 0) return; // 失败 → 保持 PNG
+        if (rc !== 0) {
+          mark('error'); // 失败 → 保持 PNG
+          return;
+        }
 
         frame = makeFrame();
-        if (!frame) return; // 失败 → 保持 PNG
+        if (!frame) {
+          mark('error'); // 失败 → 保持 PNG
+          return;
+        }
 
         // canvas 接管；此时 PNG 仍在 DOM 里，双击可随时切回
         root.classList.add('pt-bg-ready');
+        mark('wasm');
         syncGate();
       })
       .catch(function () {
-        /* 保持 PNG 不动即可 */
+        mark('error'); // 保持 PNG 不动即可
       });
   }
 
@@ -253,16 +269,26 @@
   syncGate();
   setTimeout(syncGate, 50);
 
-  if (cfg.wasm && window.ptWasm) {
-    window.ptWasm
-      .instance(cfg.wasm)
-      .then(function (exports) {
-        if (typeof exports.build !== 'function' || typeof exports.tick !== 'function') return;
-        mod = exports;
-        boot();
-      })
-      .catch(function () {
-        /* 保持 PNG 不动即可 */
-      });
+  if (!cfg.wasm || !window.ptWasm) {
+    mark('png'); // 没配置 / 加载器没来 → 保持 PNG
+    return;
   }
+  // 显式能力检测：不支持就**连 wasm 都不去拉**，直接用 PNG 原图
+  if (!window.ptWasm.supported) {
+    mark('unsupported');
+    return;
+  }
+  window.ptWasm
+    .instance(cfg.wasm)
+    .then(function (exports) {
+      if (typeof exports.build !== 'function' || typeof exports.tick !== 'function') {
+        mark('error');
+        return;
+      }
+      mod = exports;
+      boot();
+    })
+    .catch(function () {
+      mark('error'); // 加载 / 编译失败 → 保持 PNG
+    });
 })();

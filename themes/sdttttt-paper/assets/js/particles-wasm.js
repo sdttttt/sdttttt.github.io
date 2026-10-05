@@ -222,8 +222,9 @@
     ).observe(canvas);
   }
 
-  // 共享加载器（assets/js/pt-wasm.js）：只共享编译结果，instance 各自独立
-  if (!window.ptWasm) {
+  // 共享加载器（assets/js/pt-wasm.js）：只共享编译结果，instance 各自独立。
+  // 浏览器不支持 WASM 就直接走纯 Canvas 2D 降级，连 wasm 都不去拉。
+  if (!window.ptWasm || !window.ptWasm.supported) {
     useFallback();
     return;
   }

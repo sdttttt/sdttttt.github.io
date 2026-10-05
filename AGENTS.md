@@ -57,6 +57,8 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。
 - 背景图 cutouts：`static/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切）。新增/删除图片会在左下角徽标和 `/particles/` 自动生效（两处都靠 `readDir` 发现）。
 - **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
+- **降级链**：左下角徽标的渲染路径会写到 `html[data-pt-engine]` 上，排查时先看这个属性：
+  `unsupported`（浏览器不支持 WASM，直接用 PNG，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退 PNG）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
 
 ## 测试指南
 
