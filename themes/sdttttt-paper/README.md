@@ -4,13 +4,13 @@
 
 ## What this theme owns
 
-| File (relative to `themes/sdttttt-paper/`) | Origin | Diff vs upstream |
-|------|------|------|
-| `layouts/_default/baseof.html` | copied | adds `{{ partial "bg.html" . }}` before `</body>` |
-| `layouts/partials/header.html` | forked | dark-mode JS defaults to light; does not follow `prefers-color-scheme` |
-| `layouts/partials/footer.html` | copied | removes the "powered by hugo" + "hugo-paper" links |
-| `layouts/partials/bg.html` | new | page-level decorative background (random PNG revealed on scroll-to-bottom) |
-| `assets/custom.css` | extended | all `.page-bg` / `.page-bg__img` rules + custom CSS |
+| File (relative to `themes/sdttttt-paper/`) | Origin   | Diff vs upstream                                                           |
+| ------------------------------------------ | -------- | -------------------------------------------------------------------------- |
+| `layouts/_default/baseof.html`             | copied   | adds `{{ partial "bg.html" . }}` before `</body>`                          |
+| `layouts/partials/header.html`             | forked   | dark-mode JS defaults to light; does not follow `prefers-color-scheme`     |
+| `layouts/partials/footer.html`             | copied   | removes the "powered by hugo" + "hugo-paper" links                         |
+| `layouts/partials/bg.html`                 | new      | page-level decorative background (random PNG revealed on scroll-to-bottom) |
+| `assets/custom.css`                        | extended | all `.page-bg` / `.page-bg__img` rules + custom CSS                        |
 
 Everything else (`head.html`, `list.html`, single.html, `assets/main.css`, …) falls through to the parent theme `themes/hugo-paper/`.
 

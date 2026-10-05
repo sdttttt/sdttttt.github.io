@@ -15,6 +15,7 @@
   - `assets/custom.css` — 自定义 CSS（背景图样式在此）
 
   （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
+
 - `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari / `bg/` cutouts）。
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
