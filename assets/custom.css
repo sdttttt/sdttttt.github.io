@@ -1,0 +1,133 @@
+/* Place custom css here. */
+@reference './app.css';
+
+/*
+ * Page-level decorative background.
+ *
+ * Goals:
+ *   - Image is pinned (fixed) to the viewport bottom-left, so it stays
+ *     glued to the corner no matter where the user is in the document.
+ *   - But the image is only VISIBLE once the user has scrolled to the
+ *     bottom of the document. Showing it requires JS (scroll listener
+ *     that toggles html.at-bottom) — CSS can't observe scroll position.
+ *   - One image per page load — picked at random, no looping animation.
+ *   - Never block reading: pointer-events off, sits behind body content.
+ *   - Honor prefers-reduced-motion.
+ *   - Blends via mix-blend-mode: luminosity so the subject's colors stay
+ *     true while flat / simple backgrounds dissolve into the page.
+ *
+ * Note: hugo-paper paints its own background via a `--bg` CSS variable
+ * on `<html>`, so we don't need to relocate the body bg here (that was
+ * a PaperMod-specific workaround).
+ */
+
+/* Container: fixed to the viewport, behind everything, ignores pointer. */
+.page-bg {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    overflow: hidden;
+    background: transparent;
+}
+
+/* Sizing variables so the @media block can override width without
+   duplicating the aspect-ratio / mask rules. */
+:root {
+    --page-bg-w: clamp(220px, 24vw, 320px);
+    --page-bg-ratio: 5 / 7;
+}
+
+.page-bg__img {
+    position: absolute;
+    /* Pin to the viewport's bottom-left. */
+    left: 0;
+    bottom: 0;
+
+    width: var(--page-bg-w);
+    aspect-ratio: var(--page-bg-ratio);
+
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: contain;
+
+    /* luminosity keeps the image's hue + saturation but adopts the
+       luminosity of the layer behind it (the page background). Flat /
+       solid backgrounds in the image dissolve into the page. */
+    mix-blend-mode: luminosity;
+
+    opacity: 0;
+    filter: blur(0.3px) saturate(0.95);
+
+    /* Soft radial fade that covers the WHOLE rectangle, including its
+       four corners. `circle farthest-corner` sizes the mask so it passes
+       through the farthest corner of the box, so the whole 5/7 rectangle
+       is inside the mask and every pixel participates in the fade. */
+    -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%,
+            #000 0%,
+            #000 30%,
+            rgba(0, 0, 0, 0.92) 50%,
+            rgba(0, 0, 0, 0.65) 75%,
+            rgba(0, 0, 0, 0.25) 90%,
+            transparent 100%);
+    mask-image: radial-gradient(circle farthest-corner at 50% 50%,
+            #000 0%,
+            #000 30%,
+            rgba(0, 0, 0, 0.92) 50%,
+            rgba(0, 0, 0, 0.65) 75%,
+            rgba(0, 0, 0, 0.25) 90%,
+            transparent 100%);
+
+    transition: opacity 0.8s ease;
+    will-change: opacity;
+}
+
+/* Gate A: JS selected this image (one of the random candidates). */
+.page-bg__img.is-active {
+    opacity: 0;
+}
+
+/* Gate B open: user scrolled to (or near) the bottom of the document.
+   Opacity is held lower than 1 because mix-blend-mode can produce
+   surprisingly strong effects at full strength on saturated subjects. */
+html.at-bottom .page-bg__img.is-active {
+    opacity: 0.85;
+}
+
+/* No-JS fallback: without JS we can't observe scroll, so the first
+   image is always visible. */
+html:not(.js) .page-bg__img:first-of-type {
+    opacity: 0.85;
+}
+
+/* Dark mode: a touch of brightness/saturation control so the image
+   doesn't pop too loudly against the near-black canvas after the
+   luminosity blend. */
+[data-theme="dark"] .page-bg__img {
+    filter: brightness(0.9) saturate(0.85) blur(0.3px);
+}
+
+/* Small screens: shrink the badge so it doesn't take over the page,
+   and nudge it slightly further off the left edge. */
+@media (max-width: 768px) {
+    :root {
+        --page-bg-w: min(170px, 46vw);
+    }
+    .page-bg__img {
+        left: -3vw;
+    }
+}
+
+/* Honor the OS-level "reduce motion" preference: drop the fade-in
+   transition. */
+@media (prefers-reduced-motion: reduce) {
+    .page-bg__img {
+        transition: none;
+    }
+    html:not(.js) .page-bg__img:first-of-type {
+        opacity: 0.7;
+    }
+    html.at-bottom .page-bg__img.is-active {
+        opacity: 0.7;
+    }
+}

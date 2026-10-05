@@ -1,0 +1,76 @@
+{{/*
+  Page-level decorative background.
+
+  Auto-discovers images in static/bg/, emits one div per candidate. An
+  inline script picks one at random per page load and toggles
+  `html.at-bottom` when the user scrolls to the document's bottom.
+  CSS lives in assets/custom.css; html.at-bottom / .is-active gates.
+
+  Behavior summary:
+    - Default: every candidate is opacity 0 (invisible).
+    - JS: adds .is-active to one random candidate (still opacity 0
+      unless html.at-bottom is also set).
+    - html.at-bottom + .is-active: opacity → 0.85 (revealed).
+    - No JS + first child: opacity 0.85 (always visible fallback).
+
+  Why a partial and not inline in baseof: keeps the override surface
+  small so hugo-paper's baseof.html stays the source of truth for layout.
+*/}}
+
+{{- $bgImages := slice -}}
+{{- if (and site.Params.bg (reflect.IsSlice site.Params.bg)) -}}
+    {{- $bgImages = site.Params.bg -}}
+{{- else if (and site.Params.bg (reflect.IsMap site.Params.bg)) -}}
+    {{- range site.Params.bg }}{{ $bgImages = $bgImages | append . }}{{ end -}}
+{{- else -}}
+    {{- range readDir "static/bg" -}}
+        {{- if and (not .IsDir) (in (slice ".jpg" ".jpeg" ".png" ".webp" ".gif" ".svg") (path.Ext .Name)) -}}
+            {{- if not (hasPrefix .Name ".") -}}
+                {{- $bgImages = $bgImages | append (printf "bg/%s" .Name) }}
+            {{- end -}}
+        {{- end -}}
+    {{- end -}}
+{{- end -}}
+{{- with $bgImages }}
+<div class="page-bg" aria-hidden="true">
+    {{- range $bgImages }}
+    {{- $src := printf "%s%s" site.BaseURL (strings.TrimPrefix "/" .) }}
+    <div class="page-bg__img" style="background-image:url('{{ $src }}')"></div>
+    {{- end }}
+</div>
+<script>
+(function () {
+  var root = document.documentElement;
+  if (root) {
+    root.classList.remove('no-js');
+    root.classList.add('js');
+  }
+
+  // 1) Random pick
+  var imgs = document.querySelectorAll('.page-bg__img');
+  if (imgs.length) {
+    var idx = Math.floor(Math.random() * imgs.length);
+    imgs[idx].classList.add('is-active');
+  }
+
+  // 2) Scroll-position gate
+  function checkAtBottom() {
+    var doc = document.documentElement;
+    var scrollTop = window.scrollY || doc.scrollTop || 0;
+    var winHeight = window.innerHeight;
+    var docHeight = doc.scrollHeight;
+    // 8px tolerance -- feels instant, no flicker on rubber-banding
+    var atBottom = scrollTop + winHeight >= docHeight - 8;
+    if (root) {
+      root.classList.toggle('at-bottom', atBottom);
+    }
+  }
+  window.addEventListener('scroll', checkAtBottom, { passive: true });
+  window.addEventListener('resize', checkAtBottom, { passive: true });
+  // Run now, and once more after a tick in case fonts/layout shifted
+  // between this script and the final layout pass.
+  checkAtBottom();
+  setTimeout(checkAtBottom, 50);
+})();
+</script>
+{{- end }}

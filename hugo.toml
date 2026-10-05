@@ -11,65 +11,18 @@ enableEmoji = true
 ignoreErrors = ["error-remote-getjson"]
 enableGitInfo = true
 summaryLength = 100
-rssLimit = 20
 
-theme = "PaperMod"
+theme = "hugo-paper"
 
 [params]
-  description = ""
-  keywords = ["网络日志"]
-  env = "production"
-  defaultTheme = "dark"
+  # Theme color preset: linen / wheat / gray / light
+  color = "linen"
+  # Date format used by hugo-paper head.html
   DateFormat = "2006年01月02日"
-  ShowReadingTime = true
-  ShowShareButtons = false
-  ShowPostNavLinks = true
-  ShowBreadCrumbs = true
-  ShowCodeCopyButtons = true
-  ShowRssButtonInSectionTermList = true
-  UseHugoToc = true
-  ShowWordCount = true
-  ShowLastMod = true
-  ShowLoadingBar = true
-  underlineLinks = true
-  externalLinksInNewTab = true
-
-  [params.homeInfoParams]
-    Title = "sdttttt"
-    Content = "我，想去看海。"
-
-  [[params.socialIcons]]
-    name = "github"
-    url = "https://github.com/sdttttt"
-  [[params.socialIcons]]
-    name = "email"
-    url = "mailto:shiinatohka@gmail.com"
-
-  [params.assets]
-    favicon = "/favicon.svg"
-    apple = "/apple-touch-icon.png"
-    safari = "/safari-pinned-tab.svg"
-    msapplication = "/mstile-150x150.png"
-    theme = "#1a1a1a"
-
-  [params.editPost]
-    URL = "https://github.com/sdttttt/sdttttt.github.io/edit/master/content/"
-
-  [params.schema]
-    publisherType = "Person"
-    sameAs = ["https://github.com/sdttttt"]
-
-[outputs]
-  home = ["HTML", "RSS", "JSON"]
-
-[minify]
-  disableCSS = false
-  disableHTML = false
-  disableJS = false
-  disableJSON = false
-  disableSVG = false
-  disableXML = false
-  minifyOutput = true
+  # Which content sections to show on the home page list.
+  # Without this, hugo-paper's list.html pulls every RegularPage and the
+  # claudelog entries would crowd the home feed.
+  mainSections = ["posts"]
 
 [menu]
   [[menu.main]]
@@ -87,21 +40,6 @@ theme = "PaperMod"
     name = "Source"
     url = "https://github.com/sdttttt/sdttttt.github.io"
     weight = 3
-  [[menu.main]]
-    identifier = "archives"
-    name = "Archives"
-    url = "/archives/"
-    weight = 5
-  [[menu.main]]
-    identifier = "search"
-    name = "Search"
-    url = "/search/"
-    weight = 10
-  [[menu.main]]
-    identifier = "tags"
-    name = "Tags"
-    url = "/tags/"
-    weight = 15
   [[menu.main]]
     identifier = "about"
     name = "About"
@@ -127,6 +65,3 @@ tag = "tags"
     noClasses = true
     style = "dracula"
     tabWidth = 4
-
-[build]
-  writeStats = true
