@@ -45,12 +45,12 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 
 ## CI/CD
 
-| 工作流                 | 触发                     | 作用                          |
-| ---------------------- | ------------------------ | ----------------------------- |
-| `deploy.yml`           | push `master`            | 构建并部署到 GitHub Pages     |
-| `validate-posts.yml`   | push `content/**`        | 校验 front matter             |
-| `check-dead-links.yml` | 每周 + push `content/**` | 检查外链死链                  |
-| `test-scripts.yml`     | push `scripts/**`        | 跑 Deno 测试                  |
+| 工作流                 | 触发                     | 作用                      |
+| ---------------------- | ------------------------ | ------------------------- |
+| `deploy.yml`           | push `master`            | 构建并部署到 GitHub Pages |
+| `validate-posts.yml`   | push `content/**`        | 校验 front matter         |
+| `check-dead-links.yml` | 每周 + push `content/**` | 检查外链死链              |
+| `test-scripts.yml`     | push `scripts/**`        | 跑 Deno 测试              |
 
 `deploy.yml` 在部署前会自动调用 `deno task format-markdown`。
 
