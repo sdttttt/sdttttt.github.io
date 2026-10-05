@@ -46,6 +46,9 @@
   // ~5000 颗，step 到 10、间距 4 CSS px，明显偏粗；改成间距后就与尺寸解耦了。
   var PITCH_CSS = cfg.pitchCss || 2;
   var MAX_PARTICLES = cfg.maxParticles || 60000;
+  // 徽标默认开颗粒感：尺寸小时 round 会把 sizeRatio 吃掉（3 × 0.85 → 3，
+  // 边长 == 间距 → 缝隙归零 → 成品退化成无缝拼块），改用 floor 保出缝隙。
+  var GRAIN = cfg.grain !== false;
   var reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // 一页一图：PNG 与粒子共用同一张
@@ -214,6 +217,7 @@
           FIT_W,
           FIT_H,
           MAX_PARTICLES,
+          GRAIN ? 1 : 0,
         );
         mod.dealloc(p, rgba.length);
         if (rc !== 0) return; // 失败 → 保持 PNG

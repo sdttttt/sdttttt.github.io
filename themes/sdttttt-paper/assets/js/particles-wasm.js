@@ -63,6 +63,9 @@
   var FIT_H = cfg.fitH || 0.86;
   // 安全阀：万一画布特别大 / 间距特别小，不让粒子数失控
   var MAX_PARTICLES = cfg.maxParticles || 150000;
+  // 粒子边长取整方式：false 时用 round（可能无缝拼块），true 时用 floor
+  // （保证 size < spacing → 留缝 → 颗粒感）。大画布保持 round。
+  var GRAIN = !!cfg.grain;
 
   var mod = null;
   var ctx = canvas.getContext('2d');
@@ -127,6 +130,15 @@
     raf = requestAnimationFrame(loop);
   }
 
+  /* 把粒子直接放到目标位置并画一帧（不重播飞入）。
+     用于 reduce-motion、以及 resize 之后 —— resize 内部是重建（粒子位置
+     重新随机），不 settle 的话每次拖窗口都会重演一遍聚合动画。 */
+  function drawSettled() {
+    if (!frame) return;
+    mod.settle();
+    ctx.putImageData(frame, 0, 0);
+  }
+
   /* ---------------------------------------------------------------- 启动 */
 
   function start() {
@@ -156,6 +168,7 @@
           FIT_W,
           FIT_H,
           MAX_PARTICLES,
+          GRAIN ? 1 : 0,
         );
         mod.dealloc(p, rgba.length);
         if (rc !== 0) {
@@ -170,8 +183,7 @@
         }
 
         if (reduceMotion) {
-          mod.settle();
-          ctx.putImageData(frame, 0, 0);
+          drawSettled();
           return;
         }
         wake();
@@ -190,12 +202,8 @@
       if (mod.resize(s.w, s.h, PITCH_CSS * s.dpr) !== 0) return;
       frame = makeFrame(); // resize 内部重建，视图要跟着换
       if (!frame) return;
-      if (reduceMotion) {
-        mod.settle();
-        ctx.putImageData(frame, 0, 0);
-      } else {
-        wake();
-      }
+      // 不能 wake()：resize 重建时粒子位置重新随机，会把飞入动画重播一遍
+      drawSettled();
     }, 150);
   });
 

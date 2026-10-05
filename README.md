@@ -8,7 +8,7 @@
 
 - 默认亮色主题（不跟随系统 / 手动可切暗色）
 - 左下角装饰徽标：**WASM 粒子渲染**（滚到页面底部揭示，双击切回真实 PNG）
-- `/particles/`：粒子效果演示页（同一套 WASM 引擎；`?engine=js` 可切到纯 Canvas 2D 版对比）
+- `/particles/`：粒子效果演示页（同一套 WASM 引擎；`?engine=js` 可切到纯 Canvas 2D 版对比）。**`draft: true`，只存在于本地，不发布到线上**（`hugo server -D` 预览）
 - 中英混排友好（`hasCJKLanguage = true`）
 - AI 维护日志：`content/claudelog/YYYY-MM-DD.md`，每个 commit 都留痕
 

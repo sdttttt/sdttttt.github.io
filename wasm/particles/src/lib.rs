@@ -52,6 +52,9 @@ struct Engine {
     src_h: u32,
     max_particles: u32,
     ratio: f32,
+    // 粒子边长取整方式：false = round（边长可能 == 间距，成品是无缝拼块）；
+    // true = floor（保证 size < spacing，留出可见缝隙 → 颗粒感）
+    floor_size: bool,
     fit_w: f32,
     fit_h: f32,
     step: u32,
@@ -157,11 +160,22 @@ fn make(
     fit_w: f32,
     fit_h: f32,
     max_particles: u32,
+    floor_size: bool,
 ) -> Engine {
     let (scale, ox, oy) = fit(cw, ch, sw, sh, fit_w, fit_h);
     let step = pick_step(src, sw, sh, pitch, scale, max_particles);
-    // 粒子边长（设备像素）：采样间距 × 缩放 × 比例系数，钳在 [1, 64]
-    let size = ((step as f32 * scale * ratio).round() as i32).clamp(1, 64);
+    // 粒子边长（设备像素）：采样间距 × 缩放 × 比例系数
+    //
+    // 为什么需要 floor：尺寸小的时候 round 会把比例吃掉 —— 例如间距 3px、ratio 0.85
+    // 时 `3 × 0.85 = 2.55` 会四舍五入回 3，于是边长 == 间距、缝隙归零，
+    // 成品退化成无缝拼块而不是“粒子”。floor 则保证 size < spacing。
+    let raw_size = step as f32 * scale * ratio;
+    let size = if floor_size {
+        (raw_size.floor() as i32).max(1)
+    } else {
+        (raw_size.round() as i32).max(1)
+    }
+    .clamp(1, 64);
     let spread_x = cw as f32 * 2.4;
     let spread_y = ch as f32 * 2.4;
 
@@ -216,6 +230,7 @@ fn make(
         src_h: sh,
         max_particles,
         ratio,
+        floor_size,
         fit_w,
         fit_h,
         step,
@@ -256,7 +271,8 @@ impl Engine {
 
 /// 构建。src 指向 JS 写进来的 RGBA；cw/ch 是画布**设备像素**尺寸。
 /// `pitch` 是期望的粒子网格间距（设备像素）；`fit_w`/`fit_h` 见 `fit()`；
-/// `max_particles` 是防爆上限。返回 0 表示成功，<0 表示参数非法。
+/// `max_particles` 是防爆上限；`floor_size` 非 0 时用 floor 取整边长（颗粒感）。
+/// 返回 0 表示成功，<0 表示参数非法。
 #[no_mangle]
 pub extern "C" fn build(
     src: *const u8,
@@ -269,12 +285,25 @@ pub extern "C" fn build(
     fit_w: f32,
     fit_h: f32,
     max_particles: u32,
+    floor_size: u32,
 ) -> i32 {
     if src.is_null() || sw == 0 || sh == 0 || cw == 0 || ch == 0 {
         return -1;
     }
     let slice = unsafe { core::slice::from_raw_parts(src, sw as usize * sh as usize * 4) };
-    let e = make(slice, sw, sh, cw, ch, pitch, ratio, fit_w, fit_h, max_particles);
+    let e = make(
+        slice,
+        sw,
+        sh,
+        cw,
+        ch,
+        pitch,
+        ratio,
+        fit_w,
+        fit_h,
+        max_particles,
+        floor_size != 0,
+    );
     unsafe { ENGINE = Some(e) };
     0
 }
@@ -290,16 +319,29 @@ pub extern "C" fn resize(cw: u32, ch: u32, pitch: f32) -> i32 {
     if cw == 0 || ch == 0 {
         return -1;
     }
-    let (sw, sh, ratio, fit_w, fit_h, max_particles) = (
+    let (sw, sh, ratio, fit_w, fit_h, max_particles, floor_size) = (
         e.src_w,
         e.src_h,
         e.ratio,
         e.fit_w,
         e.fit_h,
         e.max_particles,
+        e.floor_size,
     );
     let src = e.src.clone();
-    let next = make(&src, sw, sh, cw, ch, pitch, ratio, fit_w, fit_h, max_particles);
+    let next = make(
+        &src,
+        sw,
+        sh,
+        cw,
+        ch,
+        pitch,
+        ratio,
+        fit_w,
+        fit_h,
+        max_particles,
+        floor_size,
+    );
     unsafe { ENGINE = Some(next) };
     0
 }

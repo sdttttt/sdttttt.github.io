@@ -9,7 +9,7 @@
     "rename-posts-dry": "deno run -A scripts/rename-posts.ts --dry-run",
     "git-commit-push": "deno run -A scripts/git-commit-push.ts",
     "git-commit-push-dry": "deno run -A scripts/git-commit-push.ts --dry-run",
-    "build-wasm": "cd wasm/particles && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/particles.wasm ../../themes/sdttttt-paper/assets/wasm/particles.wasm"
+    "build-wasm": "cd wasm/particles && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/particles.wasm ../../themes/sdttttt-paper/assets/wasm/particles.wasm && chmod 644 ../../themes/sdttttt-paper/assets/wasm/particles.wasm"
   },
   "unstable": ["sloppy-imports"],
   "exclude": ["themes/PaperMod", "themes/hugo-paper", ".tools", ".npm-cache"],

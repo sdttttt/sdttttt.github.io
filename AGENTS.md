@@ -12,7 +12,7 @@
   - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**，双击可切回真实 PNG（滚到底部才揭示）
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
   - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
-  - `layouts/_default/particles.html` — `/particles/` 粒子演示页
+  - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
   - `assets/custom.css` — 自定义 CSS（徽标 + 粒子页样式）
   - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
@@ -69,6 +69,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(claudelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check`；不要提交 `public/` 或临时文件。
+- **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`，把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore(format): prettier markdown` 格式化了你刚改的 markdown），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认
