@@ -7,7 +7,7 @@
  * Structure:
  *   .page-bg          固定视口、位于内容之后、不吃指针事件
  *     .page-bg__box   尺寸 / 遮罩 / 混合模式 / 淡入 —— 两个子层共用它
- *       .page-bg__png    真实 PNG（无 JS 时的内容，也是双击切换的目标）
+ *       .page-bg__png    真实图片（avif/webp，无 JS 时的内容，也是双击切换的目标）
  *       .page-bg__canvas WASM 粒子画布
  *
  * State classes toggled on <html> by assets/js/page-bg.js:
@@ -107,12 +107,12 @@ html.pt-bg-ready:not(.pt-bg-photo) .page-bg__canvas {
     opacity: 1;
 }
 
-/* 双击切回真实 PNG */
+/* 双击切回真实图片 */
 html.pt-bg-photo .page-bg__png {
     opacity: 1;
 }
 
-/* 降级：不支持 WASM / 加载失败 / 未配置 → 真实 PNG。
+/* 降级：不支持 WASM / 加载失败 / 未配置 → 真实图片。
    data-pt-engine 由 assets/js/page-bg.js 写入。 */
 html[data-pt-engine="unsupported"] .page-bg__png,
 html[data-pt-engine="error"] .page-bg__png,
@@ -120,7 +120,7 @@ html[data-pt-engine="png"] .page-bg__png {
     opacity: 1;
 }
 
-/* 无 JS：既加载不了引擎也观察不了滚动，就直接显示 PNG。
+/* 无 JS：既加载不了引擎也观察不了滚动，就直接显示图片。
    `:not(.js)` 靠 baseof.html 里的同步内联脚本消掉 —— 那里注释解释了
    为什么这个类不能用 defer 加。 */
 html:not(.js) .page-bg__png {

@@ -2,29 +2,33 @@
   sdttttt-paper's page-level decorative background partial.
 
   Called from baseof.html right before </body>. Auto-discovers images in
-  static/bg/ (only *.png) and renders the badge with the WASM particle
+  static/bg/ (the optimized *.avif / *.webp outputs produced by
+  `deno task optimize-images`; the sources live in assets/src/bg/ so they
+  don't get published) and renders the badge with the WASM particle
   engine (same module as the /particles/ page).
 
   DOM shape:
     .page-bg            固定视口左下角的定位层（inset:0, pointer-events:none）
       .page-bg__box     装尺寸 / 遮罩 / 混合模式 / 淡入
-        .page-bg__png   真实 PNG —— 无 JS 时的内容，也是双击切换的目标
+        .page-bg__png   真实图片 —— 无 JS 时的内容，也是双击切换的目标
+                        （类名沿用了 PNG 时代的叫法，现在是 avif/webp）
         .page-bg__canvas WASM 粒子的画布
   Two children cross-fade; html.pt-bg-ready 让 canvas 接管，
-  html.pt-bg-photo 又切回 PNG。逻辑全在 assets/js/page-bg.js。
+  html.pt-bg-photo 又切回真实图片。逻辑全在 assets/js/page-bg.js。
 
   Graceful degradation: 只要 WASM 加载 / 构建 / 建帧任何一步失败，
-  JS 什么都不做，盒子就一直是那张 PNG（= 改造前的行为）。
+  JS 什么都不做，盒子就一直是那张图片（= 改造前的行为）。
 */}}
 
 {{- $bgImages := slice -}}
+{{- $bgExts := slice ".avif" ".webp" -}}
 {{- if (and site.Params.bg (reflect.IsSlice site.Params.bg)) -}}
     {{- $bgImages = site.Params.bg -}}
 {{- else if (and site.Params.bg (reflect.IsMap site.Params.bg)) -}}
     {{- range site.Params.bg }}{{ $bgImages = $bgImages | append . }}{{ end -}}
 {{- else -}}
     {{- range readDir "static/bg" -}}
-        {{- if and (not .IsDir) (eq (path.Ext .Name) ".png") -}}
+        {{- if and (not .IsDir) (in $bgExts (path.Ext .Name)) -}}
             {{- if not (hasPrefix .Name ".") -}}
                 {{- $bgImages = $bgImages | append (printf "bg/%s" .Name) }}
             {{- end -}}

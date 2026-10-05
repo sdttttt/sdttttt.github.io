@@ -1,5 +1,5 @@
 /* ---------------------------------------------------------------------------
- * 页面左下角的装饰徽标 —— 用 WASM 粒子渲染，双击切回真实 PNG。
+ * 页面左下角的装饰徽标 —— 用 WASM 粒子渲染，双击切回真实图片。
  *
  * 呈现方式（2026-10 起）：**淡入淡出，不聚合**。
  *   粒子在 wasm 里一次 settle() 就位（build 时它们是随机散布的，settle 会
@@ -7,11 +7,11 @@
  *   opacity 过渡负责（.page-bg__box / 两个子层）。所以这里**不需要 rAF**。
  *
  * 行为：
- *   - 每次加载随机挑一张图；PNG 与粒子用的是同一张
+ *   - 每次加载随机挑一张图；页面里的 <img> 与粒子用的是同一张
  *   - 默认不可见；滚到文档底部时（html.at-bottom）淡入
- *   - WASM 成功后加 html.pt-bg-ready → canvas 接管，PNG 退到幕后
+ *   - WASM 成功后加 html.pt-bg-ready → canvas 接管，图片退到幕后
  *   - 双击（document 级监听 + 矩形判定，见下）切换 html.pt-bg-photo
- *   - 任何一步失败 → 什么都不改，保持 PNG（天然的降级路径）
+ *   - 任何一步失败 → 什么都不改，保持图片（天然的降级路径）
  *
  * 关于监听器为什么在 document 上而不是 box 上：
  *   `.page-bg` 是 z-index:-1（刻意压在正文之下），而负 z-index 会让它
@@ -54,7 +54,7 @@
   // 边长 == 间距 → 缝隙归零 → 成品退化成无缝拼块），改用 floor 保出缝隙。
   var GRAIN = cfg.grain !== false;
 
-  // 一页一图：PNG 与粒子共用同一张
+  // 一页一图：页面里的 <img> 与粒子共用同一张
   var SRC = IMAGES[Math.floor(Math.random() * IMAGES.length)];
   photo.src = SRC;
 
@@ -66,8 +66,8 @@
   /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
      pending     引擎正在加载（baseof 里的兜底定时器看到这个就不抢答）
      png         未配置 wasm / 加载器没到位
-     unsupported 浏览器不支持 WASM → 直接用 PNG 原图
-     error       WASM 下载 / 编译 / 构建失败 → 回退 PNG
+     unsupported 浏览器不支持 WASM → 直接显示原图
+     error       WASM 下载 / 编译 / 构建失败 → 回退原图
      wasm        粒子引擎已就绪 */
   function mark(engine) {
     root.dataset.ptEngine = engine;
@@ -140,7 +140,7 @@
     if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
 
     root.classList.toggle('pt-bg-photo');
-    // 从 PNG 切回粒子时确保画布有内容（正常已画过，这里是兜底）
+    // 从真实图片切回粒子时确保画布有内容（正常已画过，这里是兜底）
     if (!inPhotoMode()) draw();
   });
 

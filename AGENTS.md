@@ -21,7 +21,8 @@
 
 - `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
 - `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`
-- `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari / `bg/` cutouts）。
+- `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
+- `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
 - `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
@@ -44,6 +45,8 @@ deno task test                    # 跑 scripts/__tests__/ 下全部测试
 deno task validate-posts          # 校验 front matter
 deno task check-dead-links        # 检查外链死链
 deno task rename-posts-dry        # 预览文章改名
+deno task optimize-images-dry     # 预览图片转换（不写盘、不装 sharp）
+deno task optimize-images         # 把 assets/src/ 的原图转成 static/ 的发布图
 deno task format-markdown-check   # 检查 Markdown 格式（不写入）
 deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
 deno task git-commit-push-dry     # 预览自动 commit + push
@@ -55,10 +58,11 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - Markdown 由全局安装的 Prettier 3 格式化（`deno install -g -A npm:prettier@3.9.6`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `deno task format-markdown`。
 - 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。
 - Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。
-- 背景图 cutouts：`static/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切）。新增/删除图片会在左下角徽标和 `/particles/` 自动生效（两处都靠 `readDir` 发现）。
+- 背景图 / 头像：**原图放 `assets/src/`，发布图放 `static/`**。背景 cutouts 是 `assets/src/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切），跑 `deno task optimize-images` 生成 `static/bg/*.avif`（640px q45，`--format webp` 可切 WebP）；头像是 `assets/src/avatar/avatar.jpg` → `static/avatar.webp`（192px，固定 WebP）。新增/删除图片会在左下角徽标和 `/particles/` 自动生效（两处都靠 `readDir "static/bg"` 发现 `.avif` / `.webp`）。
+- **碰过 `assets/src/**` 就必须重跑 `deno task optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。
 - **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
 - **降级链**：左下角徽标的渲染路径会写到 `html[data-pt-engine]` 上，排查时先看这个属性：
-  `unsupported`（浏览器不支持 WASM，直接用 PNG，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退 PNG）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
+  `unsupported`（浏览器不支持 WASM，直接显示原图，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退原图）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
 
 ## 测试指南
 

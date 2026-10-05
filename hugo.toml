@@ -30,9 +30,14 @@ theme = ["sdttttt-paper", "hugo-paper"]
   # Without this, hugo-paper's list.html pulls every RegularPage and the
   # claudelog entries would crowd the home feed.
   mainSections = ["posts"]
-  # Avatar: local image in static/ (served at /avatar.jpg).
-  avatar = "/avatar.jpg"
+  # Avatar: local optimized image in static/ (served at /avatar.webp).
+  # Source: assets/src/avatar/avatar.jpg → `deno task optimize-images`.
+  avatar = "/avatar.webp"
   name = "SDTTTTT"
+  # Hugo 已经在构建时用 Chroma 把代码块高亮成内联样式（见下方 [markup.highlight]
+  # 的 noClasses/style），主题再挂一个 highlight.js 只会把同一份代码重新标一遍。
+  # 关掉它：227 个页面各省 48KB（gzip 20KB）。
+  disableHLJS = true
 
 [menu]
   [[menu.main]]

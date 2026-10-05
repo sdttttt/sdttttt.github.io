@@ -65,7 +65,7 @@
     <script>
       document.documentElement.classList.add('js');
       // 兜底：如果 page-bg.js 根本没跑起来（脚本被拦 / SRI 校验失败），
-      // 徽标会永远停在「两层都不可见」。2s 后仍无标记就当作降级 → 显示 PNG。
+      // 徽标会永远停在「两层都不可见」。2s 后仍无标记就当作降级 → 显示原图。
       // 注意只判“完全没标记”：page-bg.js 会先同步标上 'pending'（引擎加载中），
       // 所以网络慢时不会被这个定时器抢答。
       setTimeout(function () {

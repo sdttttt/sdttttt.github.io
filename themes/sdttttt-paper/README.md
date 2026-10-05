@@ -21,13 +21,13 @@ Both themes live in `themes/`; no Hugo Modules, no `go.mod`, no `[parent]` block
 
 ## What this theme owns
 
-| File (relative to `themes/sdttttt-paper/`) | Origin   | Diff vs upstream                                                           |
-| ------------------------------------------ | -------- | -------------------------------------------------------------------------- |
-| `layouts/_default/baseof.html`             | copied   | adds `{{ partial "bg.html" . }}` before `</body>`                          |
-| `layouts/partials/header.html`             | forked   | dark-mode JS defaults to light; does not follow `prefers-color-scheme`     |
-| `layouts/partials/footer.html`             | copied   | removes the "powered by hugo" + "hugo-paper" links                         |
-| `layouts/partials/bg.html`                 | new      | page-level decorative background (random PNG revealed on scroll-to-bottom) |
-| `assets/custom.css`                        | extended | all `.page-bg` / `.page-bg__img` rules + custom CSS                        |
+| File (relative to `themes/sdttttt-paper/`) | Origin   | Diff vs upstream                                                                                         |
+| ------------------------------------------ | -------- | -------------------------------------------------------------------------------------------------------- |
+| `layouts/_default/baseof.html`             | copied   | adds `{{ partial "bg.html" . }}` before `</body>`                                                        |
+| `layouts/partials/header.html`             | forked   | dark-mode JS defaults to light; does not follow `prefers-color-scheme`                                   |
+| `layouts/partials/footer.html`             | copied   | removes the "powered by hugo" + "hugo-paper" links                                                       |
+| `layouts/partials/bg.html`                 | new      | page-level decorative background (random avif/webp image + WASM particles, revealed on scroll-to-bottom) |
+| `assets/custom.css`                        | extended | all `.page-bg` / `.page-bg__img` rules + custom CSS                                                      |
 
 ## Bumping the upstream `hugo-paper`
 
