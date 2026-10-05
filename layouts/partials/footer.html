@@ -1,0 +1,22 @@
+{{/*
+  Override of hugo-paper's layouts/partials/footer.html.
+
+  Removes the right-side "powered by hugo" and "hugo-paper" external links
+  while keeping the left-side copyright block from the theme's original
+  footer.
+
+  Sync against themes/hugo-paper/layouts/partials/footer.html when
+  bumping hugo-paper upstream; only the two trailing <a> tags should
+  differ.
+*/}}
+
+<footer
+  class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase opacity-60"
+>
+  <div class="mr-auto">
+    {{- if site.Copyright -}} {{- site.Copyright -}} {{- else -}} &copy; {{-
+    now.Year }}
+    <a class="link" href="{{- `` | absURL -}}">{{- site.Title -}}</a>
+    {{- end -}}
+  </div>
+</footer>
