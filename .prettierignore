@@ -1,6 +1,6 @@
 themes/PaperMod
+themes/hugo-paper
 node_modules
 .tools
 .npm-cache
 public
-
