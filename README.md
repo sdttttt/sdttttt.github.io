@@ -4,22 +4,34 @@
 
 站点地址：<https://sdttttt.online/>
 
+## 特性
+
+- 默认亮色主题（不跟随系统 / 手动可切暗色）
+- 装饰背景图：滚到底部时随机显示一张预切的 PNG cutout
+- 中英混排友好（`hasCJKLanguage = true`）
+- AI 维护日志：`content/claudelog/YYYY-MM-DD.md`，每个 commit 都留痕
+
 ## 仓库结构
 
 ```
 ├── content/
 │   ├── posts/         博客文章（Markdown + front matter）
 │   └── claudelog/     AI 维护日志（每日一份 YYYY-MM-DD.md）
-├── layouts/           hugo-paper 之上的自定义模板覆盖（bg.html / header.html / _default/baseof.html）
-├── assets/custom.css  hugo-paper 用户 CSS 入口（背景图样式在这里）
+├── layouts/           hugo-paper 之上的自定义模板覆盖
+│   ├── _default/baseof.html   覆写 baseof，调用 bg partial
+│   ├── partials/bg.html       装饰背景图
+│   └── partials/header.html   覆写 header，强制默认亮色
+├── assets/
+│   └── custom.css    hugo-paper 用户 CSS 入口（背景图样式在这里）
 ├── static/            原样拷贝的静态资源（apple-touch-icon / favicon / bg/ cutouts）
-├── themes/hugo-paper/ 主题（vendor-in，普通目录，同步上游需手动 patch 对应文件）
+├── themes/hugo-paper/ 主题（vendor-in，同步上游需手动 patch 对应文件）
 ├── scripts/           维护脚本（Deno + TypeScript）
 │   ├── *.ts           入口脚本（validate-posts / rename-posts / git-commit-push / ...）
 │   ├── lib/           共用工具（args / frontmatter / git / fs）
 │   └── __tests__/     node:test 测试
 ├── deno.json          Deno 任务定义
 ├── hugo.toml          Hugo 配置
+├── AGENTS.md          AI / Agent 贡献指南（编码规范、命名约定、操作需确认、维护日志模板）
 └── .github/workflows/ CI/CD
 ```
 
@@ -35,6 +47,7 @@ hugo --minify                # 生产构建到 public/
 ```bash
 deno task test                    # 跑 scripts/__tests__/ 全部测试
 deno task validate-posts          # 校验 front matter
+deno task check-dead-links        # 检查外链死链
 deno task rename-posts-dry        # 预览文章改名
 deno task format-markdown-check   # 只检查 Markdown 格式（不写入）
 deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
