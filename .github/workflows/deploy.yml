@@ -38,9 +38,6 @@ jobs:
       - name: Install Prettier
         run: deno install -g -A npm:prettier@3.9.6
 
-      - name: Optimize images
-        run: deno task optimize-images --dir assets/images --variants-only --width 1200
-
       - name: Rename posts
         run: deno task rename-posts
 

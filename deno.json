@@ -7,14 +7,10 @@
     "format-markdown-check": "deno run -A scripts/format-markdown.ts --check",
     "rename-posts": "deno run -A scripts/rename-posts.ts",
     "rename-posts-dry": "deno run -A scripts/rename-posts.ts --dry-run",
-    "optimize-images": "deno run -A scripts/optimize-images.ts",
     "git-commit-push": "deno run -A scripts/git-commit-push.ts",
     "git-commit-push-dry": "deno run -A scripts/git-commit-push.ts --dry-run"
   },
   "unstable": ["sloppy-imports"],
-  "imports": {
-    "sharp": "npm:sharp@0.33.5"
-  },
-  "exclude": ["themes/PaperMod", ".tools", ".npm-cache"],
+  "exclude": ["themes/PaperMod", "themes/hugo-paper", ".tools", ".npm-cache"],
   "nodeModulesDir": "none"
 }
