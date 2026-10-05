@@ -42,6 +42,9 @@ theme = ["sdttttt-paper", "hugo-paper"]
   # 的 noClasses/style），主题再挂一个 highlight.js 只会把同一份代码重新标一遍。
   # 关掉它：227 个页面各省 48KB（gzip 20KB）。
   disableHLJS = true
+  # 深色模式切换按钮改用单色 SVG（869B），而不是彩色 PNG（8KB）：
+  # 父主题 head.html 会 preload 它，header.html 换用 dark:invert 反色。
+  monoDarkIcon = true
 
 [menu]
   [[menu.main]]
@@ -74,6 +77,21 @@ theme = ["sdttttt-paper", "hugo-paper"]
     name = "About"
     url = "/about/"
     weight = 20
+
+# 站内搜索需要一份构建期索引：首页额外产出一份 /searchindex.json
+# （模板见 themes/sdttttt-paper/layouts/index.json），/search/ 页在前端
+# 拉取它做过滤。下面覆盖的是 Hugo 内置的 JSON 输出格式，字段与内置一致，
+# 只改文件名（index.json → searchindex.json）；只有 home 输出 JSON。
+[outputs]
+  home = ["HTML", "RSS", "JSON"]
+
+[outputFormats.JSON]
+  baseName = "searchindex"
+  mediaType = "application/json"
+  isPlainText = false
+  # 它不是「本页的另一种表现」，别让 head.html 的 AlternativeOutputFormats
+  # 循环把它当成订阅源写进 <link rel="alternate">。
+  notAlternative = true
 
 [taxonomies]
 tag = "tags"

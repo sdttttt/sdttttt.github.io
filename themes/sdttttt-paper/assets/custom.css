@@ -234,8 +234,9 @@ html:not(.js) .page-bg__box {
    one line per post.
 
    Colors are never hard-coded: body text inherits `currentColor`, and the
-   dimmed layers use `--arch-dim` (black/white at 60%, the same weight the
-   theme itself uses for secondary text), so both themes come out right.
+   dimmed layers use `--dim` (black/white at 60%, declared once for this page
+   and the search page in the "Shared" block below), so both themes come out
+   right.
    The Tailwind utilities that would normally do this job (`text-sm`,
    `tabular-nums`, `grid` …) are NOT in the compiled main.css, hence plain
    CSS here.
@@ -247,16 +248,30 @@ html:not(.js) .page-bg__box {
    lines 74 / 1382 — and `:not(#\#)` counts as an ID selector, so no plain
    class-based rule can ever win. Font-weight is deliberately not declared:
    the theme's semibold (600) is what every other heading on the site uses.
+
+   ⚠️ The same bumpers sit on the preflight resets, so `margin`, `padding`,
+   `border`, `border-radius` and (on form controls) `background` below all
+   need `!important` as well — a plain class rule silently loses to
+   `*:not(#\#):not(#\#) { margin: 0; padding: 0; border: 0 solid }` (2,0,0) and
+   `input:not(#\#):not(#\#) { background-color: initial; border-radius: 0 }`
+   (2,0,1). Values that are already 0 (e.g. `margin: 0`) are left alone.
    ========================================================================== */
 
-/* Secondary text: 5.6:1 on linen, 6.4:1 on the dark overlay (the ad-hoc
-   `opacity: .45–.55` this replaced only reached ~2.9:1). */
-.arch {
-    --arch-dim: rgba(0, 0, 0, 0.6);
+/* ==========================================================================
+   Shared by the archive + search pages: secondary text color.
+
+   5.6:1 on linen, 6.4:1 on the dark overlay (the ad-hoc `opacity: .45–.55`
+   this replaced only reached ~2.9:1).
+   ========================================================================== */
+
+.arch,
+.search {
+    --dim: rgba(0, 0, 0, 0.6);
 }
 
-.dark .arch {
-    --arch-dim: rgba(255, 255, 255, 0.6);
+.dark .arch,
+.dark .search {
+    --dim: rgba(255, 255, 255, 0.6);
 }
 
 .arch__title {
@@ -266,25 +281,25 @@ html:not(.js) .page-bg__box {
 }
 
 .arch__meta {
-    margin: 0.4rem 0 0;
+    margin: 0.4rem 0 0 !important;
     font-size: 0.8125rem;
     line-height: 1.5;
-    color: var(--arch-dim);
+    color: var(--dim);
 }
 
 .arch__year {
-    margin-top: 2.2rem;
+    margin-top: 2.2rem !important;
 }
 
 .arch__year:first-of-type {
-    margin-top: 2.6rem;
+    margin-top: 2.6rem !important;
 }
 
 .arch__year-head {
     display: flex;
     align-items: baseline;
     gap: 0.5rem;
-    margin: 0 0 0.5rem;
+    margin: 0 0 0.5rem !important;
     font-size: 1.125rem !important;
     line-height: 1.2;
     font-variant-numeric: tabular-nums;
@@ -292,7 +307,7 @@ html:not(.js) .page-bg__box {
 
 .arch__count {
     font-size: 0.6875rem;
-    color: var(--arch-dim);
+    color: var(--dim);
 }
 
 .arch__month {
@@ -305,8 +320,8 @@ html:not(.js) .page-bg__box {
 .arch__month-label {
     display: inline-block;
     min-width: 3em;
-    margin-right: 0.3em;
-    color: var(--arch-dim);
+    margin-right: 0.3em !important;
+    color: var(--dim);
     font-variant-numeric: tabular-nums;
 }
 
@@ -328,7 +343,7 @@ html:not(.js) .page-bg__box {
    it stays a purely visual dot (and never lands in copied text). */
 .arch__link + .arch__link::before {
     content: "·";
-    margin: 0 0.45em;
+    margin: 0 0.45em !important;
     opacity: 0.55;
 }
 
@@ -344,6 +359,151 @@ html:not(.js) .page-bg__box {
 
     .arch__month-label {
         min-width: 2.7em;
-        margin-right: 0.2em;
+        margin-right: 0.2em !important;
+    }
+}
+
+/* ==========================================================================
+   Search page — themes/sdttttt-paper/layouts/_default/search.html
+
+   The markup is inert without assets/js/search.js: everything here just
+   dresses the input, the status line and the result rows. Same rules as the
+   archive page — inherit currentColor, dim with `--dim`, and any font-size on
+   a heading needs `!important` (see the note at the top).
+   ========================================================================== */
+
+.search__title {
+    margin: 0;
+    font-size: 1.75rem !important;
+    line-height: 1.2;
+}
+
+.search__intro {
+    margin-top: 0.6rem !important;
+    font-size: 0.875rem;
+    line-height: 1.7;
+    color: var(--dim);
+}
+
+.search__field {
+    margin: 1.6rem 0 0 !important;
+}
+
+.search__input {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 0.6rem 0.85rem !important;
+    border: 1px solid rgba(0, 0, 0, 0.14) !important;
+    border-radius: 0.6rem !important;
+    background: rgba(0, 0, 0, 0.02) !important;
+    color: inherit;
+    font-family: inherit;
+    font-size: 0.9375rem;
+    line-height: 1.6;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.dark .search__input {
+    border-color: rgba(255, 255, 255, 0.18) !important;
+    background: rgba(255, 255, 255, 0.04) !important;
+}
+
+.search__input:focus {
+    outline: 2px solid rgba(0, 0, 0, 0.25) !important;
+    outline-offset: 1px;
+}
+
+.dark .search__input:focus {
+    outline-color: rgba(255, 255, 255, 0.3) !important;
+}
+
+.search__input::placeholder {
+    color: var(--dim) !important;
+}
+
+.search__status {
+    margin: 0.85rem 0 0 !important;
+    font-size: 0.8125rem;
+    line-height: 1.5;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.search__results {
+    margin: 1.1rem 0 0 !important;
+    padding: 0;
+    list-style: none;
+}
+
+.search__item {
+    margin: 0;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+}
+
+.dark .search__item {
+    border-bottom-color: rgba(255, 255, 255, 0.1) !important;
+}
+
+.search__item:last-child {
+    border-bottom: 0 !important;
+}
+
+.search__link {
+    display: block;
+    padding: 0.7rem 0.15rem !important;
+    color: inherit;
+    text-decoration: none;
+}
+
+.search__item.is-active .search__link,
+.search__link:hover,
+.search__link:focus-visible {
+    background: rgba(0, 0, 0, 0.03);
+}
+
+.dark .search__item.is-active .search__link,
+.dark .search__link:hover,
+.dark .search__link:focus-visible {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.search__item-title {
+    display: block;
+    font-size: 0.9375rem;
+    line-height: 1.5;
+}
+
+.search__item-meta {
+    display: block;
+    margin-top: 0.15rem !important;
+    font-size: 0.6875rem;
+    line-height: 1.5;
+    color: var(--dim);
+    font-variant-numeric: tabular-nums;
+}
+
+.search__item-snippet {
+    display: block;
+    margin-top: 0.25rem !important;
+    font-size: 0.8125rem;
+    line-height: 1.65;
+    color: var(--dim);
+}
+
+.search__item mark {
+    padding: 0 0.1em !important;
+    border-radius: 0.2em !important;
+    background: rgba(0, 0, 0, 0.07);
+    color: inherit;
+}
+
+.dark .search__item mark {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+@media (max-width: 640px) {
+    .search__title {
+        font-size: 1.5rem !important;
     }
 }

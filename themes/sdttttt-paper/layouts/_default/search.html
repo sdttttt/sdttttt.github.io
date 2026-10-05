@@ -1,0 +1,55 @@
+{{/*
+  Search page — content/search.md sets `layout: search`.
+
+  Pure Hugo: the index is /searchindex.json, built from
+  themes/sdttttt-paper/layouts/index.json (the home page's JSON output format,
+  see hugo.toml), and filtered in the browser by assets/js/search.js. No
+  third-party service, no Fuse.js, nothing extra at build time.
+
+  Without JS the page still renders and reads fine — it just cannot search;
+  the index is only requested once the visitor types something (see
+  assets/js/search.js). Styling lives in assets/custom.css (.search*) because
+  hugo-paper's main.css is a checked-in Tailwind build.
+*/}}
+
+{{- define "main" -}}
+
+{{- $pages := where site.RegularPages "Type" "in" site.Params.mainSections -}}
+{{- $cfg := dict "index" ("searchindex.json" | relURL) "total" (len $pages) "limit" 80 -}}
+{{- $script := resources.Get "js/search.js" | minify | fingerprint -}}
+
+<div class="search not-prose">
+  <h1 class="search__title">{{ .Title }}</h1>
+  {{- with .Content }}
+  <div class="search__intro">{{ . }}</div>
+  {{- end }}
+
+  <p class="search__field">
+    <input
+      class="search__input"
+      id="search-input"
+      type="search"
+      placeholder="输入关键词，回车打开第一篇…"
+      autocomplete="off"
+      spellcheck="false"
+      autofocus
+      aria-label="站内搜索"
+    />
+  </p>
+
+  <p class="search__status" id="search-status" role="status" aria-live="polite"></p>
+
+  <ol class="search__results" id="search-results"></ol>
+</div>
+
+<script id="search-config" type="application/json">
+  {{- $cfg | jsonify | safeJS -}}
+</script>
+<script
+  defer
+  src="{{ $script.RelPermalink }}"
+  integrity="{{ $script.Data.Integrity }}"
+  crossorigin="anonymous"
+></script>
+
+{{- end -}}

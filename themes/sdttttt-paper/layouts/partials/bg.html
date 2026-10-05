@@ -18,6 +18,12 @@
 
   Graceful degradation: 只要 WASM 加载 / 构建 / 建帧任何一步失败，
   JS 什么都不做，盒子就一直是那张图片（= 改造前的行为）。
+
+  性能：这张 <img> 是页面里唯一的即时开销 —— `fetchpriority="low"` 把它排在
+  CSS / 字体之后，而它同时充当「无 JS」与「引擎失败」两条路径的兜底，所以不能
+  改成 JS 赋值（那样 SRI 失败时就只剩空白）。wasm 下载与采样建帧都由
+  assets/js/page-bg.js 在滚到接近页底时才启动（那边的 start()），
+  不读到底的访问一分钱不付。
 */}}
 
 {{- $bgImages := slice -}}
@@ -55,7 +61,13 @@
       "dprCap" 1.5 -}}
 <div class="page-bg" aria-hidden="true">
     <div class="page-bg__box">
-        <img class="page-bg__png" src="{{ index $urls 0 }}" alt="" decoding="async" />
+        <img
+            class="page-bg__png"
+            src="{{ index $urls 0 }}"
+            alt=""
+            decoding="async"
+            fetchpriority="low"
+        />
         <canvas class="page-bg__canvas"></canvas>
     </div>
 </div>

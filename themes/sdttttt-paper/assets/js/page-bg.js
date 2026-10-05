@@ -9,6 +9,9 @@
  * 行为：
  *   - 每次加载随机挑一张图；页面里的 <img> 与粒子用的是同一张
  *   - 默认不可见；滚到文档底部时（html.at-bottom）淡入
+ *   - **引擎按需预热**：只有「快滚到底」（距离页底 2 个视口高度）时才去拉
+ *     wasm、换图、采样建帧 —— 徽标只在页底揭示，绝大多数访问根本看不到它，
+ *     以前却是加载即执行，每页白付 23KB wasm + 一次满量采样（见 start()）
  *   - WASM 成功后加 html.pt-bg-ready → canvas 接管，图片退到幕后
  *   - 双击（document 级监听 + 矩形判定，见下）切换 html.pt-bg-photo
  *   - 任何一步失败 → 什么都不改，保持图片（天然的降级路径）
@@ -54,9 +57,9 @@
   // 边长 == 间距 → 缝隙归零 → 成品退化成无缝拼块），改用 floor 保出缝隙。
   var GRAIN = cfg.grain !== false;
 
-  // 一页一图：页面里的 <img> 与粒子共用同一张
+  // 一页一图：页面里的 <img> 与粒子共用同一张（赋 src 推迟到 start()，
+  // 免得在一篇永远不会滚到底的文章上白下 50KB；HTML 里那张图仍是兜底）
   var SRC = IMAGES[Math.floor(Math.random() * IMAGES.length)];
-  photo.src = SRC;
 
   var ctx = canvas.getContext('2d');
   var mod = null;
@@ -64,6 +67,7 @@
   var drawn = false; // 当前 frame 是否已经画到 canvas 上
 
   /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
+     deferred    还没接近页底，引擎按需预热尚未开始（同样能挡住兜底定时器）
      pending     引擎正在加载（baseof 里的兜底定时器看到这个就不抢答）
      png         未配置 wasm / 加载器没到位
      unsupported 浏览器不支持 WASM → 直接显示原图
@@ -124,6 +128,9 @@
 
   /* 唯一的显隐开关：写 html.at-bottom，CSS 负责淡入 / 淡出。 */
   function syncGate() {
+    // 预热时机：滚到离页底还有 PREWARM_VIEWPORTS 个视口高度时就开工。
+    // 短页面（文档总高不足这么高）在首次调用时就会直接开工，行为和以前一致。
+    if (nearBottom()) start();
     var on = atBottom();
     root.classList.toggle('at-bottom', on);
     // 首次（或 resize 后）揭示时才画；之后画布内容一直有效，不必重画
@@ -224,37 +231,63 @@
     }, 200);
   });
 
+  /* ------------------------------------------------------------ 按需预热 */
+
+  // 距离页底还有 N 个视口高度时开始预热。徽标只在页底揭示，提前两屏启动
+  // 足够让 50KB 图片 + 23KB wasm + 一次采样在淡入动画（0.8s）期间就绪。
+  var PREWARM_VIEWPORTS = 2;
+  var started = false;
+
+  function nearBottom() {
+    var d = document.documentElement;
+    var top = window.scrollY || d.scrollTop || 0;
+    return top + window.innerHeight * (1 + PREWARM_VIEWPORTS) >= d.scrollHeight;
+  }
+
+  /* 幂等的启动开关：photo.src 赋值、wasm 下载 / 编译、采样建帧都发生在这里，
+     所以「读过但没滚到底」的访问一点成本都不付。 */
+  function start() {
+    if (started) return;
+    started = true;
+
+    photo.src = SRC; // 与粒子同源的那张（HTML 里的 src 是兜底用的另一张）
+    mark('pending'); // 从这一刻起才算「引擎加载中」
+
+    if (!cfg.wasm || !window.ptWasm) {
+      mark('png'); // 没配置 / 加载器没来 → 保持 PNG
+      return;
+    }
+    // 显式能力检测：不支持就**连 wasm 都不去拉**，直接用 PNG 原图
+    if (!window.ptWasm.supported) {
+      mark('unsupported');
+      return;
+    }
+    window.ptWasm
+      .instance(cfg.wasm)
+      .then(function (exports) {
+        // 徽标只用 build / settle / alloc / dealloc / resize / 各访问器，
+        // 不做逐帧动画，所以不需要 tick
+        if (typeof exports.build !== 'function' || typeof exports.settle !== 'function') {
+          mark('error');
+          return;
+        }
+        mod = exports;
+        boot();
+      })
+      .catch(function () {
+        mark('error'); // 加载 / 编译失败 → 保持 PNG
+      });
+  }
+
   window.addEventListener('scroll', syncGate, { passive: true });
+
+  // 同步标记「还没开始预热」：baseof 里的 2s 兜底定时器只在**完全无标记**时
+  // 才当降级，所以这个标记能保护“懒加载但一切正常”的情况不被误判。
+  // 必须在下面第一次 syncGate() 之前 —— 否则短页面上 start() 先写上
+  // 'pending' 就被这里覆盖回去了。
+  mark('deferred');
+
   // 初始 + 下一拍各跑一次（字体/布局变化可能改文档高度）
   syncGate();
   setTimeout(syncGate, 50);
-
-  // 同步标记「引擎正在加载」：baseof 里的 2s 兜底定时器只在**完全无标记**时
-  // 才当降级，所以这个标记能保护“网络慢但正常”的情况不被误判。
-  mark('pending');
-
-  if (!cfg.wasm || !window.ptWasm) {
-    mark('png'); // 没配置 / 加载器没来 → 保持 PNG
-    return;
-  }
-  // 显式能力检测：不支持就**连 wasm 都不去拉**，直接用 PNG 原图
-  if (!window.ptWasm.supported) {
-    mark('unsupported');
-    return;
-  }
-  window.ptWasm
-    .instance(cfg.wasm)
-    .then(function (exports) {
-      // 徽标只用 build / settle / alloc / dealloc / resize / 各访问器，
-      // 不做逐帧动画，所以不需要 tick
-      if (typeof exports.build !== 'function' || typeof exports.settle !== 'function') {
-        mark('error');
-        return;
-      }
-      mod = exports;
-      boot();
-    })
-    .catch(function () {
-      mark('error'); // 加载 / 编译失败 → 保持 PNG
-    });
 })();

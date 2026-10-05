@@ -2,8 +2,10 @@
   sdttttt-paper's layouts/_default/baseof.html.
 
   Originally copied from hugo-paper's layouts/_default/baseof.html;
-  diff is only the trailing `{{ partial "bg.html" . }}` call before
-  </body>.
+  two diffs vs upstream:
+    1. the trailing `{{ partial "bg.html" . }}` call before </body>;
+    2. `avatar_url` is only resolved on the home page (see comment at the
+       avatar_url block).
 
   When bumping hugo-paper upstream, sync against
   themes/hugo-paper/layouts/_default/baseof.html and reapply the diff.
@@ -28,7 +30,15 @@
 {{- end -}}<!---->
 {{- end -}}
 
-<!-- avatar_url -->
+<!-- avatar_url — home page only.
+
+     The only consumer of this scratch is list.html's avatar block, which is
+     itself guarded by `and $.IsHome (eq $paginator.PageNumber 1) (eq $index
+     0)`; upstream head.html:49-53 then preloads `avatar_url` on *every* page
+     that has it set (8.6 KB that only the home page ever paints). Leaving the
+     scratch unset elsewhere is what turns that preload off for the rest of
+     the site — head.html stays a plain fall-through (see README, no fork). -->
+{{- if .IsHome -}}<!---->
 {{- if site.Params.avatar -}}<!---->
 {{- if in site.Params.avatar "http" -}}<!---->
 {{- $.Scratch.Set "avatar_url" site.Params.avatar -}}<!---->
@@ -40,6 +50,7 @@
 {{- $md5 := (md5 site.Params.avatar) -}}<!---->
 {{- $avatar_url := print $cdn $md5 "?s=160&d=identicon" -}}<!---->
 {{- $.Scratch.Set "avatar_url" $avatar_url -}}<!---->
+{{- end -}}<!---->
 {{- end -}}<!---->
 {{- end -}}
 
