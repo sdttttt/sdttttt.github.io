@@ -34,6 +34,10 @@ theme = ["sdttttt-paper", "hugo-paper"]
   # Source: assets/src/avatar/avatar.jpg → `deno task optimize-images`.
   avatar = "/avatar.webp"
   name = "SDTTTTT"
+  # 留空占位，顶掉主题的默认文案。注意不能写成 bio = "" —— 主题里是
+  # `site.Params.bio | default (print `A personal blog by ` name)`，空字符串
+  # 在 Go 模板里算 falsy，会被 default 接管又显示出来，所以这里必须是个空格。
+  bio = " "
   # Hugo 已经在构建时用 Chroma 把代码块高亮成内联样式（见下方 [markup.highlight]
   # 的 noClasses/style），主题再挂一个 highlight.js 只会把同一份代码重新标一遍。
   # 关掉它：227 个页面各省 48KB（gzip 20KB）。
