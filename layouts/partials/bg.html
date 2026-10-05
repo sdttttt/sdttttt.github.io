@@ -24,7 +24,7 @@
     {{- range site.Params.bg }}{{ $bgImages = $bgImages | append . }}{{ end -}}
 {{- else -}}
     {{- range readDir "static/bg" -}}
-        {{- if and (not .IsDir) (in (slice ".jpg" ".jpeg" ".png" ".webp" ".gif" ".svg") (path.Ext .Name)) -}}
+        {{- if and (not .IsDir) (eq (path.Ext .Name) ".png") -}}
             {{- if not (hasPrefix .Name ".") -}}
                 {{- $bgImages = $bgImages | append (printf "bg/%s" .Name) }}
             {{- end -}}
