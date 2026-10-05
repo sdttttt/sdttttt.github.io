@@ -1,24 +1,14 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
-  <title>R</title>
-  <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#2A2A2A"/>
-      <stop offset="100%" stop-color="#141414"/>
-    </linearGradient>
-    <linearGradient id="rGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#E89271"/>
-      <stop offset="100%" stop-color="#D97757"/>
-    </linearGradient>
-  </defs>
+<svg xmlns="http://www.w3.org/2000/svg" width="560" height="560" fill="none" viewBox="0 0 560 560">
+  <style>
+    .mark {
+      fill: #111111;
+    }
 
-  <!-- 圆角矩形背景 -->
-  <rect x="0" y="0" width="64" height="64" rx="14" ry="14" fill="url(#bgGrad)"/>
-
-  <!-- 字母 R，使用衬线字体（模拟 Claude 风格） -->
-  <text x="32" y="48"
-        text-anchor="middle"
-        font-family="Georgia, 'Times New Roman', serif"
-        font-size="46"
-        font-weight="700"
-        fill="url(#rGrad)">R</text>
+    @media (prefers-color-scheme: dark) {
+      .mark {
+        fill: #f6f6f6;
+      }
+    }
+  </style>
+  <path class="mark" d="M0 0H140V560H0Z M140 0H560V140H140Z M420 140H560V280H420Z M140 280H420V420H140Z M280 420H420V560H280Z"/>
 </svg>

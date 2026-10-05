@@ -21,6 +21,9 @@ theme = ["sdttttt-paper", "hugo-paper"]
 [params]
   # Theme color preset: linen / wheat / gray / light
   color = "linen"
+  # Favicon: pi.dev mark (SVG, adapts to prefers-color-scheme).
+  # appleTouchIcon defaults to apple-touch-icon.png, which we also replace.
+  favicon = "favicon.svg"
   # Date format used by hugo-paper head.html
   DateFormat = "2006年01月02日"
   # Which content sections to show on the home page list.
