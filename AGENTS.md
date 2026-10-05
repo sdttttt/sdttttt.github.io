@@ -1,13 +1,13 @@
 # 仓库贡献指南（Repository Guidelines）
 
-基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`sdttttt-paper` 子主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)，通过 Hugo `[parent]` block 继承上游）。父主题 vendor-in 到 `themes/hugo-paper/`，自定义修改集中在 `themes/sdttttt-paper/`。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
+基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`sdttttt-paper` 子主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)）。父主题 vendor-in 到 `themes/hugo-paper/`，自定义修改集中在 `themes/sdttttt-paper/`；两者通过 `hugo.toml` 的 `theme = ["sdttttt-paper", "hugo-paper"]` 列表组合，第一个主题的同名文件覆盖第二个。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
 
 ## 项目结构
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
 - `content/claudelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`）。
-- `themes/sdttttt-paper/` — 自定义子主题，通过 Hugo `[parent] name = "Paper"` 继承 `themes/hugo-paper/`：
-  - `theme.toml` — 声明 `[parent]`，让 Hugo modules 把父主题作为组件加载
+- `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
+  - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
   - `layouts/partials/bg.html` — 装饰背景图（3 张 cutout，scroll-gated）
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
@@ -19,7 +19,7 @@
 - `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari / `bg/` cutouts）。
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = "sdttttt-paper"` + `[module.imports]` 声明父主题）；`deno.json` — Deno 任务定义；`go.mod` — Hugo modules 入口（声明仓库为 Hugo module）。
+- `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义。
 
 首次克隆不需要 submodule：`git clone`。
 

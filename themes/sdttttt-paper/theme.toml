@@ -11,8 +11,7 @@ min_version = "0.100.0"
   name = "sdttttt"
   homepage = "https://sdttttt.online/about/"
 
-# Inherit from upstream hugo-paper via Hugo's [parent] block. Layouts/assets
-# in this theme override the parent's same-path files; everything else
-# (head.html, list.html, etc.) falls through to the parent.
-[parent]
-  name = "Paper"
+# No [parent] block: this theme is combined with hugo-paper through the
+# site's `theme = ["sdttttt-paper", "hugo-paper"]` list in hugo.toml, where
+# the first theme's same-path layouts/assets shadow the second's. [parent]
+# is a Hugo Modules concept and is a no-op under directory-based theme lists.

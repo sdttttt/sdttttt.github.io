@@ -1,6 +1,6 @@
 # 海边
 
-基于 [Hugo](https://gohugo.io/) 的个人博客，使用 [hugo-paper](https://github.com/nanxiaobei/hugo-paper) 主题（vendor-in 到 `themes/hugo-paper/`），默认正文语言为简体中文。
+基于 [Hugo](https://gohugo.io/) 的个人博客，使用自定义子主题 `sdttttt-paper`（fork 自 [hugo-paper](https://github.com/nanxiaobei/hugo-paper)）。父主题 vendor-in 到 `themes/hugo-paper/`，自定义修改在 `themes/sdttttt-paper/`，两者通过 `theme = ["sdttttt-paper", "hugo-paper"]` 组合（前者同名文件覆盖后者）。默认正文语言为简体中文。
 
 站点地址：<https://sdttttt.online/>
 
@@ -17,14 +17,14 @@
 ├── content/
 │   ├── posts/         博客文章（Markdown + front matter）
 │   └── claudelog/     AI 维护日志（每日一份 YYYY-MM-DD.md）
-├── layouts/           hugo-paper 之上的自定义模板覆盖
-│   ├── _default/baseof.html   覆写 baseof，调用 bg partial
-│   ├── partials/bg.html       装饰背景图
-│   └── partials/header.html   覆写 header，强制默认亮色
-├── assets/
-│   └── custom.css    hugo-paper 用户 CSS 入口（背景图样式在这里）
+├── themes/
+│   ├── sdttttt-paper/ 自定义子主题（覆盖父主题同名文件）
+│   │   ├── theme.toml
+│   │   ├── layouts/_default/baseof.html
+│   │   ├── layouts/partials/{bg,header,footer}.html
+│   │   └── assets/custom.css
+│   └── hugo-paper/    父主题（vendor-in，同步上游需手动 patch）
 ├── static/            原样拷贝的静态资源（apple-touch-icon / favicon / bg/ cutouts）
-├── themes/hugo-paper/ 主题（vendor-in，同步上游需手动 patch 对应文件）
 ├── scripts/           维护脚本（Deno + TypeScript）
 │   ├── *.ts           入口脚本（validate-posts / rename-posts / git-commit-push / ...）
 │   ├── lib/           共用工具（args / frontmatter / git / fs）
@@ -79,7 +79,9 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 
 ## 同步主题
 
-hugo-paper 是 vendor-in 到 `themes/hugo-paper/` 的普通目录，同步上游需要手动 patch：
+主题分两部分，互不干扰。
+
+**1. 父主题 `themes/hugo-paper/`**（vendor-in，不是 submodule）：
 
 ```bash
 git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone
@@ -88,10 +90,15 @@ diff -ru themes/hugo-paper/ /tmp/hp-clone/ --brief
 rm -rf /tmp/hp-clone
 ```
 
-注意主仓库里以下文件依赖主题文件同步：
+**2. 子主题 override `themes/sdttttt-paper/`**：父主题同步后，按下表 reapply 本地 diff（每个文件头注释也写明了同步对象）：
 
-- `layouts/_default/baseof.html`（baseof.html 上游变动要同步）
-- `layouts/partials/header.html`（header.html 上游变动要同步）
+| 文件                           | 相对父主题的改动                  |
+| ------------------------------ | --------------------------------- |
+| `layouts/_default/baseof.html` | 多了 `{{ partial "bg.html" . }}`  |
+| `layouts/partials/header.html` | 暗色 JS 改为默认亮色              |
+| `layouts/partials/footer.html` | 去掉 powered by / hugo-paper 链接 |
+| `layouts/partials/bg.html`     | 本项目新增，无需同步              |
+| `assets/custom.css`            | 本项目新增，无需同步              |
 
 ## 首次克隆
 
