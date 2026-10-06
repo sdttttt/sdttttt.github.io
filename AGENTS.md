@@ -9,7 +9,7 @@
 - `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
   - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
-  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「飞入聚合 → 落地顿一下 → 待机漂浮」，`$cfg` 里的 `thumpPower` / `idleEffect` / `floatAmp` / `floatPeriod` 是动效旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
+  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「飞入聚合 → 落地顿一下 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，见下），`$cfg` 里的 `thumpPower` / `idleEffect` / `floatAmp` / `floatPeriod` 是动效旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
   - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
@@ -67,8 +67,9 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - **碰过 `assets/src/**` 就必须重跑 `deno task optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。
 - **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
 - **降级链**：左下角徽标的渲染路径会写到 `html[data-pt-engine]` 上，排查时先看这个属性：
-  `deferred`（还没滚到接近页底，引擎按需预热尚未开始）/ `unsupported`（浏览器不支持 WASM，直接显示原图，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退原图）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
-- **徽标按需预热**：`assets/js/page-bg.js` 只在「距离页底还有 2 个视口高度」时才拉 wasm、换图并采样建帧（`start()`），所以不读到底的访问不会付 24KB wasm + 50KB 图片 + 一次采样的成本；`mark('deferred')` 在首个 `syncGate()` 之前同步写下，用来挡住 baseof 的 2s 兜底定时器。
+  `deferred`（还没滚到接近页底，引擎按需预热尚未开始）/ `pending`（引擎加载中，或已加载完但还没滚到页底揭示）/ `unsupported`（浏览器不支持 WASM，直接显示原图，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退原图）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
+- **徽标按需预热**：`assets/js/page-bg.js` 只在「距离页底还有 2 个视口高度」时才拉 wasm（`start()` **只拉 wasm**），所以不读到底的访问不会付 23KB wasm 的成本；`mark('deferred')` 在首个 `syncGate()` 之前同步写下，用来挡住 baseof 的 2s 兜底定时器。
+- **抽图推迟到「揭示」那一刻，且每次揭示都重抽**：`syncGate()` 里只在 `html.at-bottom` **从无到有**的那一刻调 `showImage()` —— 抽签（`pickImage()`，会避开上一张）、换 `<img>` 的 `src`、`sizeCanvas()` + 采样 + `build()` 全在这一刻发生；滚离页底时 `discardFrame()` 把旧帧抹掉并置 `frame = null`（`startMotion()` / 双击 / resize 全都会自动让路）。因此「读过但没滚到底」的访问既不付采样成本、也**永远不会抽签**。首次揭示保留粒子撒在画布外的初态去跑「飞入」，之后每次揭示都只是 `settle()` 吸附成型（`draw()`）—— 在页底上下滚不会反复播 1.6s 的飞入。`revealed` / `pending` / `shownOnce` / `building` 四个标志管住整条状态机。
 - **粒子白线（徽标的白色网格）**：`rasterize()` 把每颗粒子居中吸附到**整数设备像素**，所以当采样间距不是整数（如 3.2）时，相邻方块中心距会在 floor/ceil 之间跳变 —— 跳到 ceil 而边长只有 floor（旧参数：间距 3.2 / 边长 3）就裂出 1px 白线，整幅图上一层可见网格。修法在 `wasm/particles/src/lib.rs` 的 `make()`：`size_mode` 传 2（`$cfg.gapFree`）时 `size = ceil(间距) + round(ratio)`，**此时 `sizeRatio` 的含义从「比例」变成「额外出血量（设备 px）」**。实测首图剪影内孔洞 15.97%（最长连续 630px）→ 3.17%（最长 62px）。⚠️ 出血量同时是**动效安全预算**：相邻两颗粒子反向位移之和超过出血量就会在运动中重新裂洞（实测出血 1.8 设备 px 下，逐粒子漂浮 amp 0.4 / 0.6 CSS px 安全，0.9 开始裂）。
 - **徽标待机动效的判据是「位移梯度」，不是相干性**：格子已几乎拼满，判据是相邻粒子（一个采样间距）的**相对位移**必须远小于出血量。旧参数（出血 0.2 设备 px）下相干场必裂 —— 竖直行波静位移 5px 时头发上浮出横竖条纹、1px 时又完全看不出动过（可用区间近乎为零），绕中心缩放 `pulse()` 虽仿射不拍摩尔纹但仍有整体「呼吸」感 —— 据此一度写下「待机动效只能非相干」的结论；改成无缝边长（出血 1.8 设备 px）后**相干波重新可用**，即引擎里的 `ripple_on()`：
   - `rippleMode: 'rise'`（默认，单向纵波）：波前为水平线、**自下而上**行进，位移沿纵向。位移只随 y 变化 ⇒ 相邻采样行的相对位移 ≈ `amp·k·间距`（λ=80 CSS px 时只有 0.5 设备 px）；

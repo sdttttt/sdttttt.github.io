@@ -34,11 +34,16 @@
  *   真实图片；`prefers-reduced-motion` 下直接吸附出成品，一帧都不动。
  *
  * 行为：
- *   - 每次加载随机挑一张图；页面里的 <img> 与粒子用的是同一张
+ *   - **每次揭示都重新抽一张图**：抽签、采样、建帧全都推迟到「滚到页底、
+ *     徽标真要显示」的那一刻（syncGate → showImage()），所以每次从隐藏
+ *     转为显示都是新的一张（滚离页底时把旧帧抹掉）。只有页面里的第一次
+ *     揭示会走「飞入」，之后都是直接成型 —— 换图那点延迟被 0.8s 的淡入
+ *     盖住，在页底上下滚也不会反复播 1.6s 的飞入。
  *   - 默认不可见；滚到文档底部时（html.at-bottom）淡入
  *   - **引擎按需预热**：只有「快滚到底」（距离页底 2 个视口高度）时才去拉
- *     wasm、换图、采样建帧 —— 徽标只在页底揭示，绝大多数访问根本看不到它，
- *     以前却是加载即执行，每页白付 23KB wasm + 一次满量采样（见 start()）
+ *     wasm（**只拉 wasm**，抽图 / 采样都留给揭示那一刻）—— 徽标只在页底
+ *     揭示，绝大多数访问根本看不到它，以前却是加载即执行，每页白付
+ *     23KB wasm + 50KB 图片 + 一次满量采样（见 start()）
  *   - WASM 成功后加 html.pt-bg-ready → canvas 接管，图片退到幕后
  *   - 双击（document 级监听 + 矩形判定，见下）切换 html.pt-bg-photo
  *   - 任何一步失败 → 什么都不改，保持图片（天然的降级路径）
@@ -133,9 +138,19 @@
   // 漂浮周期（毫秒）。慢了看不见，快了就是抖。
   var FLOAT_PERIOD = cfg.floatPeriod || 5200;
 
-  // 一页一图：页面里的 <img> 与粒子共用同一张（赋 src 推迟到 start()，
-  // 免得在一篇永远不会滚到底的文章上白下 50KB；HTML 里那张图仍是兜底）
-  var SRC = IMAGES[Math.floor(Math.random() * IMAGES.length)];
+  // 抽图：**推迟到揭示那一刻**才跑（见 showImage），而且每次揭示都重抽，
+  // 所以「隐藏过再显示」必然换一张。在一篇永远不会滚到底的文章上，这里连
+  // Math.random() 都不会执行（HTML 里那张 <img> 仍是无 JS 时的兜底）。
+  // 抽的时候避开上一张 —— 否则三张图里有 1/3 概率抽回原图，用户会以为
+  // 「随机坏了」。
+  var picIndex = -1;
+  function pickImage() {
+    var n = IMAGES.length;
+    var i = Math.floor(Math.random() * n);
+    if (n > 1 && i === picIndex) i = (i + 1 + Math.floor(Math.random() * (n - 1))) % n;
+    picIndex = i;
+    return IMAGES[i];
+  }
 
   var ctx = canvas.getContext('2d');
   var mod = null;
@@ -145,7 +160,8 @@
 
   /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
      deferred    还没接近页底，引擎按需预热尚未开始（同样能挡住兜底定时器）
-     pending     引擎正在加载（baseof 里的兜底定时器看到这个就不抢答）
+     pending     引擎正在加载，或已加载完但还没滚到页底揭示（baseof 里的
+                 兜底定时器看到这个就不抢答）
      png         未配置 wasm / 加载器没到位
      unsupported 浏览器不支持 WASM → 直接显示原图
      error       WASM 下载 / 编译 / 构建失败 → 回退原图
@@ -216,6 +232,17 @@
     if (mod.ripple_off) mod.ripple_off();
     mod.settle();
     blit();
+  }
+
+  /* 把画布抹干净、丢掉这一帧（滚离页底时用）。留着旧帧的话，下次揭示的头
+     一瞬间会先贴上**上一轮抽的那张图** —— 那就不是「每次显示都是新图」了。
+     frame = null 顺带让 startMotion() / 双击 / resize 全部自动让路，一直等到
+     showImage() 把新的建好为止。 */
+  function discardFrame() {
+    stopMotion();
+    frame = null;
+    drawn = false;
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
   }
 
   /* ---------------------------------------------------------- 动效状态机 */
@@ -332,7 +359,16 @@
     raf = requestAnimationFrame(step);
   }
 
-  /* 唯一的显隐开关：写 html.at-bottom，CSS 负责淡入 / 淡出。 */
+  // 「当前这段可见期」是不是已经安排过图了 / 揭示时引擎还没就绪的挂起请求
+  var revealed = false;
+  var pending = false;
+  // 本次页面加载是否已经出过一次图（决定这一张走「飞入」还是「直接成型」）
+  var shownOnce = false;
+  // 正在采样 / build：这期间别让 resize、别的揭示插队
+  var building = false;
+
+  /* 唯一的显隐开关：写 html.at-bottom，CSS 负责淡入 / 淡出。
+     **图也是在这里才抽的** —— 每次「隐藏 → 显示」都重新抽一张。 */
   function syncGate() {
     // 预热时机：滚到离页底还有 PREWARM_VIEWPORTS 个视口高度时就开工。
     // 短页面（文档总高不足这么高）在首次调用时就会直接开工，行为和以前一致。
@@ -340,11 +376,28 @@
     var on = atBottom();
     root.classList.toggle('at-bottom', on);
     if (!on) {
-      // 滚离页底就停手：显隐走 CSS 过渡，画布内容不需要重画
+      // 滚离页底就停手：显隐走 CSS 过渡；顺手把这一帧抹掉，下次揭示才是
+      // 新图（下一张此刻还没抽）。挂起中的揭示请求也要撤掉 —— 否则引擎编译
+      // 完还会为一个已经藏起来的徽标白采一次样
+      pending = false;
+      if (revealed) {
+        revealed = false;
+        discardFrame();
+      }
       stopMotion();
       return;
     }
-    if (!frame) return; // 引擎还没就绪（boot() 就绪后会再调一次 syncGate）
+    if (!revealed) {
+      revealed = true;
+      // 引擎还在编译 → 先记下，等 start() 的 then 里补上
+      if (!mod) {
+        pending = true;
+        return;
+      }
+      showImage();
+      return;
+    }
+    // 已经在显示期内（切后台回来、双击切回）：续上动画即可，不换图
     startMotion();
   }
 
@@ -381,8 +434,17 @@
     });
   }
 
-  function boot() {
-    loadImage(SRC)
+  /* 抽一张图 → 采样 → 建帧 → 上屏。整条链只在「徽标真要显示」时才跑，
+     而且是**每次揭示都跑一遍** —— 这就是「随机延迟到滚到页底」的全部实现。
+     第一次出图保留引擎里「粒子撒在画布外」的初态，用来放飞入；之后直接
+     settle() 吸附成型。 */
+  function showImage() {
+    if (!mod || building) return;
+    building = true;
+    var first = !shownOnce;
+    var src = pickImage();
+
+    loadImage(src)
       .then(function (img) {
         var iw = img.naturalWidth;
         var ih = img.naturalHeight;
@@ -413,21 +475,34 @@
         mod.dealloc(p, rgba.length);
         if (rc !== 0) {
           mark('error'); // 失败 → 保持 PNG
+          building = false;
           return;
         }
 
         frame = makeFrame();
         if (!frame) {
           mark('error'); // 失败 → 保持 PNG
+          building = false;
           return;
         }
+        // 图确认解码成功之后再换 <img> 的 src：两层始终同源，而且万一某张
+        // 图挂了也不会把 PNG 兜底层一起弄坏
+        photo.src = src;
 
         // canvas 接管；此时 PNG 仍在 DOM 里，双击可随时切回
         root.classList.add('pt-bg-ready');
         mark('wasm');
-        syncGate();
+        shownOnce = true;
+        building = false;
+        if (first) {
+          phase = 'land'; // 粒子还在画布外 → 飞入 → 落地顿一下 → 待机
+        } else {
+          draw(); // 直接吸附成型（draw() 里会清掉上一轮的待机动效状态）
+        }
+        startMotion();
       })
       .catch(function () {
+        building = false;
         mark('error'); // 保持 PNG 不动即可
       });
   }
@@ -437,13 +512,15 @@
     syncGate();
     clearTimeout(resizeTimer);
     resizeTimer = setTimeout(function () {
-      if (!mod || !frame) return;
+      // 引擎没就绪 / 徽标正藏着（frame 已被丢弃）/ 正在采样：这几种情况都不用
+      // 管 —— 下次揭示时的 build() 会按新尺寸重来
+      if (!mod || !frame || building) return;
       var s = sizeCanvas();
       if (mod.resize(s.w, s.h, PITCH_CSS * s.dpr) !== 0) return;
       frame = makeFrame(); // resize 内部重建，视图要跟着换
       if (!frame) return;
       // resize 会把粒子位置重新随机，直接吸附重画（**不重放飞入**：徽标已经
-      // 落定了，拖动窗口时反复飞入会很闹），然后接着荡漾
+      // 落定了，拖动窗口时反复飞入会很闹），然后接着漂浮
       drawn = false;
       draw();
       startMotion();
@@ -469,13 +546,13 @@
     return top + window.innerHeight * (1 + PREWARM_VIEWPORTS) >= d.scrollHeight;
   }
 
-  /* 幂等的启动开关：photo.src 赋值、wasm 下载 / 编译、采样建帧都发生在这里，
-     所以「读过但没滚到底」的访问一点成本都不付。 */
+  /* 幂等的启动开关：**只**负责把 wasm 拉下来 / 编译好（约 23KB），不抽图、
+     不采样、不建帧 —— 那些推迟到揭示那一刻（showImage()）。所以「读过但
+     没滚到底」的访问既不付采样成本，也永远不会抽签。 */
   function start() {
     if (started) return;
     started = true;
 
-    photo.src = SRC; // 与粒子同源的那张（HTML 里的 src 是兜底用的另一张）
     mark('pending'); // 从这一刻起才算「引擎加载中」
 
     if (!cfg.wasm || !window.ptWasm) {
@@ -507,7 +584,12 @@
           NO_ANIM = true;
         }
         mod = exports;
-        boot();
+        // 编译好了。如果这会儿已经滚到页底（短页面，或者滚得比下载还快），
+        // 就把那次挂起的揭示补上
+        if (pending) {
+          pending = false;
+          showImage();
+        }
       })
       .catch(function () {
         mark('error'); // 加载 / 编译失败 → 保持 PNG
