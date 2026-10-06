@@ -15,6 +15,6 @@
     "test-wasm": "cd wasm/particles && cargo test"
   },
   "unstable": ["sloppy-imports"],
-  "exclude": ["themes/PaperMod", "themes/hugo-paper", ".tools", ".npm-cache"],
+  "exclude": ["themes/hugo-paper", ".tools", ".npm-cache"],
   "nodeModulesDir": "none"
 }

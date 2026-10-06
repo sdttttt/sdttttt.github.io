@@ -28,7 +28,7 @@ theme = ["sdttttt-paper", "hugo-paper"]
   DateFormat = "2006年01月02日"
   # Which content sections to show on the home page list.
   # Without this, hugo-paper's list.html pulls every RegularPage and the
-  # claudelog entries would crowd the home feed.
+  # changelog entries would crowd the home feed.
   mainSections = ["posts"]
   # Avatar: local optimized image in static/ (served at /avatar.webp).
   # Source: assets/src/avatar/avatar.jpg → `deno task optimize-images`.

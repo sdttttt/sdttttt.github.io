@@ -4,8 +4,8 @@ import {
   shouldSkip,
   checkUrl,
   checkUrlGet,
-  walkMarkdown,
 } from '../check-dead-links.js';
+import { walkMarkdown } from '../lib/fs.js';
 import { expect } from './expect.js';
 import { inTempDir } from './temp-dir.js';
 import { mkdirSync, writeFileSync } from 'node:fs';

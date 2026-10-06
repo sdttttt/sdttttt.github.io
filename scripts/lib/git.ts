@@ -71,12 +71,6 @@ export function gitHasStagedChanges(): boolean {
   }
 }
 
-/** 检测工作区是否有任何变更（包括未跟踪文件） */
-export function gitHasChanges(): boolean {
-  const out = execSync('git status --porcelain', { encoding: 'utf8' });
-  return out.trim().length > 0;
-}
-
 /** 配置 github-actions[bot] 提交者身份 */
 export function setupBotIdentity(opts?: ExecOptions): void {
   gitExec('config user.name "github-actions[bot]"', opts);

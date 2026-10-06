@@ -27,8 +27,6 @@ interface DeadLink {
   status: number | string;
 }
 
-export { walkMarkdown };
-
 export async function checkUrl(url: string, ms: number = timeout): Promise<{ ok: boolean; status: number | string }> {
   try {
     const controller = new AbortController();

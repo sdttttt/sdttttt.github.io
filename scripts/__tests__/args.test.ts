@@ -1,5 +1,5 @@
 import { describe, test } from 'node:test';
-import { parseArgs, getString, getBoolean, getStrings, getNumber } from '../lib/args.js';
+import { parseArgs, getString, getBoolean, getNumber } from '../lib/args.js';
 import { expect } from './expect.js';
 
 describe('parseArgs', () => {
@@ -73,20 +73,6 @@ describe('getBoolean', () => {
 
   test('缺失为 false', () => {
     expect(getBoolean({ _: [] }, 'dryRun')).toBe(false);
-  });
-});
-
-describe('getStrings', () => {
-  test('数组原样返回', () => {
-    expect(getStrings({ _: [], key: ['a', 'b'] }, 'key')).toEqual(['a', 'b']);
-  });
-
-  test('字符串包装成数组', () => {
-    expect(getStrings({ _: [], key: 'a' }, 'key')).toEqual(['a']);
-  });
-
-  test('缺失返回空数组', () => {
-    expect(getStrings({ _: [] }, 'key')).toEqual([]);
   });
 });
 

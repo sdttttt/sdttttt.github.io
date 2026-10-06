@@ -52,13 +52,6 @@ export function getBoolean(args: ParsedArgs, key: string): boolean {
   return v === true || v === 'true';
 }
 
-export function getStrings(args: ParsedArgs, key: string): string[] {
-  const v = args[key];
-  if (Array.isArray(v)) return v;
-  if (typeof v === 'string') return [v];
-  return [];
-}
-
 export function getNumber(args: ParsedArgs, key: string): number | undefined {
   const v = args[key];
   if (typeof v === 'number') return v;
