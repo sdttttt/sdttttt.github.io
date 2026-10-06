@@ -49,16 +49,29 @@
 {{- $wasm := resources.Get "wasm/particles.wasm" | fingerprint -}}
 {{- $loader := resources.Get "js/pt-wasm.js" | minify | fingerprint -}}
 {{- $script := resources.Get "js/page-bg.js" | minify | fingerprint -}}
+{{/* 徽标粒子参数（2026-10-06 实测标定）。间距换算规则：
+     step = round(pitchCss × 源图宽 / 画布CSS宽)，**与 dpr 无关** —— dpr 在 scale 和
+     pitchDev 里同时出现被约掉了；dprCap 只影响 sizePx 的取整粒度与光栅锐度。
+     现状 800px 源图 / 320px 画布：pitchCss 1.2 → step 3（约 55k 粒子、覆盖率 38%），
+     比旧的 pitchCss 2（step 5、19.8k 粒子、24.6%）密 2.8×。
+     sizeRatio 0.95 + grain false（走 round 而非 floor）是为了稳定拿到 1.00 CSS px
+     的粒子：旧的 0.85 + floor 在 dpr1.5 下只到 2 设备像素，窄视口更会塌成 1 设备
+     像素（= 0.5 CSS px），覆盖率掉到 11% 发虚；0.95 + round 在 dpr 1/1.5/2 与
+     170–320px 全宽度下都能守住 ≥1.00 CSS px。
+     dprCap 不要超过 2：dpr3 下同样是 step 3，但 size 仍 round 到 2 → 0.67 CSS px，
+     覆盖率反而掉回 38%。
+     maxParticles 只是 step 搜索的上限（到 step3 实际只用 ~55k），给 200000 留出
+     换图余量；Rust 侧另有硬上限 clamp(200, 400000)。 */}}
 {{- $cfg := dict
       "images" $urls
       "wasm" $wasm.RelPermalink
-      "pitchCss" 2
-      "maxParticles" 60000
-      "sizeRatio" 0.85
-      "grain" true
+      "pitchCss" 1.2
+      "maxParticles" 200000
+      "sizeRatio" 0.95
+      "grain" false
       "fitW" 1
       "fitH" 1
-      "dprCap" 1.5 -}}
+      "dprCap" 2 -}}
 <div class="page-bg" aria-hidden="true">
     <div class="page-bg__box">
         <img

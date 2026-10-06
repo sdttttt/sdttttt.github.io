@@ -53,8 +53,10 @@
   // 粒子网格间距（CSS px）—— 视觉密度的**唯一旋钮**，与画布尺寸解耦
   var PITCH_CSS = cfg.pitchCss || 2;
   var MAX_PARTICLES = cfg.maxParticles || 60000;
-  // 徽标默认开颗粒感：尺寸小时 round 会把 sizeRatio 吃掉（3 × 0.85 → 3，
-  // 边长 == 间距 → 缝隙归零 → 成品退化成无缝拼块），改用 floor 保出缝隙。
+  // grain = true（默认）走 floor：保证 size 严格小于间距，任何参数下都留缝隙，
+  // 代价是低 dpr 时 size 会被压到 1 设备像素（= 0.5 CSS px），下采样后发白。
+  // grain = false 走 round：能命中带小数的边长（徽标用它把 size 稳定在 1.00 CSS
+  // px），但 sizeRatio 给大了会让边长追上间距、缝隙归零。
   var GRAIN = cfg.grain !== false;
 
   // 一页一图：页面里的 <img> 与粒子共用同一张（赋 src 推迟到 start()，
