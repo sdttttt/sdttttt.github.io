@@ -48,6 +48,26 @@ fn unit_circle() -> (f32, f32) {
 
 // ============================================================== 引擎
 
+/// Bhaskara I 的正弦近似（最大误差约 0.16%），够做视觉动效。
+///
+/// 为什么不用 `f32::sin`：它会经由 libm 把整套三角函数拖进 wasm，实测产物
+/// 从 23KB 涨到 30KB（+33%）。这里只需要「长得像正弦」，所以用一个有理
+/// 近似 + 半周期折叠，只用 `floor`（wasm 原生指令），不引入任何库函数。
+fn fast_sin(x: f32) -> f32 {
+    const PI: f32 = 3.141_592_7;
+    let t = x / TAU;
+    let mut t = t - t.floor();
+    let sign = if t > 0.5 {
+        t -= 0.5;
+        -1.0
+    } else {
+        1.0
+    };
+    let u = t * TAU; // 折叠到 [0, π)
+    let p = u * (PI - u);
+    sign * 16.0 * p / (5.0 * PI * PI - 4.0 * p)
+}
+
 struct Engine {
     n: usize,
     // 物理状态：当前位置 / 速度 / 目标位置
@@ -91,6 +111,22 @@ struct Engine {
     f_amp: f32,
     f_wx: f32,
     f_wy: f32,
+    // ---- 常驻水波（相干位移场，开关是 ripple_on）----
+    //
+    // 与漂浮**共用** fx/fy 这两个偏移数组（同一时刻只会开一个）。区别在于
+    // 漂浮是逐粒子随机相位的（非相干），水波是粒子位置的函数（相干）。
+    //
+    // 相干位移在「已经拼满」的格子上本来是雷区（下面 ripple_on 里有详述），
+    // 所以这里两个模式都把**位移梯度**压得很低：剪切模式干脆只沿 x 平移
+    // （行距分毫不变），径向模式的波长远大于采样间距。
+    //
+    // 水波不做积分、也不需要相位表：每一帧都由 tick() 从粒子位置重新算出来。
+    w_amp_x: f32,
+    w_amp_y: f32,
+    w_k: f32,
+    w_w: f32,
+    w_mode: u32,
+    w_phase: f32,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -286,6 +322,14 @@ fn make(
         f_amp: 0.0,
         f_wx: 0.0,
         f_wy: 0.0,
+        // 水波同样默认关闭：build() 之后由 ripple_on() 打开。
+        // 飞入 / 落地这些相干阶段两个都关着，引擎不用同时维护三套物理。
+        w_amp_x: 0.0,
+        w_amp_y: 0.0,
+        w_k: 0.0,
+        w_w: 0.0,
+        w_mode: 0,
+        w_phase: 0.0,
     }
 }
 
@@ -322,6 +366,45 @@ impl Engine {
         }
     }
 
+    /// 设定水波参数。只在 build / resize / 开关时调用，从不逐帧调用。
+    ///
+    /// `amp_x`/`amp_y` 是设备像素振幅，`k` 是空间角频率（rad/设备像素），
+    /// `w` 是每帧相位增量（rad/帧），`mode` 0 = 横向剪切、1 = 径向涟漪。
+    ///
+    /// 与 init_float 不同，这里**不往 fx/fy 里塞初值** —— 水波是确定性位移场，
+    /// 每帧都由 tick() 重算。但偏移数组还是得保证长度等于 n（与漂浮共用，
+    /// 谁先开谁负责分配）。
+    fn init_ripple(&mut self, amp_x: f32, amp_y: f32, k: f32, w: f32, mode: u32) {
+        let on = amp_x != 0.0 || amp_y != 0.0;
+        if !on {
+            self.w_amp_x = 0.0;
+            self.w_amp_y = 0.0;
+            self.w_phase = 0.0;
+            // 数组留着（长度仍是 n），只把内容清干净：resize 之后重新打开
+            // 就不用再分配一次。
+            for v in self.fx.iter_mut() {
+                *v = 0.0;
+            }
+            for v in self.fy.iter_mut() {
+                *v = 0.0;
+            }
+            return;
+        }
+        if self.fx.len() != self.n {
+            let n = self.n;
+            self.fx = vec![0.0; n];
+            self.fy = vec![0.0; n];
+            self.fvx = vec![0.0; n];
+            self.fvy = vec![0.0; n];
+        }
+        self.w_amp_x = amp_x;
+        self.w_amp_y = amp_y;
+        self.w_k = k;
+        self.w_w = w;
+        self.w_mode = mode;
+        self.w_phase = 0.0;
+    }
+
     /// 软件光栅化：清屏 + 把每颗粒子写成一个 size×size 的色块
     fn rasterize(&mut self) {
         self.fb.fill(0);
@@ -329,8 +412,9 @@ impl Engine {
         let h = self.fb_h as i32;
         let s = self.size;
         let half = s / 2;
-        // 没有漂浮时走原路径，省掉每帧 n 次加法
-        let floating = self.f_amp > 0.0 && self.fx.len() == self.n;
+        // 没有位移时走原路径，省掉每帧 n 次加法
+        let floating = (self.f_amp > 0.0 || self.w_amp_x != 0.0 || self.w_amp_y != 0.0)
+            && self.fx.len() == self.n;
 
         for i in 0..self.n {
             let (ox, oy) = if floating {
@@ -421,8 +505,9 @@ pub extern "C" fn resize(cw: u32, ch: u32, pitch: f32) -> i32 {
     );
     let src = e.src.clone();
     // 漂浮的相位表必须跟着新粒子数组重建（n 变了），但频率与振幅要留着，
-    // 否则一次窗口缩放就会把漂浮静默关掉。
+    // 否则一次窗口缩放就会把漂浮静默关掉。水波同理。
     let (f_amp, f_wx, f_wy) = (e.f_amp, e.f_wx, e.f_wy);
+    let (w_amp_x, w_amp_y, w_k, w_w, w_mode) = (e.w_amp_x, e.w_amp_y, e.w_k, e.w_w, e.w_mode);
     let mut next = make(
         &src,
         sw,
@@ -436,6 +521,9 @@ pub extern "C" fn resize(cw: u32, ch: u32, pitch: f32) -> i32 {
         max_particles,
         size_mode,
     );
+    // 顺序要紧：init_ripple 在关掉时会清空 fx/fy，而 init_float 要往这两个
+    // 数组里写漂浮的相位表。先水波、后漂浮，漂浮才不会被清掉。
+    next.init_ripple(w_amp_x, w_amp_y, w_k, w_w, w_mode);
     next.init_float(f_amp, f_wx, f_wy);
     unsafe { ENGINE = Some(next) };
     0
@@ -444,11 +532,12 @@ pub extern "C" fn resize(cw: u32, ch: u32, pitch: f32) -> i32 {
 /// 推进一帧：物理积分 + 光栅化。返回 1 表示还在动，0 表示已静止。
 /// 注意：内部不分配内存，保证 memory 不增长、JS 视图不失效。
 ///
-/// 这是**唯一的**动画来源。两条完全独立的通道：
+/// 这是**唯一的**动画来源。三条完全独立的通道：
 ///   · 弹簧：把飞入撒开的 px/py 收到 tx/ty（`burst()` 只负责往 vx/vy 里塞一把力）
-///   · 漂浮：`float_on()` 打开后一直在跑的逐粒子微位移（简谐积分，无三角）
-/// 只要漂浮还开着，这个函数永远不会返回 0 —— 调用方「还在动就继续排帧」
-/// 的循环天然就是常驻的。
+///   · 漂浮：`float_on()` 打开后一直在跑的**逐粒子微位移**（简谐积分，无三角）
+///   · 水波：`ripple_on()` 打开后一直在跑的**相干位移场**（确定性，每帧重算）
+/// 后两者共用 fx/fy，同一时刻只会开一个。只要任一个还开着，这个函数永远
+/// 不会返回 0 —— 调用方「还在动就继续排帧」的循环天然就是常驻的。
 #[no_mangle]
 pub extern "C" fn tick() -> i32 {
     let e = match eng() {
@@ -501,8 +590,56 @@ pub extern "C" fn tick() -> i32 {
         }
     }
 
+    // 水波：**确定性位移场** —— 每帧直接从粒子位置重算，不做积分、不需要相位表。
+    // 相干位移本来会撕出白线（相邻粒子的相对位移超过方块出血量就会裂缝），
+    // 所以两个模式都把位移梯度压得很低，详见 ripple_on()。
+    let rippling = (e.w_amp_x != 0.0 || e.w_amp_y != 0.0) && e.fx.len() == e.n;
+    if rippling {
+        let (k, phase) = (e.w_k, e.w_phase);
+        let (ax, ay) = (e.w_amp_x, e.w_amp_y);
+        match e.w_mode {
+            // 横向剪切（经典的水中倒影）：位移只取决于 y，同一行整体平移。
+            // 行距分毫不变 ⇒ 相对位移恒为 0 ⇒ 结构上不可能裂缝，振幅给多大
+            // 都不用担心白线（只会被推离画布）。
+            0 => {
+                let (py, fx, fy) = (&e.py, &mut e.fx, &mut e.fy);
+                for i in 0..e.n {
+                    let t = py[i] * k + phase;
+                    // 两个不可通约的波叠加：整幅图不会周期性「复位」，看起来
+                    // 更像活水而不是一条规则的正弦。
+                    let s = fast_sin(t) + 0.45 * fast_sin(t * 0.61 + 1.3);
+                    fx[i] = ax * s;
+                    fy[i] = ay * s;
+                }
+            }
+            // 径向涟漪（石头落水）：沿半径方向向外推，越靠外越弱。
+            // 这里靠的是**低梯度**：波长（几十个设备 px）远大于采样间距
+            // （3.2px），相邻粒子的相对位移 ≈ amp·k·spacing，实测振幅
+            // 10 设备 px 时也只有 0.5px，仍小于出血量。
+            _ => {
+                let cx = e.fb_w as f32 * 0.5;
+                let cy = e.fb_h as f32 * 0.5;
+                let inv_fall = 1.0 / (e.fb_h as f32 * 0.6);
+                let (px, py, fx, fy) = (&e.px, &e.py, &mut e.fx, &mut e.fy);
+                for i in 0..e.n {
+                    let dx = px[i] - cx;
+                    let dy = py[i] - cy;
+                    let r = (dx * dx + dy * dy).sqrt().max(1.0);
+                    let s = fast_sin(r * k - phase) + 0.4 * fast_sin(r * k * 0.53 - phase * 0.7);
+                    let a = s / (1.0 + r * inv_fall);
+                    fx[i] = ax * a * (dx / r);
+                    fy[i] = ay * a * (dy / r);
+                }
+            }
+        }
+        e.w_phase += e.w_w;
+        if e.w_phase > TAU {
+            e.w_phase -= TAU;
+        }
+    }
+
     e.rasterize();
-    if max_v > 0.05 || floating {
+    if max_v > 0.05 || floating || rippling {
         1
     } else {
         0
@@ -571,13 +708,11 @@ pub extern "C" fn burst(x: f32, y: f32, radius: f32, power: f32) -> i32 {
 /// `period` 是 x 方向的周期，单位是**帧**；y 方向内部用 1.37 倍周期（互质
 /// 得差不多就行），免得每颗粒子都沿同一条斜线来回。
 ///
-/// 为什么这不是「呼吸」也不是「行波」：
-///   · 呼吸 / 缩放是**相干**的 —— 全图所有粒子同时往同一个方向走，格子
-///     间距会被整体改变，实测会沿水平方向浮出规律的亮纹。
-///   · 漂浮是**非相干**的 —— 每颗粒子的相位独立、振幅也不同，不存在某个
-///     方向上的整体事件，所以结构上不可能长出摩尔纹、也不可能亮纹爬行。
-///
-/// 相位在建表时从 `rnd()` 生成（单位圆上的随机点），运行时只做 `v -= d·ω²;
+/// 为什么它不是「行波」那种会拍出条纹的东西：漂浮是**非相干**的 ——
+/// 每颗粒子的相位独立、振幅也不同，不存在某个方向上的整体事件，所以结构上
+/// 不可能长出摩尔纹、也不可能亮纹爬行。（想要相干的水波请用 ripple_on()，
+/// 那边靠压住位移梯度来避坑。）
+////// 相位在建表时从 `rnd()` 生成（单位圆上的随机点），运行时只做 `v -= d·ω²;
 /// d += v`，**一个三角函数都不用**：这直接关系到 wasm 体积，实测真的引入
 /// `f32::sin` 会把 libm 拖进来，产物从 23KB 涨到 30KB（+33%）。
 ///
@@ -596,8 +731,68 @@ pub extern "C" fn float_on(amp: f32, period: f32) -> i32 {
     let period = period.clamp(30.0, 100_000.0);
     let wx = TAU / period;
     let wy = TAU / (period * 1.37);
+    // 漂浮与水波共用 fx/fy，同一时刻只能开一个（不做叠加：叠加之后的位移
+    // 梯度不再可控，白线就回来了）。
+    e.w_amp_x = 0.0;
+    e.w_amp_y = 0.0;
+    e.w_mode = 0;
+    e.w_phase = 0.0;
     e.init_float(amp, wx, wy);
     1
+}
+
+/// 打开**常驻水波**：一个**相干**的位移场 —— 粒子按自己的位置（而不是随机
+/// 相位）整体荡漾，像水面一样。
+///
+/// `amp_x`/`amp_y` 是设备像素振幅（上界），`wavelength` 是**设备像素**波长，
+/// `period` 是周期（**帧**），`mode`：0 = 横向剪切、1 = 径向涟漪。
+///
+/// 相干位移在「已经拼满」的格子上本来是雷区：相邻粒子的相对位移一旦超过
+/// 方块之间的出血量，缝隙就会被撕开、屏幕上冒出一层白纹 —— 这正是当年把
+/// 行波和缩放统统否掉的原因（那时的出血量只有 0.2 设备 px，可用区间近乎为 0）。
+/// 现在有两种安全用法：
+///   · mode 0 把位移**限制成只随 y 变化的水平平移**：同一行整体平移，行距
+///     分毫不变，相对位移恒等于 0，结构上不可能裂缝，振幅想给多大都行。
+///   · mode 1 靠**低梯度**：波长远大于采样间距，相邻粒子的相对位移
+///     ≈ amp·k·spacing；λ = 120 设备 px、spacing = 3.2 时只有 0.05·amp，
+///     振幅 10 设备 px 也才 0.5px，仍小于出血量 1.8px。
+///
+/// 返回 1 表示已开启；0 表示没有引擎 / 参数非法。
+#[no_mangle]
+pub extern "C" fn ripple_on(
+    amp_x: f32,
+    amp_y: f32,
+    wavelength: f32,
+    period: f32,
+    mode: u32,
+) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !(wavelength > 0.0) || !wavelength.is_finite() || !(period > 0.0) || !period.is_finite() {
+        e.init_ripple(0.0, 0.0, 0.0, 0.0, 0);
+        return 0;
+    }
+    let period = period.clamp(30.0, 100_000.0);
+    let amp_x = if amp_x.is_finite() { amp_x } else { 0.0 };
+    let amp_y = if amp_y.is_finite() { amp_y } else { 0.0 };
+    // 同上：与漂浮互斥，先把它关掉（含相位表，交给 init_ripple 复用/重建）
+    e.f_amp = 0.0;
+    e.init_ripple(amp_x, amp_y, TAU / wavelength, TAU / period, mode);
+    1
+}
+
+/// 关闭水波（回到静止成品帧）。
+#[no_mangle]
+pub extern "C" fn ripple_off() -> i32 {
+    match eng() {
+        Some(e) => {
+            e.init_ripple(0.0, 0.0, 0.0, 0.0, 0);
+            1
+        }
+        None => 0,
+    }
 }
 
 /// 关闭漂浮（回到静止成品帧）。飞入 / 落地这些相干阶段会自动停用。

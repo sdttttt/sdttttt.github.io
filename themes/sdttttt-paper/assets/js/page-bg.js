@@ -4,18 +4,27 @@
  * 呈现方式（2026-10 起重做）：**飞入聚合 → 落地顿一下 → 待机漂浮**。
  *   build() 时粒子被随机撒在一个比画布大的范围里，tick() 的弹簧阻尼把它们
  *   收拢到目标位置（这就是「飞入」，约 1.6s）；落定瞬间用 burst() 从画布中心
- *   补一记径向冲量（「顿一下」）；之后由 float_on() 接管 —— 每颗粒子围绕自己
- *   的目标位做**相位独立**的小幅简谐运动，就是「漂浮」。显隐依旧是 CSS 的
- *   opacity 过渡。
+ *   补一记径向冲量（「顿一下」）；之后由 float_on() 接管 —— 每颗粒子拿一套
+ *   随机相位/振幅、绕自己的初始位慢慢画圆，单颗粒子只挪亚像素级，整幅看上去
+ *   是**像素点在微微闪烁**。显隐依旧是 CSS 的 opacity 过渡。
  *
- *   为什么待机只能是非相干运动：粒子方块的边长（5 设备 px）比采样间距
- *   （3.2 设备 px）只大 1.8px，格子已经拼满（方块之间是重叠的），所以**任何
- *   让相邻粒子产生相对位移**的驱动力都会把格子拍成干涉纹。实测（1:1）过三种
- *   相干驱动：竖直行波（静位移 5px 时头发上浮出横竖条纹、1px 时又完全看不出
- *   动过，可用区间近乎为零）、绕中心缩放脉冲（仿射，不拍摩尔纹，但仍有
- *   可察的整体「呼吸」）、以及最初的常驻呼吸 —— 后者让白线**爬行**，是用户
- *   直接看到的毛病。漂浮的每颗粒子相位、振幅都独立，不存在某个方向上的
- *   整体事件，结构上不可能长出线条。
+ *   待机动效这里走过一段弯路，值得记一笔。粒子方块的边长（5 设备 px）比
+ *   采样间距（3.2 设备 px）只大 1.8px，方块之间只是勉强相接，所以**位移
+ *   梯度**一大就会把缝隙撕开、冒出白纹。当年在「出血量只有 0.2px」的旧
+ *   参数下试过竖直行波（静位移 5px 就出条纹、1px 又完全看不出动过，可用
+ *   区间近乎为零）、绕中心缩放（会整体「呼吸」），一度得出「相干驱动力
+ *   一律不可用」的结论 —— 那个结论只在旧参数下成立。改成无缝边长、出血量
+ *   1.8px 之后，只要**把位移梯度压低**，相干波（ripple_on：径向涟漪 /
+ *   横向剪切 / 单向纵波）就重新可用，实测也确实比随机漂浮自然：
+ *     · 径向涟漪：波长远大于采样间距，相邻粒子的相对位移 ≈ amp·k·间距，
+ *       λ = 120 设备 px、间距 3.2 时只有 0.05·amp，振幅 8px 才 0.4px。
+ *     · 横向剪切：位移只随 y 变化 → 同一行整体平移，行距分毫不变，
+ *       相对位移恒等于 0，结构上不可能裂缝。
+ *   真正不能用的是「让相邻行互相错开」的垂直位移 —— 1:1 图上立刻出条纹。
+ *
+ *   **但最后选的是 float**：水波压到 amp 2 CSS px / λ 80 / 7.5s 之后，反馈
+ *   仍是「整幅在动」；相比之下逐粒子漂浮只有亚像素级抖动、安静得多。
+ *   引擎侧的 float_on / ripple_on 都还在，改 cfg.idleEffect 就能换回去。
  *
  *   白线本身是另一个坑，在 Rust 的 make() 里用 size_mode = 2（无缝）解决：
  *   取整后 size 3 < 间距 3.2，方块中心又被吸附到整数像素，相邻中心距在 3/4
@@ -79,24 +88,47 @@
   var SIZE_MODE = cfg.gapFree ? 2 : cfg.grain === false ? 1 : 0;
 
   // ---- 动效参数 ----
-  // 按「相干 / 非相干」分三类。相干 = 全图粒子被同一个场驱动，运动会改写
-  // 格子间距，而格子本来已经快拼满了（4px 方块 / 3.2px 间距）→ 会拍出条纹；
-  // 非相干 = 每颗粒子自己一套相位与振幅，不存在整体事件，结构上不可能。
+  // 三个阶段：飞入（land）→ 落地顿一下（thump）→ 待机（idle）。
   //
-  //   飞入（land）   相干：弹簧把撒开的粒子收拢到目标位，约 1.6s，只跑一次
-  //   落地（thump）  相干：burst() 从中心补一记径向冲量，给落定一个「顿」
-  //   漂浮（idle）   非相干：float_on() 常驻，逐粒子独立相位的微位移
-  //
-  // 所以长期的待机状态只能用漂浮。
+  //   飞入 / 落地都是**相干**冲量，但只跑一次，而且此时粒子还在大范围移动，
+  //   没人会去数格子。长期待机则必须挑一个**位移梯度足够低**的场：
+  //   idleEffect 选 'float'（逐粒子随机相位，非相干）或 'ripple'（水波，
+  //   相干，三个模式，详见 Rust 的 ripple_on()）。float 是当前默认。
   //
   // 落地冲量力度（设备像素速度）：发动机里线性衰减到半径处归零，
   // 1.4 对应峰值位移 3 个设备像素左右 —— 明显一顿但不散架。0 = 不顿。
   var THUMP_POWER = cfg.thumpPower == null ? 1.4 : cfg.thumpPower;
-  // 漂浮振幅（**CSS px**，内部乘 dpr 转设备 px）。相邻两颗粒子各自最多
-  // 可以反向走 2×振幅，所以这个值受「出血量」约束：现状 step4 的出血是
-  // 1.8 设备 px（间距 3.2 / 边长 5），实测 0.4 CSS px（@dpr2 = 0.8 设备 px，
-  // 峰值相对位移 1.6px）下的透明孔洞与静止帧完全一致。再大就会偶尔冒
-  // 随机的小洞（不是线，但也没必要）。
+
+  // 待机动效：'float'（逐粒子随机漂浮，默认 —— 单颗粒子只挪亚像素级，整幅
+  // 看上去是轻微的像素闪烁）或 'ripple'（水波荡漾）。写其他值一律按 float。
+  var IDLE_EFFECT = cfg.idleEffect === 'ripple' ? 'ripple' : 'float';
+
+  // 水波参数（只在 idleEffect: 'ripple' 时生效；留着是为了能一键切回去）。
+  // 振幅与波长都写 **CSS px**，内部乘 dpr 转设备 px —— 观感与
+  // 屏幕密度无关；而 dpr 被 dprCap 夹在 2 以内，梯度也就总是在安全范围内。
+  //   rippleMode   'rise'   单向纵波：波前是水平线，**自下而上**推过去，
+  //                         位移沿纵向（画面像被一波波抬起）。默认
+  //                'radial' 径向涟漪（从画布中心一圈圈荡开）
+  //                'shear'  横向剪切（同一行整体左右平移，经典水中倒影）
+  //   rippleAmp    振幅（CSS px）
+  //   rippleLength 波长（CSS px）。60 时整幅约 7 个波，是「细密荡漾」的量级；
+  //                120/240 更接近大涌
+  //   ripplePeriod 一个周期多少毫秒（慢了看不见，快了就是抖）
+  //
+  // 'rise' 与 'shear' 共用引擎里的模式 0（位移只随 y 变化），区别只在把振幅
+  // 给哪一个分量：'shear' 给横向（行距不变，结构上不可能裂）、'rise' 给纵向
+  // （行距会被压缩/拉伸，靠低梯度保安全 —— 波长 80 CSS px 下相邻采样行的
+  // 相对位移只有 0.5 设备 px，出血量 1.8）。
+  var RIPPLE_RISE = cfg.rippleMode === 'rise';
+  var RIPPLE_MODE = cfg.rippleMode === 'shear' || RIPPLE_RISE ? 0 : 1;
+  var RIPPLE_AMP = cfg.rippleAmp == null ? 2 : cfg.rippleAmp;
+  var RIPPLE_LENGTH = cfg.rippleLength || 80;
+  var RIPPLE_PERIOD = cfg.ripplePeriod || 7500;
+
+  // 漂浮（当前默认的待机动效）。
+  // 振幅是 CSS px；相邻两颗粒子各自最多反向走 2×振幅，所以它受「出血量」
+  // 约束：现状 step4 出血 1.8 设备 px（间距 3.2 / 边长 5），0.4 CSS px
+  // （@dpr2 = 0.8 设备 px）下透明孔洞与静止帧完全一致。
   var FLOAT_AMP = cfg.floatAmp == null ? 0.4 : cfg.floatAmp;
   // 漂浮周期（毫秒）。慢了看不见，快了就是抖。
   var FLOAT_PERIOD = cfg.floatPeriod || 5200;
@@ -173,25 +205,27 @@
 
   /* 立刻吸附到位并画一帧（减少动态效果 / resize / 双击切回时用）。
      代价是粒子从随机散布「跳」到目标位置 —— 没有飞入。
-     顺带把漂浮关掉：resize 会重建相位表，不关的话那一帧的偏移量恰好最大。*/
+     顺带把待机动效关掉：resize 会重建内部状态，不关的话那一帧的偏移量
+     恰好最大。*/
   function draw() {
     if (!frame) return;
     stopMotion();
     phase = 'idle';
-    floatOn = false;
+    idleOn = false;
     if (mod.float_off) mod.float_off();
+    if (mod.ripple_off) mod.ripple_off();
     mod.settle();
     blit();
   }
 
   /* ---------------------------------------------------------- 动效状态机 */
 
-  // land（飞入）→ thump（落地顿一下）→ idle（待机漂浮）
+  // land（飞入）→ thump（落地顿一下）→ idle（待机荡漾）
   var phase = 'land';
   var raf = 0;
   var lastT = 0;
-  // 漂浮是否已开启（引擎内部的相位表只在第一次进 idle 时建）
-  var floatOn = false;
+  // 待机动效是否已开启（引擎内部的相位表 / 参数只在第一次进 idle 时建）
+  var idleOn = false;
   // 实测帧间隔的指数平均：漂浮的周期以「帧」为单位传进引擎，
   // 60Hz / 120Hz 屏上要拿到同一个墙钟周期，就得先把毫秒换算成帧数。
   var avgDt = 16.7;
@@ -249,15 +283,35 @@
     }
 
     if (phase === 'idle') {
-      if (FLOAT_AMP > 0 && mod.float_on) {
-        if (!floatOn) {
-          // 只开一次：float_on 会重建相位表，每帧调一次等于把漂浮钉死在
-          // 初始相位上（粒子会原地不动）。
-          mod.float_on(FLOAT_AMP * lastDpr, FLOAT_PERIOD / avgDt);
-          floatOn = true;
+      if (IDLE_EFFECT === 'float') {
+        if (FLOAT_AMP > 0 && mod.float_on) {
+          if (!idleOn) {
+            // 只开一次：float_on 会重建相位表，每帧调一次等于把漂浮钉死在
+            // 初始相位上（粒子会原地不动）。
+            mod.float_on(FLOAT_AMP * lastDpr, FLOAT_PERIOD / avgDt);
+            idleOn = true;
+          }
+          // 漂浮是**常驻**状态：引擎里的 tick() 只要它开着就永远返回 1，
+          // 所以这里跟着 busy = true，rAF 链永不断。
+          busy = true;
+        } else {
+          busy = false;
         }
-        // 漂浮是**常驻**状态：引擎里的 tick() 只要漂浮开着就永远返回 1，
-        // 所以这里跟着 busy = true，rAF 链永不断。
+      } else if (RIPPLE_AMP > 0 && mod.ripple_on) {
+        if (!idleOn) {
+          // 同样只开一次：每帧调一次会把相位反复清零（波会停在原地）。
+          // 模式 0（'shear' / 'rise'）只给一个分量：横向剪切不给垂直振幅，
+          // 纵向纵波不给水平振幅。径向两个分量都要（沿半径推）。
+          mod.ripple_on(
+            RIPPLE_MODE === 1 || RIPPLE_RISE ? 0 : RIPPLE_AMP * lastDpr,
+            RIPPLE_MODE === 1 || RIPPLE_RISE ? RIPPLE_AMP * lastDpr : 0,
+            RIPPLE_LENGTH * lastDpr,
+            RIPPLE_PERIOD / avgDt,
+            RIPPLE_MODE,
+          );
+          idleOn = true;
+        }
+        // 水波也是常驻：tick() 在 ripple 开着时永远返回 1。
         busy = true;
       } else {
         busy = false;
@@ -389,14 +443,14 @@
       frame = makeFrame(); // resize 内部重建，视图要跟着换
       if (!frame) return;
       // resize 会把粒子位置重新随机，直接吸附重画（**不重放飞入**：徽标已经
-      // 落定了，拖动窗口时反复飞入会很闹），然后接着呼吸
+      // 落定了，拖动窗口时反复飞入会很闹），然后接着荡漾
       drawn = false;
       draw();
       startMotion();
     }, 200);
   });
 
-  // 切后台就停手，切回来再续上（否则后台标签页会一直烧 CPU 跑呼吸）
+  // 切后台就停手，切回来再续上（否则后台标签页会一直烧 CPU 跑水波）
   document.addEventListener('visibilitychange', function () {
     if (document.hidden) stopMotion();
     else syncGate();
@@ -437,7 +491,8 @@
       .instance(cfg.wasm)
       .then(function (exports) {
         // 徽标要 build / settle / alloc / dealloc / resize / 各访问器；动效还
-        // 额外要 tick / burst / float_on。缺动效接口不算致命 —— 退化成静态粒子。
+        // 额外要 tick / burst / 待机动效那个入口（float_on 或 ripple_on）。
+        // 缺动效接口不算致命 —— 退化成静态粒子。
         if (typeof exports.build !== 'function' || typeof exports.settle !== 'function') {
           mark('error');
           return;
@@ -445,7 +500,9 @@
         if (
           typeof exports.tick !== 'function' ||
           typeof exports.burst !== 'function' ||
-          typeof exports.float_on !== 'function'
+          (IDLE_EFFECT === 'float'
+            ? typeof exports.float_on !== 'function'
+            : typeof exports.ripple_on !== 'function')
         ) {
           NO_ANIM = true;
         }
