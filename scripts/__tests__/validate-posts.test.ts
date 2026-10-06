@@ -1,23 +1,12 @@
 import { describe, test } from 'node:test';
-import { isValidDate, validate } from '../validate-posts.js';
+import { validate } from '../validate-posts.js';
 import { expect } from './expect.js';
 import { inTempDir } from './temp-dir.js';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
-describe('isValidDate', () => {
-  test('合法 YYYY-MM-DD 通过', () => {
-    expect(isValidDate('2024-01-15')).toBe(true);
-  });
-
-  test('非法日期返回 false', () => {
-    expect(isValidDate('not-a-date')).toBe(false);
-  });
-
-  test('空字符串返回 false', () => {
-    expect(isValidDate('')).toBe(false);
-  });
-});
-
+// 注：原先这里有一组 isValidDate 用例。日期判据已统一到 lib/frontmatter.ts 的
+// toYyyymmdd（真实日历校验），用例也随之集中到 frontmatter.test.ts，
+// 避免同一份判据在两个测试文件里各断言一遍。
 describe('validate', () => {
   test('有效文章无问题', () =>
     inTempDir(async () => {
@@ -59,6 +48,14 @@ describe('validate', () => {
       expect(issues.some((i) => i.message.includes('date'))).toBe(true);
     }));
 
+  test('日历上不存在的日期也算无效（Date.parse 会把它滚到 3/3）', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/posts/hello.md', '---\ntitle: Hello\ndate: 2026-02-31\n---\n');
+      const issues = await validate();
+      expect(issues.some((i) => i.message.includes('date'))).toBe(true);
+    }));
+
   test('slug 不重复时不报错', () =>
     inTempDir(async () => {
       mkdirSync('content/posts', { recursive: true });
@@ -72,11 +69,21 @@ describe('validate', () => {
       expect(issues.some((i) => i.message.includes('slug 重复'))).toBe(false);
     }));
 
-  test('private 非布尔', () =>
-    inTempDir(async () => {
+  test('private 非布尔', () =>    inTempDir(async () => {
       mkdirSync('content/posts', { recursive: true });
       writeFileSync('content/posts/hello.md', '---\ntitle: Hello\ndate: 2024-01-15\nprivate: "yes"\n---\n');
       const issues = await validate();
       expect(issues.some((i) => i.message.includes('private'))).toBe(true);
+    }));
+
+  test('title 与 date 都缺时两条都报（判据来自 lib/frontmatter 的共享清单）', () =>
+    inTempDir(async () => {
+      mkdirSync('content/posts', { recursive: true });
+      writeFileSync('content/posts/hello.md', '没有 front matter 的正文');
+      const issues = await validate();
+      expect(issues.map((i) => i.message)).toEqual([
+        '缺少 title 或 title 为空',
+        '缺少 date 字段',
+      ]);
     }));
 });

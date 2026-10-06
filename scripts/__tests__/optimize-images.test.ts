@@ -1,5 +1,5 @@
 import { describe, test } from 'node:test';
-import { buildPlans } from '../optimize-images.js';
+import { buildPlans, formatSizeDelta, listPublishedImages } from '../optimize-images.js';
 import {
   AVATAR_OUTPUT,
   BG_QUALITY,
@@ -9,6 +9,8 @@ import {
   SOURCE_EXTENSIONS,
 } from '../lib/image-plan.js';
 import { expect } from './expect.js';
+import { inTempDir } from './temp-dir.js';
+import { mkdirSync, writeFileSync } from 'node:fs';
 
 describe('planImage', () => {
   test('背景图 png 映射到 static/bg 下的 avif', () => {
@@ -67,4 +69,46 @@ describe('buildPlans', () => {
     expect(plans.length).toBe(2);
     expect(skipped).toEqual(['assets/src/misc/readme.txt']);
   });
+});
+
+describe('formatSizeDelta', () => {
+  test('省体积时显示负号', () => {
+    expect(formatSizeDelta(1000, 420)).toBe('-58%');
+  });
+
+  test('变大时显示加号（旧版会打成 -(-12)%）', () => {
+    expect(formatSizeDelta(1000, 1120)).toBe('+12%');
+  });
+
+  test('没变化显示 ±0%', () => {
+    expect(formatSizeDelta(1000, 1000)).toBe('±0%');
+  });
+});
+
+describe('listPublishedImages', () => {
+  test('列出 static/bg 的发布图与头像，忽略无关文件', () =>
+    inTempDir(async () => {
+      mkdirSync('static/bg', { recursive: true });
+      writeFileSync('static/bg/a.avif', '');
+      writeFileSync('static/bg/b.webp', '');
+      writeFileSync('static/bg/keep.txt', '');
+      writeFileSync('static/avatar.webp', '');
+      expect((await listPublishedImages()).sort()).toEqual([
+        'static/avatar.webp',
+        'static/bg/a.avif',
+        'static/bg/b.webp',
+      ]);
+    }));
+
+  test('头像缺失时只列背景图', () =>
+    inTempDir(async () => {
+      mkdirSync('static/bg', { recursive: true });
+      writeFileSync('static/bg/a.avif', '');
+      expect(await listPublishedImages()).toEqual(['static/bg/a.avif']);
+    }));
+
+  test('目录都不存在时返回空数组', () =>
+    inTempDir(async () => {
+      expect(await listPublishedImages()).toEqual([]);
+    }));
 });

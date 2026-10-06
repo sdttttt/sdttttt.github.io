@@ -4,51 +4,26 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  normalizeDate,
   extractBody,
   computeHash3,
   slugify,
   buildReport,
   detectCollisions,
+  findBlockingCollisions,
   oldUrlFromSlug,
   addAlias,
   executePlan,
   type RenamePlan,
 } from '../rename-posts.js';
+import { toYyyymmdd } from '../lib/frontmatter.js';
 import { expect } from './expect.js';
 
 // ─────────────────────────────────────────────────────────────
 // 纯函数
 // ─────────────────────────────────────────────────────────────
 
-describe('normalizeDate', () => {
-  test('bare YYYY-MM-DD', () => {
-    expect(normalizeDate('2025-05-04')).toBe('20250504');
-  });
-
-  test('ISO datetime 取日期部分', () => {
-    expect(normalizeDate('2020-05-09T13:00:00Z')).toBe('20200509');
-  });
-
-  test('非字符串返回 null', () => {
-    expect(normalizeDate(null)).toBe(null);
-    expect(normalizeDate(20250101)).toBe(null);
-  });
-
-  test('完全无效的字符串返回 null', () => {
-    expect(normalizeDate('hello')).toBe(null);
-  });
-
-  test('月日越界返回 null', () => {
-    expect(normalizeDate('2024-13-01')).toBe(null);
-    expect(normalizeDate('2024-00-15')).toBe(null);
-    expect(normalizeDate('2024-01-32')).toBe(null);
-  });
-
-  test('一位月日自动补零', () => {
-    expect(normalizeDate('2024-1-5')).toBe('20240105');
-  });
-});
+// normalizeDate 的用例已随函数一起搬到 lib/frontmatter.ts（toYyyymmdd），
+// 见 frontmatter.test.ts。
 
 describe('extractBody', () => {
   test('去掉 frontmatter 块', () => {
@@ -205,7 +180,7 @@ title: x
 date: ${date}
 ---
 ${body}`;
-    const yyyymmdd = normalizeDate(date)!;
+    const yyyymmdd = toYyyymmdd(date)!;
     const slug = slugify('x');
     const hash3 = computeHash3(extractBody(raw));
     const newName = `${yyyymmdd}-${slug}-${hash3}.md`;
@@ -370,3 +345,55 @@ describe('executePlan', () => {
     expect(second).toBe(first);
   });
 });
+
+// ─────────────────────────────────────────────────────────────
+// 覆盖检查：目标名已被现存文件占用（detectCollisions 看不到这一类）
+// ─────────────────────────────────────────────────────────────
+
+describe('findBlockingCollisions', () => {
+  function plan(newName: string, oldName: string): RenamePlan {
+    return {
+      oldPath: `content/posts/${oldName}`,
+      newPath: `content/posts/${newName}`,
+      oldSlug: oldName.replace(/\.md$/, ''),
+      newSlug: newName.replace(/\.md$/, ''),
+      yyyymmdd: newName.slice(0, 8),
+      hash3: 'aaa',
+      title: 't',
+      oldUrl: `/posts/${oldName.replace(/\.md$/, '')}/`,
+      body: '',
+    };
+  }
+
+  test('目标名没被现存文件占用时返回空 Map', () => {
+    const blockers = findBlockingCollisions([plan('20240115-aaa-aaa.md', 'old-aaa.md')], [
+      'old-aaa.md',
+    ]);
+    expect(blockers.size).toBe(0);
+  });
+
+  test('撞上不计入 plans 的现存文件（它不会被挪走，会被覆盖）', () => {
+    const blockers = findBlockingCollisions([plan('20240115-aaa-aaa.md', 'old-aaa.md')], [
+      'old-aaa.md',
+      '20240115-aaa-aaa.md',
+    ]);
+    expect(blockers.size).toBe(1);
+    expect(blockers.get('20240115-aaa-aaa.md')).toEqual(['old-aaa.md']);
+  });
+
+  test('两篇互换名字也报错（执行顺序不利时就是相互覆盖）', () => {
+    const blockers = findBlockingCollisions([plan('b.md', 'a.md'), plan('a.md', 'b.md')], [
+      'a.md',
+      'b.md',
+    ]);
+    expect(blockers.size).toBe(2);
+    expect(blockers.get('b.md')).toEqual(['a.md']);
+    expect(blockers.get('a.md')).toEqual(['b.md']);
+  });
+
+  test('目标名就是自己的旧名时不算阻塞（不会自撞）', () => {
+    const blockers = findBlockingCollisions([plan('a.md', 'a.md')], ['a.md']);
+    expect(blockers.size).toBe(0);
+  });
+});
+

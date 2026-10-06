@@ -10,7 +10,13 @@
     "optimize-images": "deno run --no-lock -A scripts/optimize-images.ts",
     "optimize-images-dry": "deno run --no-lock -A scripts/optimize-images.ts --dry-run",
     "build-wasm": "cd wasm/particles && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/particles.wasm ../../themes/sdttttt-paper/assets/wasm/particles.wasm && chmod 644 ../../themes/sdttttt-paper/assets/wasm/particles.wasm",
-    "test-wasm": "cd wasm/particles && cargo test"
+    "test-wasm": "cd wasm/particles && cargo test",
+    "lint": "deno lint scripts/"
+  },
+  "lint": {
+    "rules": {
+      "exclude": ["no-sloppy-imports"]
+    }
   },
   "unstable": ["sloppy-imports"],
   "exclude": ["themes/hugo-paper", ".tools", ".npm-cache"],

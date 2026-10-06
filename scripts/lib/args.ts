@@ -4,36 +4,37 @@
  * 支持：
  *   --flag          → boolean true
  *   --key value     → string
- *   --key a b       → 第一个值 string，其余进入 positional
- *   positional      → string[]
+ *   --key=value     → string（`deno task x --format=webp` 不会被静默忽略）
+ *
+ * 只认 `--` 长选项；位置参数与 `-x` 短选项一律忽略（当前没有脚本用得到，
+ * 所以不再收集 `_.`）。
  */
 
-export type ArgValue = string | boolean | string[];
+type ArgValue = string | boolean;
 
-export interface ParsedArgs {
-  [key: string]: ArgValue;
-  _: string[];
-}
+type ParsedArgs = Record<string, ArgValue>;
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const raw = argv.slice(2);
-  const out: ParsedArgs = { _: [] };
+  const out: ParsedArgs = {};
 
   for (let i = 0; i < raw.length; i++) {
     const arg = raw[i]!;
-    if (!arg.startsWith('--')) {
-      out._.push(arg);
+    if (!arg.startsWith('--')) continue;
+
+    const rest = arg.slice(2);
+    const eq = rest.indexOf('=');
+    if (eq > 0) {
+      out[rest.slice(0, eq)] = rest.slice(eq + 1);
       continue;
     }
 
-    const key = arg.slice(2);
     const next = raw[i + 1];
-
-    if (next && !next.startsWith('--')) {
-      out[key] = next;
+    if (next !== undefined && !next.startsWith('--')) {
+      out[rest] = next;
       i++;
     } else {
-      out[key] = true;
+      out[rest] = true;
     }
   }
 
@@ -42,9 +43,7 @@ export function parseArgs(argv: string[]): ParsedArgs {
 
 export function getString(args: ParsedArgs, key: string): string | undefined {
   const v = args[key];
-  if (typeof v === 'string') return v;
-  if (Array.isArray(v) && v.length > 0) return v[0];
-  return undefined;
+  return typeof v === 'string' ? v : undefined;
 }
 
 export function getBoolean(args: ParsedArgs, key: string): boolean {

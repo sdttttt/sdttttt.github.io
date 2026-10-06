@@ -3,7 +3,7 @@ import {
   extractLinksOutsideCodeBlocks,
   shouldSkip,
   checkUrl,
-  checkUrlGet,
+  trimUrlTail,
   walkMarkdown,
 } from '../check-dead-links.js';
 import { expect } from './expect.js';
@@ -58,6 +58,13 @@ Another https://example.com/another`;
   test('代码块未闭合时跳过后续内容', () => {
     const raw = '```bash\nhttps://example.com/unclosed\n\nhttps://example.com/after';
     expect(extractLinksOutsideCodeBlocks(raw)).toEqual([]);
+  });
+
+  test('抽尾：裸链接后面直接跟中文时只取链接本身', () => {
+    const raw = '目前用了https://github.com/XiaoBinin/Actions-immortalwrt的固件，不打算换。';
+    expect(extractLinksOutsideCodeBlocks(raw)).toEqual([
+      'https://github.com/XiaoBinin/Actions-immortalwrt',
+    ]);
   });
 });
 
@@ -132,14 +139,33 @@ describe('checkUrl', () => {
   });
 });
 
-describe('checkUrlGet', () => {
-  test('使用 GET 方法', async () => {
-    globalThis.fetch = mock.fn((url: string, init: RequestInit) => {
-      expect(init.method).toBe('GET');
-      return Promise.resolve(new Response(null, { status: 200 }));
-    }) as unknown as typeof fetch;
-    const result = await checkUrlGet('https://example.com');
-    expect(result.ok).toBe(true);
+describe('trimUrlTail', () => {
+  test('剥掉紧跟 URL 的中文正文与尾随句点', () => {
+    expect(trimUrlTail('https://github.com/gfwlist/gfwlist就可以基本覆盖大部分的需求.')).toBe(
+      'https://github.com/gfwlist/gfwlist',
+    );
+  });
+
+  test('正文里夹着 ASCII 词也能剥干净', () => {
+    const url =
+      'https://github.com/XiaoBinin/Actions-immortalwrt的固件，不使用Lean的主要原因是大概2-3小时会断网一次.';
+    expect(trimUrlTail(url)).toBe('https://github.com/XiaoBinin/Actions-immortalwrt');
+  });
+
+  test('保留 URL 里含中文的 slug 段（站内链接不能被截成 404）', () => {
+    expect(trimUrlTail('https://sdttttt.online/posts/20260817-文章的变化-jtc/')).toBe(
+      'https://sdttttt.online/posts/20260817-文章的变化-jtc/',
+    );
+  });
+
+  test('剥掉尾巴上没配对的左括号与其后的中文', () => {
+    expect(trimUrlTail('https://sdttttt.online/posts/20260817-文章的变化-1e69/(后缀')).toBe(
+      'https://sdttttt.online/posts/20260817-文章的变化-1e69/',
+    );
+  });
+
+  test('普通链接原样返回', () => {
+    expect(trimUrlTail('https://example.com/a-b_c?q=1#x')).toBe('https://example.com/a-b_c?q=1#x');
   });
 });
 

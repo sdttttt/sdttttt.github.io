@@ -3,32 +3,27 @@
  * 校验文章 front matter
  *
  * 检查项：
- *   - title / date 必填
- *   - date 格式为 YYYY-MM-DD
- *   - slug 不重复
+ *   - title / date 必填，date 为 `YYYY-MM-DD`（真实日历校验），见 lib/frontmatter
+ *     的 `checkTitleAndDate` / `toYyyymmdd`
+ *   - slug（文件名）不重复
  *   - private 如存在必须是布尔值
  *
  * 用法：
  *   deno task validate-posts
  */
 
-import { readdir, readFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseFrontMatter } from './lib/frontmatter.js';
-import { POSTS_DIR } from './lib/paths.js';
+import { checkTitleAndDate, parseFrontMatter } from './lib/frontmatter.js';
+import { listPostFiles, POSTS_DIR } from './lib/paths.js';
 
 interface Issue {
   file: string;
   message: string;
 }
 
-export function isValidDate(s: string): boolean {
-  return !Number.isNaN(Date.parse(s));
-}
-
 export async function validate(): Promise<Issue[]> {
-  const entries = await readdir(POSTS_DIR);
-  const files = entries.filter((f) => f.endsWith('.md') && f !== '_index.md');
+  const files = await listPostFiles();
   const issues: Issue[] = [];
   const slugs = new Set<string>();
 
@@ -36,14 +31,10 @@ export async function validate(): Promise<Issue[]> {
     const raw = await readFile(join(POSTS_DIR, f), 'utf8');
     const meta = parseFrontMatter(raw);
 
-    if (!meta.title || typeof meta.title !== 'string' || meta.title.trim() === '') {
-      issues.push({ file: f, message: '缺少 title 或 title 为空' });
-    }
-
-    if (!meta.date || typeof meta.date !== 'string') {
-      issues.push({ file: f, message: '缺少 date 字段' });
-    } else if (!isValidDate(meta.date)) {
-      issues.push({ file: f, message: `date 格式无效: ${meta.date}` });
+    // title / date 的判据与措辞统一在 lib/frontmatter 的 checkTitleAndDate 里
+    //（rename-posts 跳过文章时用的是同一份清单）
+    for (const message of checkTitleAndDate(meta)) {
+      issues.push({ file: f, message });
     }
 
     const slug = f.replace(/\.md$/, '');

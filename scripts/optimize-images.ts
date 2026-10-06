@@ -19,6 +19,7 @@ import { mkdir, readdir, stat, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { getBoolean, getString, parseArgs } from './lib/args.js';
 import {
+  AVATAR_OUTPUT,
   BG_OUTPUT_DIR,
   type ImageFormat,
   type ImagePlan,
@@ -34,6 +35,13 @@ const FORMATS: readonly string[] = ['avif', 'webp'];
 
 function kb(bytes: number): string {
   return `${(bytes / 1024).toFixed(1)} KB`;
+}
+
+/** 产物相对源图的体积变化：`-42%` 是省了，`+12%` 是反而变大（旧版会打成 `-(-12)%`） */
+export function formatSizeDelta(srcBytes: number, outBytes: number): string {
+  const savedPct = Math.round((1 - outBytes / srcBytes) * 100);
+  if (savedPct === 0) return '±0%';
+  return savedPct > 0 ? `-${savedPct}%` : `+${-savedPct}%`;
 }
 
 /** 递归收集源图（仓库相对路径） */
@@ -84,6 +92,37 @@ async function isFresh(plan: ImagePlan, force: boolean): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * 列出「受管理的发布图」：static/bg 下的 .avif/.webp + 固定路径的头像。
+ *
+ * 只看这两个位置 —— static/images/ 里的文章配图不归本脚本管，递归扫 static/
+ * 会把它们误报成孤儿文件。头像只有一个固定路径，单独 stat 一次
+ *（旧版只扫 static/bg，头像源图删了也不提醒）。
+ */
+export async function listPublishedImages(): Promise<string[]> {
+  const out: string[] = [];
+
+  try {
+    for (const entry of await readdir(BG_OUTPUT_DIR, { withFileTypes: true })) {
+      if (!entry.isFile()) continue;
+      const dot = entry.name.lastIndexOf('.');
+      const ext = dot > 0 ? entry.name.slice(dot).toLowerCase() : '';
+      if (OUTPUT_EXTENSIONS.includes(ext)) out.push(`${BG_OUTPUT_DIR}/${entry.name}`);
+    }
+  } catch {
+    // static/bg 不存在就没事
+  }
+
+  try {
+    await stat(AVATAR_OUTPUT);
+    out.push(AVATAR_OUTPUT);
+  } catch {
+    // 头像还没生成过
+  }
+
+  return out;
 }
 
 /**
@@ -155,10 +194,11 @@ async function main(): Promise<void> {
     await mkdir(dirname(plan.output), { recursive: true });
     await writeFile(plan.output, buf);
     written++;
+    const delta = formatSizeDelta(srcSize, buf.length);
     console.log(
-      `  ✓ ${plan.output}  [${label}]  ${kb(srcSize)} → ${kb(buf.length)}（-${(
-        (1 - buf.length / srcSize) * 100
-      ).toFixed(0)}%）`,
+      `  ✓ ${plan.output}  [${label}]  ${kb(srcSize)} → ${kb(buf.length)}（${delta}${
+        delta.startsWith('+') ? '，比源图大' : ''
+      }）`,
     );
   }
 
@@ -166,21 +206,12 @@ async function main(): Promise<void> {
     console.warn(`  ! 跳过（未识别的源图路径）  ${path}`);
   }
 
-  // 提示 static/bg 里的孤儿产物（例如换了 --format，或删了源图）
+  // 提示孤儿产物（换了 --format、删了源图、头像源图没了）
   const expected = new Set(plans.map((p) => p.output.replace(/\\/g, '/')));
-  try {
-    for (const entry of await readdir(BG_OUTPUT_DIR, { withFileTypes: true })) {
-      if (!entry.isFile()) continue;
-      const dot = entry.name.lastIndexOf('.');
-      const ext = dot > 0 ? entry.name.slice(dot).toLowerCase() : '';
-      if (!OUTPUT_EXTENSIONS.includes(ext)) continue;
-      const path = `${BG_OUTPUT_DIR}/${entry.name}`;
-      if (!expected.has(path)) {
-        console.warn(`  ! ${path} 已无对应源图，可手动删除`);
-      }
+  for (const path of await listPublishedImages()) {
+    if (!expected.has(path)) {
+      console.warn(`  ! ${path} 已无对应源图，可手动删除`);
     }
-  } catch {
-    // 目录不存在就没事
   }
 
   if (dryRun) {

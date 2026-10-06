@@ -4,7 +4,7 @@
  *
  * - 日期取自 frontmatter `date` 字段
  * - slug 由 frontmatter `title` 自动 slugify（保留中文 unicode）
- * - 3 位 hash 是 body 内容的 SHA-256 前 2 字节（16 bit → base36）
+ * - hash 是 body 内容的 SHA-256 前 2 字节（16 bit → base36，3–4 位）
  *   用于兜底去重，绝大多数情况下文件名长度 = `YYYYMMDD-slug-XXX`
  * - 因为 hash 取自正文，**任何正文改动都会让文件名（也就是 URL）变化**，所以
  *   每次改名都会把旧 URL 追加进该篇 front matter 的 `aliases`，由 Hugo 生成跳转页
@@ -17,39 +17,21 @@
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
 
-import { readdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { readFile, rename, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { parseFrontMatter, extractFrontMatterBlock } from './lib/frontmatter.js';
+import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyymmdd } from './lib/frontmatter.js';
 import { parseArgs, getBoolean } from './lib/args.js';
-import { POSTS_DIR } from './lib/paths.js';
+import { listPostFiles, POSTS_DIR } from './lib/paths.js';
 
 const args = parseArgs(process.argv);
 const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
-const verbose = getBoolean(args, 'verbose') || getBoolean(args, 'v');
+const verbose = getBoolean(args, 'verbose');
 
 // ─────────────────────────────────────────────────────────────
 // 纯函数
 // ─────────────────────────────────────────────────────────────
-
-/**
- * 把 frontmatter 中的 date 字段归一为 YYYYMMDD。
- * 支持 `2025-05-04`、`"2022-11-08"`（已 unquote）、`2020-05-09T13:00:00Z` 等。
- * 解析失败返回 null。
- */
-export function normalizeDate(s: unknown): string | null {
-  if (typeof s !== 'string') return null;
-  const m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-  if (!m) return null;
-  const yyyy = m[1]!;
-  const mm = m[2]!.padStart(2, '0');
-  const dd = m[3]!.padStart(2, '0');
-  // 简单健全性检查
-  if (Number(mm) < 1 || Number(mm) > 12) return null;
-  if (Number(dd) < 1 || Number(dd) > 31) return null;
-  return `${yyyy}${mm}${dd}`;
-}
 
 /**
  * 去掉开头的 frontmatter 块，返回剩余正文。
@@ -67,8 +49,9 @@ export function extractBody(raw: string): string {
 }
 
 /**
- * body 内容 → 3 位 base36 hash（16 bit）。
- * SHA-256 前 2 字节 → 16-bit unsigned int → base36。
+ * body 内容 → base36 hash（16 bit）。
+ * SHA-256 前 2 字节 → 16-bit unsigned int → base36，`padStart(3)` 保证至少 3 位；
+ * 46656 以上会到 4 位，所以文件名后缀是 **3 或 4 位**（实测 169 篇 3 位、56 篇 4 位）。
  *
  * 作为 `YYYYMMDD-slug-XXX.md` 末尾的去重后缀。
  * 16 bit 在 220+ 篇文章规模下冲突概率 ~0.1%，可接受。
@@ -130,6 +113,8 @@ export interface SkipEntry {
 export interface Report {
   plans: RenamePlan[];
   skipped: SkipEntry[];
+  /** content/posts 下现存的全部文章文件名（含不会改名的），执行前用它查覆盖 */
+  files: string[];
 }
 
 /**
@@ -199,8 +184,7 @@ export function addAlias(raw: string, url: string): string {
 }
 
 export async function buildReport(): Promise<Report> {
-  const entries = await readdir(POSTS_DIR);
-  const files = entries.filter((f) => f.endsWith('.md') && f !== '_index.md');
+  const files = await listPostFiles();
 
   const plans: RenamePlan[] = [];
   const skipped: SkipEntry[] = [];
@@ -210,21 +194,15 @@ export async function buildReport(): Promise<Report> {
     const raw = await readFile(oldPath, 'utf8');
     const meta = parseFrontMatter(raw);
 
-    const yyyymmdd = normalizeDate(meta.date);
-    if (!yyyymmdd) {
-      skipped.push({
-        file: f,
-        reason: !meta.date ? '缺少 date 字段' : `date 格式无效: ${String(meta.date)}`,
-      });
+    // 判据与措辞与 validate-posts 共用一份（checkTitleAndDate），避免两边漂移
+    const problems = checkTitleAndDate(meta);
+    if (problems.length > 0) {
+      for (const reason of problems) skipped.push({ file: f, reason });
       continue;
     }
 
-    const title = typeof meta.title === 'string' ? meta.title : '';
-    if (!title) {
-      skipped.push({ file: f, reason: '缺少 title 字段' });
-      continue;
-    }
-
+    const yyyymmdd = toYyyymmdd(meta.date)!;
+    const title = String(meta.title);
     const body = extractBody(raw);
     const slug = slugify(title);
     const hash3 = computeHash3(body);
@@ -252,7 +230,7 @@ export async function buildReport(): Promise<Report> {
     });
   }
 
-  return { plans, skipped };
+  return { plans, skipped, files };
 }
 
 /** 碰撞检测：plans 中 newName 不应重复 */
@@ -288,19 +266,57 @@ async function moveFile(oldPath: string, newPath: string): Promise<{ usedGit: bo
 
 /**
  * 跑 git 子命令，捕获退出码。不可用/失败时返回 ok=false。
+ *
+ * ⚠️ 环境里没装 git 时 `spawn` 是以 **'error' 事件**失败的，不是在 await 上抛出：
+ * 旧版只监听 'close'，于是 `spawn git ENOENT` 变成 uncaught error 直接终止整个进程，
+ * 外层 try/catch 完全拦不住 —— 与 moveFile 声明的「没 git 就降级 fs.rename」正好相反。
  */
 async function runGit(args: string[]): Promise<{ ok: boolean; exit: number }> {
-  try {
-    const exit = await new Promise<number>((resolve) => {
-      const child = spawn('git', args, {
-        stdio: ['ignore', 'pipe', 'pipe'],
-      });
-      child.on('close', resolve);
+  const exit = await new Promise<number>((resolve) => {
+    const child = spawn('git', args, {
+      stdio: ['ignore', 'pipe', 'pipe'],
     });
-    return { ok: exit === 0, exit };
-  } catch {
-    return { ok: false, exit: -1 };
+    child.on('error', () => resolve(-1));
+    child.on('close', resolve);
+    // 两个管道必须消费：不读的话 git 输出一多就会把子进程堵在写缓冲上
+    child.stdout?.resume();
+    child.stderr?.resume();
+  });
+  return { ok: exit === 0, exit };
+}
+
+/**
+ * 找出「照 plan 直接改名会覆盖现存文件」的目标名。
+ *
+ * `detectCollisions()` 只比对 plans 之间的 newName，漏掉两种会真丢数据的形态：
+ * ① 某篇的 newName 撞上一个**本次不挪走**的现存文件（例如它已被跳过、留在原地）；
+ * ② 两篇互换名字（A: foo→bar、B: bar→foo）或成链（A→B 的旧名、B→C…）。
+ * 这两种情况下执行顺序决定成败：先执行的那个 `git mv` 会因「目标已存在」失败，
+ * 随后降级到 `fs.rename`（覆盖式）就把另一篇**静默吃掉**。
+ *
+ * 这里一律保守地报错，交给人工处理（当前仓库里不会出现这种局面）。
+ *
+ * @param plans         本次改名计划
+ * @param existingFiles content/posts 下现存的全部文件名
+ * @returns newName → 会撞上的旧文件名列表（空 Map 表示安全）
+ */
+export function findBlockingCollisions(
+  plans: RenamePlan[],
+  existingFiles: readonly string[],
+): Map<string, string[]> {
+  const existing = new Set(existingFiles);
+  const blockers = new Map<string, string[]>();
+
+  for (const p of plans) {
+    const name = basename(p.newPath);
+    const oldName = basename(p.oldPath);
+    if (name === oldName || !existing.has(name)) continue;
+    const list = blockers.get(name) ?? [];
+    list.push(oldName);
+    blockers.set(name, list);
   }
+
+  return blockers;
 }
 
 export async function executePlan(plan: RenamePlan): Promise<void> {
@@ -320,7 +336,7 @@ export async function executePlan(plan: RenamePlan): Promise<void> {
 // 报告输出 / 入口
 // ─────────────────────────────────────────────────────────────
 
-function printPlan(p: RenamePlan, prefix: string): void {
+function printPlan(p: RenamePlan): void {
   console.log(`  ${basename(p.oldPath)}`);
   console.log(`    → ${basename(p.newPath)}`);
   if (verbose) {
@@ -331,7 +347,7 @@ function printPlan(p: RenamePlan, prefix: string): void {
 }
 
 async function main(): Promise<void> {
-  const { plans, skipped } = await buildReport();
+  const { plans, skipped, files } = await buildReport();
 
   if (skipped.length > 0) {
     console.log(`跳过 ${skipped.length} 篇：`);
@@ -346,7 +362,18 @@ async function main(): Promise<void> {
     return;
   }
 
-  // 碰撞检测
+  // 覆盖检查：目标名已被现存文件占用（执行顺序一旦不利就会静默覆盖那篇）
+  const blocking = findBlockingCollisions(plans, files);
+  if (blocking.size > 0) {
+    console.error(`✗ 有 ${blocking.size} 个目标文件名已被现存文件占用，直接改会覆盖它们：`);
+    for (const [name, olds] of blocking) {
+      console.error(`  ${name}  ← ${olds.join(', ')}`);
+    }
+    console.error('请先手工处理这些文件（改名或删除）再重跑。');
+    process.exit(1);
+  }
+
+  // 碰撞检测（plans 之间同名）
   const collisions = detectCollisions(plans);
   if (collisions.size > 0) {
     console.error(`✗ 检测到 ${collisions.size} 个哈希冲突，无法继续：`);
@@ -363,7 +390,7 @@ async function main(): Promise<void> {
   console.log(`${tag}重命名 ${plans.length} 篇文章${dryRun ? '：' : ''}`);
   if (dryRun) {
     for (const p of plans) {
-      printPlan(p, '  ');
+      printPlan(p);
     }
   } else {
     for (const p of plans) {

@@ -54,13 +54,14 @@ deno task optimize-images-dry     # 预览图片转换（不写盘、不装 shar
 deno task optimize-images         # 把 assets/src/ 的原图转成 static/ 的发布图
 deno task format-markdown-check   # 检查 Markdown 格式（不写入）
 deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
+deno task lint                    # deno lint scripts/（已 exclude no-sloppy-imports）
 ```
 
 ## 编码与命名规范
 
 - TypeScript 脚本使用 2 空格缩进；依赖 Deno 任务运行，无 `tsc`、无 `node_modules`；只用 `node:` 内置 API 与 import map 里显式列出的 npm 包。
 - Markdown 由全局安装的 Prettier 3 格式化（`deno install -g -A npm:prettier@3.9.6`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `deno task format-markdown`。
-- 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。hash 取自**正文**，所以改正文 / 标题都会触发 `rename-posts` 改名；脚本会自动把旧 URL 追加进该篇的 `aliases`（幂等），**别名不要手删**，否则旧链接 404。
+- 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 3–4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。hash 取自**正文**，所以改正文 / 标题都会触发 `rename-posts` 改名；脚本会自动把旧 URL 追加进该篇的 `aliases`（幂等），**别名不要手删**，否则旧链接 404。
 - Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。
 - 背景图 / 头像：**原图放 `assets/src/`，发布图放 `static/`**。背景 cutouts 是 `assets/src/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切），跑 `deno task optimize-images` 生成 `static/bg/*.avif`（640px q45，`--format webp` 可切 WebP）；头像是 `assets/src/avatar/avatar.jpg` → `static/avatar.webp`（192px，固定 WebP）。新增/删除图片会在左下角徽标和 `/particles/` 自动生效（两处都靠 `readDir "static/bg"` 发现 `.avif` / `.webp`）。
 - 文章内联图片：外链图床（Gitee / imgkr / idanmu）会烂掉，**原图丢了就换成 `static/images/image-lost.svg` 占位**，markdown 写成 `![alt](/images/image-lost.svg "原托管方 + 暂缺原因")`（`title` 由 `render-image.html` 渲染成图下小字）；新图建议放 `static/images/posts/<slug>/` 并提交进仓库。
@@ -90,7 +91,7 @@ deno task format-markdown         # 写入式格式化（CI 推送后自动跑�
 
 - 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(changelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
-- 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check`；不要提交 `public/` 或临时文件。
+- 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check` / `lint`；不要提交 `public/` 或临时文件。
 - **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`，把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
