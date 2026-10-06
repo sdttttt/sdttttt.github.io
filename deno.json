@@ -11,7 +11,8 @@
     "git-commit-push-dry": "deno run -A scripts/git-commit-push.ts --dry-run",
     "optimize-images": "deno run --no-lock -A scripts/optimize-images.ts",
     "optimize-images-dry": "deno run --no-lock -A scripts/optimize-images.ts --dry-run",
-    "build-wasm": "cd wasm/particles && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/particles.wasm ../../themes/sdttttt-paper/assets/wasm/particles.wasm && chmod 644 ../../themes/sdttttt-paper/assets/wasm/particles.wasm"
+    "build-wasm": "cd wasm/particles && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/particles.wasm ../../themes/sdttttt-paper/assets/wasm/particles.wasm && chmod 644 ../../themes/sdttttt-paper/assets/wasm/particles.wasm",
+    "test-wasm": "cd wasm/particles && cargo test"
   },
   "unstable": ["sloppy-imports"],
   "exclude": ["themes/PaperMod", "themes/hugo-paper", ".tools", ".npm-cache"],
