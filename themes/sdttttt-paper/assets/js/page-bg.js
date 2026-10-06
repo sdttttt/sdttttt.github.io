@@ -36,9 +36,13 @@
  * 行为：
  *   - **每次揭示都重新抽一张图**：抽签、采样、建帧全都推迟到「滚到页底、
  *     徽标真要显示」的那一刻（syncGate → showImage()），所以每次从隐藏
- *     转为显示都是新的一张（滚离页底时把旧帧抹掉）。只有页面里的第一次
- *     揭示会走「飞入」，之后都是直接成型 —— 换图那点延迟被 0.8s 的淡入
- *     盖住，在页底上下滚也不会反复播 1.6s 的飞入。
+ *     转为显示都是新的一张。只有页面里的第一次揭示会走「飞入」，之后都是
+ *     直接成型 —— 换图那点延迟被 0.8s 的淡入盖住，在页底上下滚也不会反复
+ *     播 1.6s 的飞入。
+ *   - **「隐藏」要等淡出走完才算数**：滚离页底只是开始淡出，旧帧先留着；
+ *     等 CSS 的 opacity 过渡真的走完（时长直接问 CSS，见 hideMs()）才抹掉
+ *     它、并允许下次揭示重抽。淡出没走完就又滚回页底 → **不重抽**，粒子、
+ *     图片、动效状态全在原位，接着显示原来那张（hideFadeDone()）。
  *   - 默认不可见；滚到文档底部时（html.at-bottom）淡入
  *   - **引擎按需预热**：只有「快滚到底」（距离页底 2 个视口高度）时才去拉
  *     wasm（**只拉 wasm**，抽图 / 采样都留给揭示那一刻）—— 徽标只在页底
@@ -234,10 +238,10 @@
     blit();
   }
 
-  /* 把画布抹干净、丢掉这一帧（滚离页底时用）。留着旧帧的话，下次揭示的头
-     一瞬间会先贴上**上一轮抽的那张图** —— 那就不是「每次显示都是新图」了。
-     frame = null 顺带让 startMotion() / 双击 / resize 全部自动让路，一直等到
-     showImage() 把新的建好为止。 */
+  /* 把画布抹干净、丢掉这一帧（由 hideFadeDone() 在淡出动画走完之后调用）。
+     留着旧帧的话，下次揭示的头一瞬间会先贴上**上一轮抽的那张图** —— 那就
+     不是「每次显示都是新图」了。frame = null 顺带让 startMotion() / 双击 /
+     resize 全部自动让路，一直等到 showImage() 把新的建好为止。 */
   function discardFrame() {
     stopMotion();
     frame = null;
@@ -366,9 +370,56 @@
   var shownOnce = false;
   // 正在采样 / build：这期间别让 resize、别的揭示插队
   var building = false;
+  // 下次揭示要不要重新抽一张图。只有「上一条淡出动画已经走完」或「还没出过
+  // 图」才抽；淡出中途又滚回页底就沿用当前这张（按需求：动画内回来不重抽）
+  var needsPick = true;
+  // 淡出动画的计时器（见 hideFadeDone()）
+  var hideTimer = 0;
+
+  /* 淡出要多久才算「完全隐去」——直接问 CSS（.page-bg__box 那条 opacity
+     过渡），免得这里再硬编码一份时长、日后跟 custom.css 走散；顺便自动
+     覆盖 prefers-reduced-motion（那边是 transition: none → 这里是 0）。 */
+  function hideMs() {
+    var ms = 0;
+    try {
+      var parts = (window.getComputedStyle(box).transitionDuration || '').split(',');
+      for (var i = 0; i < parts.length; i++) {
+        var s = parts[i].replace(/^\s+|\s+$/g, '');
+        var n = parseFloat(s) || 0;
+        if (/ms$/.test(s)) n /= 1000;
+        if (n > ms) ms = n;
+      }
+    } catch (e) {}
+    return ms * 1000;
+  }
+
+  /* 淡出动画走完 → 这一刻才算「真的藏起来了」：抹掉旧帧，并允许下次揭示重抽。
+     还没走完就又滚回页底的话（revealed 又变 true），这里什么都不做，交给
+     revealShow() 直接把原来那张接着显示。 */
+  function hideFadeDone() {
+    hideTimer = 0;
+    if (revealed || atBottom()) return;
+    discardFrame();
+    needsPick = true;
+  }
+
+  /* 揭示的那一刻：要不要重新抽一张图。只有「上一条淡出动画已经走完」或者
+     「还没出过图」才抽；淡出没走完就滚回来的话，粒子、图片、动效状态都还
+     在原地，直接接着用（只把动画续上）。 */
+  function revealShow() {
+    if (!mod) {
+      pending = true; // 引擎还在编译 → 等 start() 的 then 里补上
+      return;
+    }
+    if (!needsPick && frame) {
+      startMotion();
+      return;
+    }
+    showImage();
+  }
 
   /* 唯一的显隐开关：写 html.at-bottom，CSS 负责淡入 / 淡出。
-     **图也是在这里才抽的** —— 每次「隐藏 → 显示」都重新抽一张。 */
+     **图也是在这里才抽的** —— 每次「完全隐藏 → 显示」都重新抽一张。 */
   function syncGate() {
     // 预热时机：滚到离页底还有 PREWARM_VIEWPORTS 个视口高度时就开工。
     // 短页面（文档总高不足这么高）在首次调用时就会直接开工，行为和以前一致。
@@ -376,25 +427,24 @@
     var on = atBottom();
     root.classList.toggle('at-bottom', on);
     if (!on) {
-      // 滚离页底就停手：显隐走 CSS 过渡；顺手把这一帧抹掉，下次揭示才是
-      // 新图（下一张此刻还没抽）。挂起中的揭示请求也要撤掉 —— 否则引擎编译
-      // 完还会为一个已经藏起来的徽标白采一次样
+      // 滚离页底就停手：显隐走 CSS 过渡。挂起中的揭示请求要撤掉 —— 否则
+      // 引擎编译完还会为一个已经藏起来的徽标白采一次样。旧帧先留着，等淡出
+      // 真的走完（hideFadeDone）再抹；计时器只在**这一轮**离开页底时起一次，
+      // 之后每个滚动事件都把它的剩余时间留着（否则一直往后推、永远不走完）
       pending = false;
       if (revealed) {
         revealed = false;
-        discardFrame();
+        if (!hideTimer) hideTimer = setTimeout(hideFadeDone, hideMs());
       }
       stopMotion();
       return;
     }
     if (!revealed) {
       revealed = true;
-      // 引擎还在编译 → 先记下，等 start() 的 then 里补上
-      if (!mod) {
-        pending = true;
-        return;
-      }
-      showImage();
+      // 淡出没走完就回来了 → 撤销那次「抹掉 + 重抽」，原图照旧
+      clearTimeout(hideTimer);
+      hideTimer = 0;
+      revealShow();
       return;
     }
     // 已经在显示期内（切后台回来、双击切回）：续上动画即可，不换图
@@ -493,6 +543,7 @@
         root.classList.add('pt-bg-ready');
         mark('wasm');
         shownOnce = true;
+        needsPick = false;
         building = false;
         if (first) {
           phase = 'land'; // 粒子还在画布外 → 飞入 → 落地顿一下 → 待机
@@ -588,7 +639,7 @@
         // 就把那次挂起的揭示补上
         if (pending) {
           pending = false;
-          showImage();
+          revealShow();
         }
       })
       .catch(function () {
