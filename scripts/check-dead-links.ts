@@ -9,13 +9,32 @@
  *   deno run -A scripts/check-dead-links.ts --timeout 10000
  */
 
-import { readFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { parseArgs, getNumber, getBoolean } from './lib/args.js';
-import { walkMarkdown } from './lib/fs.js';
 import { CONTENT_DIR } from './lib/paths.js';
 
 const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;
 const FENCE_REGEX = /^(`{3,}|~{3,})/;
+
+/**
+ * 递归遍历目录下所有 `.md` 文件的路径。
+ * 对目录项继续递归，遇到 `.md` 文件则 yield；不过滤 _index.md，调用方按需判断。
+ *
+ * 只有本脚本用得到（validate-posts / rename-posts 各自 readdir 就够了），
+ * 所以留在文件内、不单开 lib/fs.ts。
+ */
+export async function* walkMarkdown(dir: string): AsyncGenerator<string> {
+  const entries = await readdir(dir, { withFileTypes: true });
+  for (const entry of entries) {
+    const path = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      yield* walkMarkdown(path);
+    } else if (entry.isFile() && entry.name.endsWith('.md')) {
+      yield path;
+    }
+  }
+}
 
 const args = parseArgs(process.argv);
 const timeout = getNumber(args, 'timeout') ?? 10000;

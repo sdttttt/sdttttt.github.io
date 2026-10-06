@@ -27,7 +27,7 @@
 - `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 31 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
-- `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / fs / git），`__tests__/` 放测试。
+- `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
 - `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
 首次克隆不需要 submodule：`git clone`。
@@ -54,7 +54,6 @@ deno task optimize-images-dry     # 预览图片转换（不写盘、不装 shar
 deno task optimize-images         # 把 assets/src/ 的原图转成 static/ 的发布图
 deno task format-markdown-check   # 检查 Markdown 格式（不写入）
 deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
-deno task git-commit-push-dry     # 预览自动 commit + push
 ```
 
 ## 编码与命名规范
@@ -93,7 +92,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check`；不要提交 `public/` 或临时文件。
 - **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`，把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎。
-- **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore(format): prettier markdown` 格式化了你刚改的 markdown），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
+- **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认
 
@@ -104,7 +103,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - **对外可见**：推送代码、创建 PR / issue。
 - **绕过检查**：带 `--no-verify` 的命令。
 
-具有副作用的脚本（`rename-posts`、`git-commit-push` 等）务必先用 `*-dry` 任务预览。
+具有副作用的脚本（`rename-posts`、`optimize-images` 等）务必先用 `*-dry` 任务预览。
 
 ## Agent 任务执行规范
 

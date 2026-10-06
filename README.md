@@ -29,8 +29,8 @@
 ├── wasm/particles/    WASM 引擎源码（Rust 裸导出；deno task build-wasm）
 ├── static/            原样拷贝的静态资源（apple-touch-icon / favicon / bg/ cutouts）
 ├── scripts/           维护脚本（Deno + TypeScript）
-│   ├── *.ts           入口脚本（validate-posts / rename-posts / git-commit-push / ...）
-│   ├── lib/           共用工具（args / frontmatter / git / fs）
+│   ├── *.ts           入口脚本（validate-posts / rename-posts / optimize-images / ...）
+│   ├── lib/           共用工具（args / frontmatter / image-plan / paths）
 │   └── __tests__/     node:test 测试
 ├── deno.json          Deno 任务定义
 ├── hugo.toml          Hugo 配置
@@ -54,7 +54,6 @@ deno task check-dead-links        # 检查外链死链
 deno task rename-posts-dry        # 预览文章改名
 deno task format-markdown-check   # 只检查 Markdown 格式（不写入）
 deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
-deno task git-commit-push-dry     # 预览自动 commit + push
 ```
 
 全局 prettier 通过 `deno install -g -A npm:prettier@3.9.6` 安装，无需本地 Prettier 配置。
@@ -68,7 +67,7 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 | `check-dead-links.yml` | 每周 + push `content/**` | 检查外链死链              |
 | `test-scripts.yml`     | push `scripts/**`        | 跑 Deno 测试              |
 
-`deploy.yml` 在部署前会自动调用 `deno task format-markdown`。
+`deploy.yml` 在部署前会自动调用 `deno task format-markdown`；部署后（artifact 上传之后）把自动修复结果（改名后的文章、格式化后的 Markdown）以 `chore: auto-fix content` 提交回仓库。
 
 ## 命名约定
 
