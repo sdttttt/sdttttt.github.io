@@ -14,7 +14,7 @@ date: 2020-04-03
 <img width="400" height="600" src="https://github.com/user-attachments/assets/4fc5227e-b0ba-49aa-8107-df03104feb8c" />
 
 <details>
-<summary>百合悟道，无药可救。</summary>
+<summary>嘻嘻，我终于找到了我。</summary>
 
 _我想。_
 
