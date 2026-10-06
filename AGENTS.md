@@ -9,7 +9,7 @@
 - `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
   - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
-  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**，双击可切回真实 PNG（滚到底部才揭示）
+  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「飞入聚合 → 落地顿一下 → 待机漂浮」，`$cfg` 里的 `thumpPower` / `floatAmp` / `floatPeriod` 是动效旋钮，`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
   - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
@@ -18,7 +18,7 @@
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
-  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
+  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标 + 飞入/落地/漂浮的 rAF 状态机）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
 
   （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
@@ -68,7 +68,9 @@ deno task git-commit-push-dry     # 预览自动 commit + push
 - **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
 - **降级链**：左下角徽标的渲染路径会写到 `html[data-pt-engine]` 上，排查时先看这个属性：
   `deferred`（还没滚到接近页底，引擎按需预热尚未开始）/ `unsupported`（浏览器不支持 WASM，直接显示原图，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退原图）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
-- **徽标按需预热**：`assets/js/page-bg.js` 只在「距离页底还有 2 个视口高度」时才拉 wasm、换图并采样建帧（`start()`），所以不读到底的访问不会付 23KB wasm + 50KB 图片 + 一次采样的成本；`mark('deferred')` 在首个 `syncGate()` 之前同步写下，用来挡住 baseof 的 2s 兜底定时器。
+- **徽标按需预热**：`assets/js/page-bg.js` 只在「距离页底还有 2 个视口高度」时才拉 wasm、换图并采样建帧（`start()`），所以不读到底的访问不会付 24KB wasm + 50KB 图片 + 一次采样的成本；`mark('deferred')` 在首个 `syncGate()` 之前同步写下，用来挡住 baseof 的 2s 兜底定时器。
+- **粒子白线（徽标的白色网格）**：`rasterize()` 把每颗粒子居中吸附到**整数设备像素**，所以当采样间距不是整数（如 3.2）时，相邻方块中心距会在 floor/ceil 之间跳变 —— 跳到 ceil 而边长只有 floor（旧参数：间距 3.2 / 边长 3）就裂出 1px 白线，整幅图上一层可见网格。修法在 `wasm/particles/src/lib.rs` 的 `make()`：`size_mode` 传 2（`$cfg.gapFree`）时 `size = ceil(间距) + round(ratio)`，**此时 `sizeRatio` 的含义从「比例」变成「额外出血量（设备 px）」**。实测首图剪影内孔洞 15.97%（最长连续 630px）→ 3.17%（最长 62px）。⚠️ 出血量同时是漂浮振幅的上限：相邻两颗粒子各自反向位移，出血不足就会在运动中重新裂洞（实测出血 1.8 设备 px 下 amp 0.4 / 0.6 CSS px 安全，0.9 开始裂）。
+- **徽标的待机动效只能做成非相干运动**（逐粒子独立相位/振幅，即 `float_on()`）；相干驱动（同一场作用于全体）会改写格子间距而拍出干涉纹：实测竖直行波静位移 5px 时头发上浮出横竖条纹、1px 时又完全看不出动过（可用区间近乎为零），绕中心缩放 `pulse()` 虽仿射、不拍摩尔纹但仍有整体「呼吸」感。给徽标加新交互力（点击爆散等）前先确认它要么是**非相干**的、要么是**仿射**的（整体平移 / 缩放 / 旋转），并且**必须在 1:1 逐帧对比图上验**——用 `sharp` 的 `nearest` 做非整数降采样（如 640→200）本身就会造出条纹假象。
 
 ## 测试指南
 

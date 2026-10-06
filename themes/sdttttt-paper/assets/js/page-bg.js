@@ -1,10 +1,28 @@
 /* ---------------------------------------------------------------------------
  * 页面左下角的装饰徽标 —— 用 WASM 粒子渲染，双击切回真实图片。
  *
- * 呈现方式（2026-10 起）：**淡入淡出，不聚合**。
- *   粒子在 wasm 里一次 settle() 就位（build 时它们是随机散布的，settle 会
- *   直接吸附到目标位置），JS 只 putImageData 一帧；之后显隐完全由 CSS 的
- *   opacity 过渡负责（.page-bg__box / 两个子层）。所以这里**不需要 rAF**。
+ * 呈现方式（2026-10 起重做）：**飞入聚合 → 落地顿一下 → 待机漂浮**。
+ *   build() 时粒子被随机撒在一个比画布大的范围里，tick() 的弹簧阻尼把它们
+ *   收拢到目标位置（这就是「飞入」，约 1.6s）；落定瞬间用 burst() 从画布中心
+ *   补一记径向冲量（「顿一下」）；之后由 float_on() 接管 —— 每颗粒子围绕自己
+ *   的目标位做**相位独立**的小幅简谐运动，就是「漂浮」。显隐依旧是 CSS 的
+ *   opacity 过渡。
+ *
+ *   为什么待机只能是非相干运动：粒子方块的边长（5 设备 px）比采样间距
+ *   （3.2 设备 px）只大 1.8px，格子已经拼满（方块之间是重叠的），所以**任何
+ *   让相邻粒子产生相对位移**的驱动力都会把格子拍成干涉纹。实测（1:1）过三种
+ *   相干驱动：竖直行波（静位移 5px 时头发上浮出横竖条纹、1px 时又完全看不出
+ *   动过，可用区间近乎为零）、绕中心缩放脉冲（仿射，不拍摩尔纹，但仍有
+ *   可察的整体「呼吸」）、以及最初的常驻呼吸 —— 后者让白线**爬行**，是用户
+ *   直接看到的毛病。漂浮的每颗粒子相位、振幅都独立，不存在某个方向上的
+ *   整体事件，结构上不可能长出线条。
+ *
+ *   白线本身是另一个坑，在 Rust 的 make() 里用 size_mode = 2（无缝）解决：
+ *   取整后 size 3 < 间距 3.2，方块中心又被吸附到整数像素，相邻中心距在 3/4
+ *   之间跳变 —— 跳到 4 就裂出 1px 白线。详见那边的注释。
+ *
+ *   跑 rAF，所以有三重闸：html.at-bottom（徽标已揭示）、文档在前台、没切成
+ *   真实图片；`prefers-reduced-motion` 下直接吸附出成品，一帧都不动。
  *
  * 行为：
  *   - 每次加载随机挑一张图；页面里的 <img> 与粒子用的是同一张
@@ -45,7 +63,7 @@
   if (!IMAGES.length) return;
 
   var DPR_CAP = cfg.dprCap || 1.5;
-  var RATIO = cfg.sizeRatio || 0.85;
+  var RATIO = cfg.sizeRatio == null ? 0.85 : cfg.sizeRatio;
   // 徽标要粒子**恰好填满**盒子，才能和 `<img object-fit:contain>` 完全对齐，
   // 双击切换不会有尺寸跳变 —— 所以留边系数是 1/1（大画布用的是 0.8/0.86）
   var FIT_W = cfg.fitW || 1;
@@ -53,11 +71,35 @@
   // 粒子网格间距（CSS px）—— 视觉密度的**唯一旋钮**，与画布尺寸解耦
   var PITCH_CSS = cfg.pitchCss || 2;
   var MAX_PARTICLES = cfg.maxParticles || 60000;
-  // grain = true（默认）走 floor：保证 size 严格小于间距，任何参数下都留缝隙，
-  // 代价是低 dpr 时 size 会被压到 1 设备像素（= 0.5 CSS px），下采样后发白。
-  // grain = false 走 round：能命中带小数的边长（徽标用它把 size 稳定在 1.00 CSS
-  // px），但 sizeRatio 给大了会让边长追上间距、缝隙归零。
-  var GRAIN = cfg.grain !== false;
+  // 粒子边长的取整模式，对应 Rust 侧 make() 的 size_mode：
+  //   2 = 无缝：size = ceil(间距) + round(sizeRatio)，**sizeRatio 的含义从
+  //       “比例”变成“额外出血量（设备 px）”**。徽标用这一档。
+  //   1 = round(间距 × sizeRatio)
+  //   0 = floor(间距 × sizeRatio)（最“颗粒”但一定留缝 → 一定长白线）
+  var SIZE_MODE = cfg.gapFree ? 2 : cfg.grain === false ? 1 : 0;
+
+  // ---- 动效参数 ----
+  // 按「相干 / 非相干」分三类。相干 = 全图粒子被同一个场驱动，运动会改写
+  // 格子间距，而格子本来已经快拼满了（4px 方块 / 3.2px 间距）→ 会拍出条纹；
+  // 非相干 = 每颗粒子自己一套相位与振幅，不存在整体事件，结构上不可能。
+  //
+  //   飞入（land）   相干：弹簧把撒开的粒子收拢到目标位，约 1.6s，只跑一次
+  //   落地（thump）  相干：burst() 从中心补一记径向冲量，给落定一个「顿」
+  //   漂浮（idle）   非相干：float_on() 常驻，逐粒子独立相位的微位移
+  //
+  // 所以长期的待机状态只能用漂浮。
+  //
+  // 落地冲量力度（设备像素速度）：发动机里线性衰减到半径处归零，
+  // 1.4 对应峰值位移 3 个设备像素左右 —— 明显一顿但不散架。0 = 不顿。
+  var THUMP_POWER = cfg.thumpPower == null ? 1.4 : cfg.thumpPower;
+  // 漂浮振幅（**CSS px**，内部乘 dpr 转设备 px）。相邻两颗粒子各自最多
+  // 可以反向走 2×振幅，所以这个值受「出血量」约束：现状 step4 的出血是
+  // 1.8 设备 px（间距 3.2 / 边长 5），实测 0.4 CSS px（@dpr2 = 0.8 设备 px，
+  // 峰值相对位移 1.6px）下的透明孔洞与静止帧完全一致。再大就会偶尔冒
+  // 随机的小洞（不是线，但也没必要）。
+  var FLOAT_AMP = cfg.floatAmp == null ? 0.4 : cfg.floatAmp;
+  // 漂浮周期（毫秒）。慢了看不见，快了就是抖。
+  var FLOAT_PERIOD = cfg.floatPeriod || 5200;
 
   // 一页一图：页面里的 <img> 与粒子共用同一张（赋 src 推迟到 start()，
   // 免得在一篇永远不会滚到底的文章上白下 50KB；HTML 里那张图仍是兜底）
@@ -67,6 +109,7 @@
   var mod = null;
   var frame = null;
   var drawn = false; // 当前 frame 是否已经画到 canvas 上
+  var lastDpr = 1; // 最近一次算出的有效 devicePixelRatio（漂浮振幅要用）
 
   /* 把当前用的渲染路径写到 html[data-pt-engine] 上，方便排查：
      deferred    还没接近页底，引擎按需预热尚未开始（同样能挡住兜底定时器）
@@ -88,6 +131,7 @@
     var h = Math.max(1, Math.round(r.height * dpr));
     canvas.width = w;
     canvas.height = h;
+    lastDpr = dpr;
     return { w: w, h: h, dpr: dpr };
   }
 
@@ -119,13 +163,119 @@
     return root.classList.contains('pt-bg-photo');
   }
 
-  /* 把粒子吸附到目标位置并绘制一帧。**没有动画**：显隐交给 CSS 的
-     opacity 过渡，所以只需要在内容失效时画一次。 */
-  function draw() {
+  /* 把帧缓冲贴到 canvas 上。粒子位置一直活在 wasm 的 px/py 里，所以只要
+     内存里那份 ImageData 还是活的，贴上去就是当前帧。 */
+  function blit() {
     if (!frame) return;
-    mod.settle();
     ctx.putImageData(frame, 0, 0);
     drawn = true;
+  }
+
+  /* 立刻吸附到位并画一帧（减少动态效果 / resize / 双击切回时用）。
+     代价是粒子从随机散布「跳」到目标位置 —— 没有飞入。
+     顺带把漂浮关掉：resize 会重建相位表，不关的话那一帧的偏移量恰好最大。*/
+  function draw() {
+    if (!frame) return;
+    stopMotion();
+    phase = 'idle';
+    floatOn = false;
+    if (mod.float_off) mod.float_off();
+    mod.settle();
+    blit();
+  }
+
+  /* ---------------------------------------------------------- 动效状态机 */
+
+  // land（飞入）→ thump（落地顿一下）→ idle（待机漂浮）
+  var phase = 'land';
+  var raf = 0;
+  var lastT = 0;
+  // 漂浮是否已开启（引擎内部的相位表只在第一次进 idle 时建）
+  var floatOn = false;
+  // 实测帧间隔的指数平均：漂浮的周期以「帧」为单位传进引擎，
+  // 60Hz / 120Hz 屏上要拿到同一个墙钟周期，就得先把毫秒换算成帧数。
+  var avgDt = 16.7;
+
+  // 尊重系统设置：prefers-reduced-motion 下不飞入、不漂浮，直接出成品。
+  var REDUCED = false;
+  try {
+    REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  } catch (e) {}
+  // 动效接口缺失（旧 wasm / 旧加载器）同样退化成静态粒子，不算错误。
+  var NO_ANIM = REDUCED;
+
+  function stopMotion() {
+    if (raf) {
+      cancelAnimationFrame(raf);
+      raf = 0;
+    }
+    lastT = 0;
+  }
+
+  /* 什么时候该动：徽标已揭示（html.at-bottom）+ 页面在前台 + 没切成真实图片。
+     滚离页底、切后台标签页、双击切换都会让动画彻底停下，不白烧 CPU。 */
+  function motionAllowed() {
+    return root.classList.contains('at-bottom') && !document.hidden && !inPhotoMode();
+  }
+
+  function step(now) {
+    raf = 0;
+    if (!mod || !frame || !motionAllowed()) return;
+
+    // 相位按**时间**推进：先算实测帧间隔，再用它把漂浮周期换算成帧数。
+    var dt = lastT ? Math.min(now - lastT, 100) : 16.7;
+    lastT = now;
+    avgDt = avgDt + (dt - avgDt) * 0.1;
+
+    // 每帧**只** tick 一次：tick 的返回值（0 = 弹簧已经平静）既是「这一档
+    // 走完了吗」的唯一信号，也是换档依据。因此换档必然发生在一帧的尾部，
+    // 比实际动作晚一帧 —— 肉眼不可见。
+    var busy = mod.tick() !== 0;
+    if (!busy) {
+      if (phase === 'land' && THUMP_POWER > 0) {
+        phase = 'thump';
+        // 坐标必须是**设备像素**：引擎不知道 dpr，它只认自己的 px/py
+        // （canvas.width 就是设备像素，所以直接用，不要再乘 dpr）
+        mod.burst(
+          canvas.width / 2,
+          canvas.height / 2,
+          Math.max(canvas.width, canvas.height),
+          THUMP_POWER,
+        );
+        busy = true;
+      } else if (phase !== 'idle') {
+        phase = 'idle';
+      }
+    }
+
+    if (phase === 'idle') {
+      if (FLOAT_AMP > 0 && mod.float_on) {
+        if (!floatOn) {
+          // 只开一次：float_on 会重建相位表，每帧调一次等于把漂浮钉死在
+          // 初始相位上（粒子会原地不动）。
+          mod.float_on(FLOAT_AMP * lastDpr, FLOAT_PERIOD / avgDt);
+          floatOn = true;
+        }
+        // 漂浮是**常驻**状态：引擎里的 tick() 只要漂浮开着就永远返回 1，
+        // 所以这里跟着 busy = true，rAF 链永不断。
+        busy = true;
+      } else {
+        busy = false;
+      }
+    }
+
+    blit();
+    if (busy) raf = requestAnimationFrame(step);
+  }
+
+  /* 幂等地把动画叫起来。首次揭示会从「飞入」开始；已经在跑就什么都不做。 */
+  function startMotion() {
+    if (raf || !mod || !frame) return;
+    if (NO_ANIM) {
+      if (!drawn) draw();
+      return;
+    }
+    raf = requestAnimationFrame(step);
   }
 
   /* 唯一的显隐开关：写 html.at-bottom，CSS 负责淡入 / 淡出。 */
@@ -135,8 +285,13 @@
     if (nearBottom()) start();
     var on = atBottom();
     root.classList.toggle('at-bottom', on);
-    // 首次（或 resize 后）揭示时才画；之后画布内容一直有效，不必重画
-    if (on && !drawn) draw();
+    if (!on) {
+      // 滚离页底就停手：显隐走 CSS 过渡，画布内容不需要重画
+      stopMotion();
+      return;
+    }
+    if (!frame) return; // 引擎还没就绪（boot() 就绪后会再调一次 syncGate）
+    startMotion();
   }
 
   /* ------------------------------------------------------------ 双击切换 */
@@ -150,7 +305,12 @@
 
     root.classList.toggle('pt-bg-photo');
     // 从真实图片切回粒子时确保画布有内容（正常已画过，这里是兜底）
-    if (!inPhotoMode()) draw();
+    if (inPhotoMode()) {
+      stopMotion(); // 切成照片 = 粒子被藏起来，没必要继续算
+    } else {
+      blit();
+      startMotion();
+    }
   });
 
   /* ---------------------------------------------------------------- 启动 */
@@ -194,7 +354,7 @@
           FIT_W,
           FIT_H,
           MAX_PARTICLES,
-          GRAIN ? 1 : 0,
+          SIZE_MODE,
         );
         mod.dealloc(p, rgba.length);
         if (rc !== 0) {
@@ -228,9 +388,18 @@
       if (mod.resize(s.w, s.h, PITCH_CSS * s.dpr) !== 0) return;
       frame = makeFrame(); // resize 内部重建，视图要跟着换
       if (!frame) return;
-      drawn = false; // 重新吸附 + 重画（resize 会把粒子位置重新随机）
-      if (atBottom()) draw();
+      // resize 会把粒子位置重新随机，直接吸附重画（**不重放飞入**：徽标已经
+      // 落定了，拖动窗口时反复飞入会很闹），然后接着呼吸
+      drawn = false;
+      draw();
+      startMotion();
     }, 200);
+  });
+
+  // 切后台就停手，切回来再续上（否则后台标签页会一直烧 CPU 跑呼吸）
+  document.addEventListener('visibilitychange', function () {
+    if (document.hidden) stopMotion();
+    else syncGate();
   });
 
   /* ------------------------------------------------------------ 按需预热 */
@@ -267,11 +436,18 @@
     window.ptWasm
       .instance(cfg.wasm)
       .then(function (exports) {
-        // 徽标只用 build / settle / alloc / dealloc / resize / 各访问器，
-        // 不做逐帧动画，所以不需要 tick
+        // 徽标要 build / settle / alloc / dealloc / resize / 各访问器；动效还
+        // 额外要 tick / burst / float_on。缺动效接口不算致命 —— 退化成静态粒子。
         if (typeof exports.build !== 'function' || typeof exports.settle !== 'function') {
           mark('error');
           return;
+        }
+        if (
+          typeof exports.tick !== 'function' ||
+          typeof exports.burst !== 'function' ||
+          typeof exports.float_on !== 'function'
+        ) {
+          NO_ANIM = true;
         }
         mod = exports;
         boot();

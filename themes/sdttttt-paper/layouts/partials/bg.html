@@ -52,27 +52,56 @@
 {{/* 徽标粒子参数（2026-10-06 实测标定）。间距换算规则：
      step = round(pitchCss × 源图宽 / 画布CSS宽)，**与 dpr 无关** —— dpr 在 scale 和
      pitchDev 里同时出现被约掉了；dprCap 只影响 sizePx 的取整粒度与光栅锐度。
-     现状 800px 源图 / 320px 画布：pitchCss 1.2 → step 3（55k 粒子、覆盖率 38%）。
-     sizeRatio 0.95 + grain false（走 round 而非 floor）是为了稳定拿到 1.00 CSS px
-     的粒子：旧的 0.85 + floor 在 dpr1.5 下只到 2 设备像素，窄视口更会塌成 1 设备
-     像素（= 0.5 CSS px），覆盖率掉到 11% 发虚；0.95 + round 在 dpr 1/1.5/2 与
-     170–320px 全宽度下都能守住 ≥1.00 CSS px。
-     dprCap 不要超过 2：dpr3 下 step 不变但 size 会被 round 到更小的 CSS 边长，
-     覆盖率反而下降。
-     maxParticles 是**粒子预算**：Rust 侧 count_opaque > 预算时会把 step 往上推，
-     所以 40000 会把首图从 step3（55,103）压到 step4（31,025 粒子、覆盖率 48.7%、
-     size 1.5 CSS px）；换另外两张图得到 35,891 / 25,666，都落在 3w–4w 量级。
-     调这个值能直接限制粒子数，代价是网格变粗、size 变大。 */}}
+     现状 800px 源图 / 320px 画布：pitchCss 1.4 → step 4，间距 3.2 设备 px
+     （= 1.6 CSS px），方块 5 设备 px（= 2.5 CSS px），31,025 颗粒子。
+
+     pitchCss 是视觉密度的唯一旋钮，但 step = round(...) 是**阶梯式**的：
+     1.2 → step3（间距 1.2 CSS px，糊成照片）、1.4 → step4（1.6，方块质感
+     刚好）、1.8 → step5（2.0，像素马赛克）。无白线和看得出粒子是互斥的，
+     step4 是实测下来的折中。
+
+     gapFree + sizeRatio 解决的是**白线**。光栅化会把每颗粒子居中吸附到整数
+     像素，相邻方块的中心距因此在 floor(间距) 与 ceil(间距) 之间跳变 —— 跳到
+     ceil 而边长只有 floor 时，中间就裂出 1px 白线（旧的 ratio 0.95 + round：
+     间距 3.2 / 边长 3，整幅图上一层肉眼可见的白色网格，是用户直接反馈的问题）。
+     现在走 size_mode = 2：size = ceil(间距) + sizeRatio，而 **sizeRatio 的含
+     义从“比例”变成“额外出血量（设备 px）”** —— 出血 1 设备 px（= 0.5 CSS px）
+     是给常驻漂浮留的余量：相邻两颗粒子各自最多反向走 2×振幅，不预先重叠就会
+     在运动中重新裂出洞。实测出血 1 时漂浮 0.4 CSS px（@dpr2 = 0.8 设备 px）
+     下的透明孔洞与静止帧完全一致（1.20% → 1.16%，都是剪影边缘的固有损耗）。
+
+     maxParticles 是**粒子预算**：Rust 侧 count_opaque > 预算时会把 step 往上推。
+     60000 留在 step 4（31,025 粒子、间距 3.2 设备 px、边长 5 设备 px）；
+     预算压到 20000 会掉到 step 5（19,849 粒子），马赛克明显变粗。另外两张图
+     会各自落在 2w–4w 量级。
+
+     动效三件套（2026-10-06 起，只在左下角徽标上）。区分标准是**相干性**：
+     格子已几乎拼满，凡是由同一个场驱动全体粒子的运动都会改写格子间距、拍出
+     条纹（实测过竖直行波与绕中心缩放脉冲，都不可用）。
+       · 飞入 —— 无参数。build() 时粒子被随机撒在一个比画布大的范围里，
+         tick() 的弹簧（spring 0.08 / damp 0.86）自己收拢，实测 96 帧（1.6s）就位。
+       · thumpPower —— 飞入落定瞬间从画布中心补一记 burst 径向冲量的力度，
+         单位是设备像素速度（引擎内部线性衰减到半径处归零）。1.4 → 峰值位移
+         约 3 设备 px。0 = 不顿。
+       · floatAmp / floatPeriod —— **常驻漂浮**：float_on() 让每颗粒子围绕自己
+         的目标位做简谐运动，相位与振幅（0.55–1.0 倍）逐粒随机，x/y 周期比
+         1.37 → 非相干，结构上不可能长出线条。amp 单位是 CSS px（内部乘 dpr），
+         period 是 x 方向周期（毫秒；y 方向发动机内部用 1.37 倍）。周期会按实测
+         帧间隔换算成帧数，60Hz / 120Hz 屏上墙钟周期一致。
+       三者都受 prefers-reduced-motion 管制：命中时直接 settle 出成品，一帧不动。 */}}
 {{- $cfg := dict
       "images" $urls
       "wasm" $wasm.RelPermalink
-      "pitchCss" 1.2
-      "maxParticles" 40000
-      "sizeRatio" 0.95
-      "grain" false
+      "pitchCss" 1.4
+      "maxParticles" 60000
+      "gapFree" true
+      "sizeRatio" 1
       "fitW" 1
       "fitH" 1
-      "dprCap" 2 -}}
+      "dprCap" 2
+      "thumpPower" 1.4
+      "floatAmp" 0.4
+      "floatPeriod" 5200 -}}
 <div class="page-bg" aria-hidden="true">
     <div class="page-bg__box">
         <img
