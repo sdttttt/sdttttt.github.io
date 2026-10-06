@@ -46,6 +46,18 @@ fn unit_circle() -> (f32, f32) {
     }
 }
 
+/// 由粒子索引得到一个稳定的 [0, 1) 伪随机数。
+///
+/// 用途：给上升波前算**每颗粒子的放行抖动**。为什么用哈希而不是存一张表：
+/// 12.4 万粒子存一个 f32 抖动就是 500KB，而哈希只要几条整数指令。更要紧的是
+/// 它**逐帧稳定** —— 同一个索引每一帧都得到同一个值，否则波前边缘会「沸腾」
+/// （每帧换一批粒子放行，看起来像噪点在爬）。
+fn hash01(i: usize) -> f32 {
+    // 2654435761 = (√5 − 1) / 2 × 2³²，经典的整数散列乘数
+    let h = (i as u32).wrapping_mul(2_654_435_761);
+    ((h >> 8) & 0xffff) as f32 / 65536.0
+}
+
 // ============================================================== 引擎
 
 /// Bhaskara I 的正弦近似（最大误差约 0.16%），够做视觉动效。
@@ -127,6 +139,22 @@ struct Engine {
     w_w: f32,
     w_mode: u32,
     w_phase: f32,
+    // ---- 首次入场的「自上而下一层层显现」（开关是 wipe_on）----
+    //
+    // 为什么必须有这道**显式闸门**：弹簧 `v = (v + (t-p)·0.08)·0.86` 的收敛
+    // 时间只由阻尼决定 —— 起点撒多远，落定时刻几乎一样（只影响过冲幅度）。
+    // 所以「分层」不能靠距离差，只能靠拦住一部分粒子、按波前放行。
+    //
+    // 波前是一条水平线，从画布上缘之上（-band）单调增到画布下缘之下
+    // （fb_h + band）；**还没轮到的粒子根本不画**（rasterize 里跳过）也被弹簧
+    // 跳过 ⇒ 画面是从上往下一层层「渲染」出来的，而不是整幅已经在那儿、只是
+    // 被挪了位置。放行时粒子只沿 y 整体上移 wipe_drop（px = tx），相对位移
+    // 恒为 0 ⇒ 零摩尔纹、零白线（出血量只对运动中的相对位移敏感）。
+    wipe_step: f32,
+    wipe_front: f32,
+    wipe_band: f32,
+    wipe_drop: f32,
+    wipe_gate: u32,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -330,6 +358,15 @@ fn make(
         w_w: 0.0,
         w_mode: 0,
         w_phase: 0.0,
+        // 显现闸门同样默认关闭：build() 之后由 wipe_on() 打开，而且只有
+        // 「首次揭示」那一次会开。build() 依旧把粒子撒在画布外（随机散布
+        // 飞入），wipe_on() 负责把它们重新摆到目标位上 —— 两条入场路径
+        // 共用同一个 build()，互不干扰。
+        wipe_step: 0.0,
+        wipe_front: 0.0,
+        wipe_band: 0.0,
+        wipe_drop: 0.0,
+        wipe_gate: 0,
     }
 }
 
@@ -405,6 +442,42 @@ impl Engine {
         self.w_phase = 0.0;
     }
 
+    /// 布置「自上而下一层层显现」的起始位与波前（开关是 wipe_on）。
+    ///
+    /// `drop` 是设备像素：每颗粒子出现时在**自己目标位上方**这么远，然后被
+    /// 弹簧放下来（0 = 一出现就到位，纯「逐行渲染」）。整批粒子只沿 y 平移
+    /// 同一个量 ⇒ 相对位移恒为 0（拼满的格子上也不会裂）。
+    /// `frames` 是波前扫过整幅要用的帧数（内部换算成速度 `px/帧`，与画布尺寸
+    /// 无关）；`band` 是放行阈值的抖动幅度（设备 px，实际 ±band/2）。
+    fn init_wipe(&mut self, drop: f32, frames: f32, band: f32) {
+        self.wipe_band = if band.is_finite() && band > 0.0 {
+            band
+        } else {
+            0.0
+        };
+        let ok = drop.is_finite() && drop >= 0.0 && frames.is_finite() && frames > 0.0;
+        self.wipe_drop = if ok { drop } else { 0.0 };
+        if !ok {
+            self.wipe_gate = 0;
+            self.wipe_front = 0.0;
+            self.wipe_step = 0.0;
+            return;
+        }
+        let h = self.fb_h as f32;
+        // 波前从画布上缘**之上**一点点出发（先留一段全空的起手帧，否则第一帧
+        // 就已经是「渲染好的图」了），自上而下扫到画布下缘之下；扫完自关。
+        self.wipe_front = -self.wipe_band;
+        self.wipe_step = (h + self.wipe_band * 2.0) / frames;
+        self.wipe_gate = 1;
+        for i in 0..self.n {
+            // 出现前的起始位：只整体上移，x 一分不差
+            self.px[i] = self.tx[i];
+            self.py[i] = self.ty[i] - self.wipe_drop;
+            self.vx[i] = 0.0;
+            self.vy[i] = 0.0;
+        }
+    }
+
     /// 软件光栅化：清屏 + 把每颗粒子写成一个 size×size 的色块
     fn rasterize(&mut self) {
         self.fb.fill(0);
@@ -415,8 +488,15 @@ impl Engine {
         // 没有位移时走原路径，省掉每帧 n 次加法
         let floating = (self.f_amp > 0.0 || self.w_amp_x != 0.0 || self.w_amp_y != 0.0)
             && self.fx.len() == self.n;
+        // 显现闸门：还没轮到的粒子**根本不画**。这是「逐行渲染」与「整幅已经
+        // 在那儿、只是被挪了位置」的分水岭 —— 画布一开始是全空的。
+        let gating = self.wipe_gate != 0;
+        let (front, band) = (self.wipe_front, self.wipe_band);
 
         for i in 0..self.n {
+            if gating && self.ty[i] + (hash01(i) - 0.5) * band > front {
+                continue;
+            }
             let (ox, oy) = if floating {
                 (self.fx[i], self.fy[i])
             } else {
@@ -538,6 +618,10 @@ pub extern "C" fn resize(cw: u32, ch: u32, pitch: f32) -> i32 {
 ///   · 水波：`ripple_on()` 打开后一直在跑的**相干位移场**（确定性，每帧重算）
 /// 后两者共用 fx/fy，同一时刻只会开一个。只要任一个还开着，这个函数永远
 /// 不会返回 0 —— 调用方「还在动就继续排帧」的循环天然就是常驻的。
+///
+/// 另外有一个**修饰符**挂在弹簧通道上：`wipe_on()` 打开的显现闸门。波前扫到
+/// 之前，尚未轮到的粒子被整个跳过（弹簧不跑、像素也不画），所以同一批粒子能
+/// 排出「自上而下一层层显现」的顺序。
 #[no_mangle]
 pub extern "C" fn tick() -> i32 {
     let e = match eng() {
@@ -547,6 +631,26 @@ pub extern "C" fn tick() -> i32 {
     let spring = 0.08f32;
     let damp = 0.86f32;
     let mut max_v = 0.0f32;
+
+    // 显现闸门：波前从画布上缘自上而下扫，扫过的行才出现在画面上。
+    //
+    // 返回值必须把 `rising` 也算进去：**波前扫动期间哪怕这一帧一个粒子都没
+    // 动过**（比如刚开始，只有最上面一行刚放行、速度还很小），也要报「还在动」，
+    // 否则 JS 会以为入场结束、立刻去放落地那记「顿挫」，整段动画就废了。
+    let rising = e.wipe_gate != 0;
+    let mut gating = rising;
+    if rising {
+        e.wipe_front += e.wipe_step;
+        if e.wipe_front >= e.fb_h as f32 + e.wipe_band {
+            e.wipe_front = 0.0;
+            e.wipe_step = 0.0;
+            e.wipe_gate = 0;
+            // 扫到底就全放行 —— 不能让抖动把最下面那几行再卡一帧
+            gating = false;
+        }
+    }
+    // 读成局部量：下面的循环要同时可变借走 px/py/vx/vy，别再回头碰 e
+    let (front, band) = (e.wipe_front, e.wipe_band);
 
     {
         let (px, py, vx, vy, tx, ty) = (
@@ -558,6 +662,10 @@ pub extern "C" fn tick() -> i32 {
             &e.ty,
         );
         for i in 0..e.n {
+            // 还没轮到的层：冻在起始位（也不画），连速度都不算进 max_v
+            if gating && ty[i] + (hash01(i) - 0.5) * band > front {
+                continue;
+            }
             let target_x = tx[i];
             let target_y = ty[i];
             let mut v_x = vx[i] + (target_x - px[i]) * spring;
@@ -639,7 +747,7 @@ pub extern "C" fn tick() -> i32 {
     }
 
     e.rasterize();
-    if max_v > 0.05 || floating || rippling {
+    if rising || max_v > 0.05 || floating || rippling {
         1
     } else {
         0
@@ -659,6 +767,10 @@ pub extern "C" fn settle() {
         e.vx[i] = 0.0;
         e.vy[i] = 0.0;
     }
+    // 显现闸门一并解除：settle() 的语义就是「立刻给我成品帧」
+    e.wipe_gate = 0;
+    e.wipe_step = 0.0;
+    e.wipe_front = 0.0;
     e.rasterize();
 }
 
@@ -700,6 +812,50 @@ pub extern "C" fn burst(x: f32, y: f32, radius: f32, power: f32) -> i32 {
         hit += 1;
     }
     hit
+}
+
+/// 打开**显现闸门**：让一条水平波前从画布上缘**自上而下**扫过，扫到哪一行
+/// 哪些粒子才开始存在（既跑弹簧、也被画出来），于是整幅图是一层层**渲染**
+/// 出来的，而不是「整幅已经在那儿、只是被挪了位置」（首次入场的入场效果）。
+///
+/// `drop` 是设备像素：粒子出现时悬在**自己目标位上方**这么远，随后被弹簧放下
+/// 来（`0` = 一出现就到位，纯逐行显现）。`frames` 是波前扫过整幅要用的帧数
+/// （内部换算成速度，所以与画布尺寸无关）；`band` 是放行阈值的抖动幅度
+/// （设备 px，实际 ±band/2），由索引哈希得出 —— 整行严丝合缝地一起出现会露出
+/// 刀切般的直线。
+///
+/// 与「随机散布 + 同时飞入」的差别全在**闸门**上：弹簧 `v = (v + (t-p)·0.08)
+/// ·0.86` 的收敛时间只由阻尼决定，起点撒多远落定时刻几乎一样，所以光靠距离
+/// 差做不出分层。
+///
+/// 返回 1 表示已开启；0 表示没有引擎 / 参数非法（此时闸门被关掉）。
+/// **不改 `build()` 的签名** —— 这是独立入口，只有首次揭示会调一次。
+#[no_mangle]
+pub extern "C" fn wipe_on(drop: f32, frames: f32, band: f32) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !drop.is_finite() || drop < 0.0 || !frames.is_finite() || frames <= 0.0 {
+        e.init_wipe(0.0, 0.0, 0.0);
+        return 0;
+    }
+    e.init_wipe(drop, frames, band);
+    1
+}
+
+/// 关掉显现闸门（粒子留在原地，剩下的交给弹簧自己收）。
+#[no_mangle]
+pub extern "C" fn wipe_off() -> i32 {
+    match eng() {
+        Some(e) => {
+            e.wipe_gate = 0;
+            e.wipe_step = 0.0;
+            e.wipe_front = 0.0;
+            1
+        }
+        None => 0,
+    }
 }
 
 /// 打开**常驻漂浮**：每颗粒子围绕自己的目标位做小幅简谐运动，永不停止。

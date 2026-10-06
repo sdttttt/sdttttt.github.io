@@ -9,7 +9,7 @@
 - `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
   - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
-  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「飞入聚合 → 落地顿一下 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，且要等上一条淡出动画走完才算「藏起来」，见下），`$cfg` 里的 `thumpPower` / `idleEffect` / `floatAmp` / `floatPeriod` 是动效旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
+  - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「自上而下一层层显现 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，且要等上一条淡出动画走完才算「藏起来」，见下），`$cfg` 里的 `wipeDrop` / `wipeDuration` / `wipeBand` 是入场动效旋钮（另有 `thumpPower`，**当前 0 = 落定后不再弹一下**），`idleEffect` / `floatAmp` / `floatPeriod` 是待机旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
   - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
@@ -18,13 +18,13 @@
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
-  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标 + 飞入/落地/漂浮的 rAF 状态机）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
+  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标 + 逐行显现/待机漂浮的 rAF 状态机）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
 
   （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
 
 - `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
-- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 31 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
+- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`（当前 32,062 字节）；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 37 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
@@ -70,7 +70,13 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - **降级链**：左下角徽标的渲染路径会写到 `html[data-pt-engine]` 上，排查时先看这个属性：
   `deferred`（还没滚到接近页底，引擎按需预热尚未开始）/ `pending`（引擎加载中，或已加载完但还没滚到页底揭示）/ `unsupported`（浏览器不支持 WASM，直接显示原图，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退原图）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
 - **徽标按需预热**：`assets/js/page-bg.js` 只在「距离页底还有 2 个视口高度」时才拉 wasm（`start()` **只拉 wasm**），所以不读到底的访问不会付 23KB wasm 的成本；`mark('deferred')` 在首个 `syncGate()` 之前同步写下，用来挡住 baseof 的 2s 兜底定时器。
-- **抽图推迟到「揭示」那一刻，且每次揭示都重抽**：`syncGate()` 里只在 `html.at-bottom` **从无到有**的那一刻调 `showImage()` —— 抽签（`pickImage()`，会避开上一张）、换 `<img>` 的 `src`、`sizeCanvas()` + 采样 + `build()` 全在这一刻发生。因此「读过但没滚到底」的访问既不付采样成本、也**永远不会抽签**。首次揭示保留粒子撒在画布外的初态去跑「飞入」，之后每次揭示都只是 `settle()` 吸附成型（`draw()`）—— 在页底上下滚不会反复播 1.6s 的飞入。`revealed` / `pending` / `shownOnce` / `building` / `needsPick` 五个标志 + `hideTimer` 管住整条状态机。
+- **抽图推迟到「揭示」那一刻，且每次揭示都重抽**：`syncGate()` 里只在 `html.at-bottom` **从无到有**的那一刻调 `showImage()` —— 抽签（`pickImage()`，会避开上一张）、换 `<img>` 的 `src`、`sizeCanvas()` + 采样 + `build()` 全在这一刻发生。因此「读过但没滚到底」的访问既不付采样成本、也**永远不会抽签**。首次揭示走「逐行显现闸门」（见下），之后每次揭示都只是 `settle()` 吸附成型（`draw()`）—— 在页底上下滚不会反复播 1.2s 的入场。`revealed` / `pending` / `shownOnce` / `building` / `needsPick` 五个标志 + `hideTimer` 管住整条状态机。
+- **首次入场是「自上而下一层层显现」（Rust 的 `wipe_on(drop, frames, band)`）**：`build()` 把粒子随机撒在画布外之后，`wipe_on()` 立刻把它们**收进目标位**（或抬到自己目标位上方 `wipeDrop`），再由一条**自上而下**的波前逐行放行。关键在于闸门是**两处**同时生效：`tick()` 冻结还没轮到的粒子，`rasterize()` **根本不画**它们 —— 所以画布从**全空**开始一层层「渲染」出来，而不是整幅已经在那儿、只是被挪了位置（这两种观感差得很远，是第一版被否掉的原因）。
+  - 为什么必须动引擎：弹簧（`spring 0.08` / `damp 0.86`）的**收敛时间只由阻尼决定、与起始距离无关**（起点放多远落定时刻几乎一样），所以「分层」只能靠显式放行闸门，纯 JS 没有后门（`fx/fy` 每帧被 float/ripple 公式整体覆写，`settle()` 是全量吸附）。
+  - 实现：`Engine` 加 `wipe_step` / `wipe_front` / `wipe_band` / `wipe_drop` / `wipe_gate`；`init_wipe()` 把每颗粒子 `px = tx` / `py = ty - drop`（**只沿 y 平移** ⇒ 相对位移恒 0 ⇒ 零摩尔纹）、`wipe_front = -wipe_band`（起手在画布上缘之上，先留几帧全空）、`wipe_step = (fb_h + 2*wipe_band) / frames`；`tick()` 每帧 `wipe_front += wipe_step`（越过 `fb_h + band` 自关），放行判据 **`ty[i] + (hash01(i) - 0.5) * band > front` ⇒ 跳过**，`rasterize()` 复用同一条判据决定画不画。抖动带由 `hash01(i)`（索引整数哈希 `i.wrapping_mul(2654435761) >> 8`）给出：**逐帧稳定**（否则波前边缘会沸腾），且不占内存（12.4 万粒子存 f32 抖动要 500KB）。
+  - ⚠️ `tick()` 的返回判据必须带上 `rising`：`if rising || max_v > 0.05 || floating || rippling { 1 }`。波前扫动期间哪怕**这一帧一个粒子都没动过**也必须报「还在动」，否则 JS 会在第 1 帧就以为落定、把落地顿挫提前放掉（单测 `wipe_gate_freezes_the_unreached_layers_and_keeps_tick_reporting_motion` 专门守这一条）。
+  - ⚠️ 前身 `rise_on` / `riseTravel`（粒子整体悬在目标位**下方**、波前**自下而上**）已删除：它的观感是「整幅图已经渲染好了、只是被挪了位置」，用户要的是「粒子逐渐渲染」+ 自上而下。教训：入场动效的第一判据是**未放行的像素到底画不画**，其次才是波前方向。
+  - 参数：`wipeDrop`（0 = 一出现就到位、纯逐行渲染，**当前采用**；给 6–12 则每行从上方落下来，代价是边界处那一两行会短暂重影）/ `wipeDuration`（墙钟毫秒，按实测帧间隔换算成帧，与刷新率无关；当前 2400ms 实测：覆盖顶到 56.7% 在 2.30s、`tick()` 归零在 2.42s 并随即（`thumpPower > 0` 时）放落地顿挫 —— `wipeDrop = 0` 下粒子一出现就在目标位、弹簧没有活干，所以**总时长 ≈ 波前时长**；只有 `wipeDrop > 0` 才会多出一截 0.6–1.2s 的弹簧尾巴）/ `wipeBand`（CSS px；写 CSS px 是为了让观感与屏幕密度无关）。`settle()` 会顺手清掉闸门；`resize()` / `draw()` 也会关掉（拖窗口不会重放）。旧 wasm 没有 `wipe_on` → 静默退回随机散布飞入（96 帧 1.6s），不算错误。
 - **「隐藏」要等淡出走完才算数**：滚离页底只摘掉 `html.at-bottom`（CSS 开始淡出），旧帧**先留着** —— `hideTimer = setTimeout(hideFadeDone, hideMs())`，`hideMs()` 直接读 `.page-bg__box` 的 `transitionDuration`（不硬编码，`prefers-reduced-motion` 下 CSS 是 `transition: none` → 自动变 0）。淡出走完才 `discardFrame()` + `needsPick = true`（下次揭示才重抽）；**淡出没走完就又滚回页底 → `clearTimeout` 撤销、`needsPick` 保持 false，`revealShow()` 直接把粒子、图片、动效状态原样接着显示**。计时器只在「这一轮」离开页底时起一次（`if (!hideTimer)`），否则每个滚动事件都会把它往后推。
 - **粒子白线（徽标的白色网格）**：`rasterize()` 把每颗粒子居中吸附到**整数设备像素**，所以当采样间距不是整数（如 3.2）时，相邻方块中心距会在 floor/ceil 之间跳变 —— 跳到 ceil 而边长只有 floor（旧参数：间距 3.2 / 边长 3）就裂出 1px 白线，整幅图上一层可见网格。修法在 `wasm/particles/src/lib.rs` 的 `make()`：`size_mode` 传 2（`$cfg.gapFree`）时 `size = ceil(间距) + round(ratio)`，**此时 `sizeRatio` 的含义从「比例」变成「额外出血量（设备 px）」**。实测首图剪影内孔洞 15.97%（最长连续 630px）→ 3.17%（最长 62px）。⚠️ 出血量同时是**动效安全预算**：相邻两颗粒子反向位移之和超过出血量就会在运动中重新裂洞（实测出血 1.8 设备 px 下，逐粒子漂浮 amp 0.4 / 0.6 CSS px 安全，0.9 开始裂）。
 - **徽标待机动效的判据是「位移梯度」，不是相干性**：格子已几乎拼满，判据是相邻粒子（一个采样间距）的**相对位移**必须远小于出血量。旧参数（出血 0.2 设备 px）下相干场必裂 —— 竖直行波静位移 5px 时头发上浮出横竖条纹、1px 时又完全看不出动过（可用区间近乎为零），绕中心缩放 `pulse()` 虽仿射不拍摩尔纹但仍有整体「呼吸」感 —— 据此一度写下「待机动效只能非相干」的结论；改成无缝边长（出血 1.8 设备 px）后**相干波重新可用**，即引擎里的 `ripple_on()`：

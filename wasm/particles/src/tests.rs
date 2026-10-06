@@ -1007,6 +1007,259 @@ fn resize_keeps_the_idle_animation_settings() {
     assert!(engine().fx.iter().any(|v| *v != 0.0));
 }
 
+// ---------------------------------------------------------- 显现闸门（首次入场）
+
+#[test]
+fn hash01_is_stable_spread_and_within_the_unit_interval() {
+    let _g = setup();
+    let a: Vec<f32> = (0..256).map(hash01).collect();
+    assert!(a.iter().all(|v| (0.0..1.0).contains(v)), "hash01 越界");
+    // 逐帧稳定：同一索引必须每次得到同一个值，否则波前边缘会「沸腾」
+    let b: Vec<f32> = (0..256).map(hash01).collect();
+    assert_eq!(a, b);
+    // 分布不塌缩到一小段（否则抖动就退化成常数、又变回刀切直线）
+    assert!(a.iter().any(|v| *v < 0.25) && a.iter().any(|v| *v > 0.75));
+    // 相邻索引不应退化成同一个值（同一行的粒子要能分出先后）
+    assert!(a.windows(2).filter(|w| w[0] != w[1]).count() > 200);
+}
+
+/// 读 framebuffer 某个设备像素的 alpha（没被任何粒子画到的地方是 0）
+fn alpha_at(x: u32, y: u32) -> u8 {
+    let i = ((y as usize) * fb_width() as usize + x as usize) * 4 + 3;
+    assert!(i < fb_len() as usize, "读越界：({x}, {y})");
+    unsafe { *fb_ptr().add(i) }
+}
+
+#[test]
+fn wipe_on_validates_and_lifts_every_particle_above_its_target() {
+    let _g = setup();
+    build_demo(2);
+    // 非法 drop / frames 一律拒绝并清掉闸门（drop = 0 是合法的：纯逐行显现）
+    for drop in [-1.0f32, f32::NAN, f32::INFINITY, f32::NEG_INFINITY] {
+        assert_eq!(wipe_on(drop, 100.0, 4.0), 0, "drop = {drop} 应当被拒");
+        assert_eq!(engine().wipe_gate, 0);
+        assert_eq!(engine().wipe_step, 0.0);
+        assert_eq!(engine().wipe_front, 0.0);
+    }
+    for frames in [0.0f32, -1.0, f32::NAN, f32::INFINITY] {
+        assert_eq!(wipe_on(20.0, frames, 4.0), 0, "frames = {frames} 应当被拒");
+        assert_eq!(engine().wipe_gate, 0);
+    }
+    // band 非法只是退化成 0（和 float_on 的 clamp 一样，不拒绝整个调用）
+    assert_eq!(wipe_on(20.0, 50.0, f32::NAN), 1);
+    assert_eq!(engine().wipe_band, 0.0);
+    // 合法参数：全部悬在目标位**上方** drop、x 一分不差、速度归零、
+    // 波前从画布上缘之上出发，一步走 (fb_h + 2·band) / frames
+    assert_eq!(wipe_on(20.0, 50.0, 6.0), 1);
+    {
+        let e = engine();
+        assert_eq!(e.wipe_drop, 20.0);
+        assert_eq!(e.wipe_band, 6.0);
+        assert_eq!(e.wipe_front, -6.0);
+        assert_eq!(e.wipe_step, (40.0 + 12.0) / 50.0);
+        for i in 0..e.n {
+            assert_eq!(e.px[i], e.tx[i], "闸门期 x 必须完全一致（只沿 y 平移）");
+            assert_eq!(e.py[i], e.ty[i] - 20.0);
+            assert_eq!(e.vx[i], 0.0);
+            assert_eq!(e.vy[i], 0.0);
+        }
+    }
+    // wipe_off 只解闸门，不一并动粒子
+    let py: Vec<f32> = engine().py.clone();
+    assert_eq!(wipe_off(), 1);
+    assert_eq!(engine().wipe_gate, 0);
+    assert_eq!(engine().wipe_step, 0.0);
+    assert_eq!(engine().wipe_front, 0.0);
+    assert_eq!(engine().py, py);
+    // drop = 0：粒子原地待命，等波前扫到才「长出来」
+    assert_eq!(wipe_on(0.0, 50.0, 6.0), 1);
+    {
+        let e = engine();
+        assert_eq!(e.wipe_drop, 0.0);
+        assert_eq!(e.px, e.tx);
+        assert_eq!(e.py, e.ty);
+    }
+    // settle 的语义是「立刻给我成品帧」：闸门一并解除、粒子回目标位
+    assert_eq!(wipe_on(20.0, 50.0, 6.0), 1);
+    settle();
+    {
+        let e = engine();
+        assert_eq!(e.wipe_gate, 0);
+        assert_eq!(e.wipe_step, 0.0);
+        assert_eq!(e.wipe_front, 0.0);
+        assert_eq!(max_offset(), 0.0);
+        assert_eq!(e.px, e.tx);
+        assert_eq!(e.py, e.ty);
+    }
+    // resize 重建引擎 → 闸门自动关（拖窗口不会重放整段入场）
+    assert_eq!(wipe_on(20.0, 50.0, 6.0), 1);
+    assert_eq!(resize(40, 40, 4.0), 0);
+    assert_eq!(engine().wipe_gate, 0);
+}
+
+#[test]
+fn wipe_gate_freezes_the_unreached_layers_and_keeps_tick_reporting_motion() {
+    let _g = setup();
+    build_demo(2); // 40×40 画布、step 4 → 10×10 颗，ty ∈ {0, 4, …, 36}
+    // 抖动带 6 ⇒ 波前从 -6 出发；frames 很大 ⇒ 一步只有 0.13 px
+    assert_eq!(wipe_on(10.0, 400.0, 6.0), 1);
+    let start: Vec<f32> = engine().py.clone();
+    // 第一帧：波前才走到 -5.87，连最上面的放行阈值（≥ -3）都没碰到 ——
+    // 一个粒子都没轮到、max_v = 0，但 tick() 必须报「还在动」，否则 JS 会立刻
+    // 去放落地那记顿挫，整段入场就废了。这一条就是这个 bug 的回归守卫。
+    assert_eq!(tick(), 1);
+    {
+        let e = engine();
+        assert!((e.wipe_front - (-6.0 + 52.0 / 400.0)).abs() < 1e-4);
+        for i in 0..e.n {
+            assert_eq!(e.py[i], start[i], "第 {i} 颗还没轮到，不该动");
+            assert_eq!(e.vy[i], 0.0);
+        }
+    }
+    // 再走一大段：波前越过最上面那几行，它们动了，下面的行仍然原地不动
+    for _ in 0..200 {
+        assert_eq!(tick(), 1);
+    }
+    {
+        let e = engine();
+        let front = e.wipe_front;
+        for i in 0..e.n {
+            let jitter = (hash01(i) - 0.5) * e.wipe_band;
+            if e.ty[i] + jitter > front {
+                assert_eq!(e.py[i], start[i], "ty = {} 还没轮到", e.ty[i]);
+            } else {
+                assert!(e.py[i] > start[i], "ty = {} 应当已经往下走了", e.ty[i]);
+            }
+        }
+    }
+    // 扫到底：闸门自己关掉
+    for _ in 0..400 {
+        let _ = tick();
+    }
+    {
+        let e = engine();
+        assert_eq!(e.wipe_gate, 0, "波前扫完应当自关");
+        assert_eq!(e.wipe_step, 0.0);
+        assert_eq!(e.wipe_front, 0.0);
+        for i in 0..e.n {
+            assert!(e.py[i] > start[i], "放行之后每一颗都该动了");
+        }
+    }
+    let residual = max_offset();
+    assert!(residual < 0.5, "残余偏移应当很小，实际 {residual}");
+}
+
+#[test]
+fn wipe_reveals_rows_top_down_and_hides_the_ones_not_reached_yet() {
+    let _g = setup();
+    build_demo(2);
+    // 速度 = 40/40 = 1.0 px/帧（band = 0）⇒ ty 那一行恰好在第 ty 帧放行
+    // drop = 0：粒子一出现就在最终位置上，所以「动没动」不能当放行判据 ——
+    // 这里直接看**画面**（alpha），这正是「逐行渲染」与「整幅已在那儿被挪了
+    // 位置」的分水岭。
+    assert_eq!(wipe_on(0.0, 40.0, 0.0), 1);
+    for _ in 0..20 {
+        assert_eq!(tick(), 1);
+    }
+    // 波前走到 20：ty ≤ 20 的行已经画出来了，下面的行一个像素都没有
+    assert_ne!(alpha_at(2, 2), 0, "最上面那一行应当已经画出来了");
+    assert_ne!(alpha_at(2, 18), 0, "波前扫过的行都该在");
+    assert_eq!(alpha_at(2, 36), 0, "波前还没扫到最下面一行");
+    assert_eq!(alpha_at(20, 30), 0, "半路都不该有像素");
+    // 扫完之后整幅都在
+    for _ in 0..40 {
+        let _ = tick();
+    }
+    assert_ne!(alpha_at(2, 2), 0);
+    assert_ne!(alpha_at(2, 36), 0, "扫完之后最下面一行也得在");
+}
+
+#[test]
+fn wipe_releases_rows_top_down_and_then_the_spring_takes_over() {
+    let _g = setup();
+    build_demo(2);
+    // 速度 = 0.4 + 2·0 / … = 40/40 = 1.0 px/帧（band = 0）⇒ ty 行第 ty 帧放行
+    assert_eq!(wipe_on(10.0, 40.0, 0.0), 1);
+    let n = engine().n;
+    let start: Vec<f32> = engine().py.clone();
+    let mut released = vec![usize::MAX; n];
+    let mut frames = 0usize;
+    loop {
+        frames += 1;
+        assert!(frames < 2000, "闸门 + 弹簧不收敛");
+        let still = tick();
+        for i in 0..n {
+            if released[i] == usize::MAX && engine().py[i] != start[i] {
+                released[i] = frames;
+            }
+        }
+        if still == 0 {
+            break;
+        }
+    }
+    {
+        let e = engine();
+        // 自上而下：目标行越靠上（ty 越小）放行越早，且同一行的粒子同时放行
+        // （band = 0 ⇒ 没有抖动）
+        for i in 0..n {
+            for j in 0..n {
+                if e.ty[i] < e.ty[j] {
+                    assert!(
+                        released[i] <= released[j],
+                        "行序与放行顺序不一致：ty {} 在 ty {} 之后放行",
+                        e.ty[i],
+                        e.ty[j]
+                    );
+                } else if e.ty[i] == e.ty[j] {
+                    assert_eq!(released[i], released[j], "同一行应当同时放行");
+                }
+            }
+        }
+        // 最上面一行第 1 帧、最下面一行第 36 帧 —— 正好是 (ty + 1) / 1.0 取整
+        assert_eq!(released[0], 1);
+        assert_eq!(released[n - 1], 36);
+    }
+    // 弹簧把最后一层也收回去了（残余远小于 drop）；settle 之后才是真对齐
+    let residual = max_offset();
+    assert!(residual < 0.5, "残余偏移应当很小，实际 {residual}");
+    settle();
+    assert_eq!(max_offset(), 0.0);
+}
+
+#[test]
+fn wipe_band_gives_the_front_a_ragged_edge() {
+    let _g = setup();
+    build_demo(2);
+    assert_eq!(wipe_on(10.0, 40.0, 8.0), 1);
+    let n = engine().n;
+    let start: Vec<f32> = engine().py.clone();
+    let mut released = vec![usize::MAX; n];
+    for f in 1..=150 {
+        let still = tick();
+        for i in 0..n {
+            if released[i] == usize::MAX && engine().py[i] != start[i] {
+                released[i] = f;
+            }
+        }
+        if still == 0 {
+            break;
+        }
+    }
+    {
+        let e = engine();
+        let first_row = e.ty.iter().cloned().fold(f32::MAX, f32::min);
+        let row: Vec<usize> = (0..n).filter(|&i| e.ty[i] == first_row).collect();
+        assert!(row.len() > 2);
+        assert!(row.iter().all(|&i| released[i] != usize::MAX), "整行都该放行");
+        // 抖动让同一行内部也分出先后（±band/2 ⇒ 最多 band/speed = 8 帧的差）
+        let first = released[row[0]];
+        assert!(row.iter().any(|&i| released[i] != first), "同一行不能整行一起出现");
+        let span = row.iter().map(|&i| released[i]).max().unwrap()
+            - row.iter().map(|&i| released[i]).min().unwrap();
+        assert!(span <= 8, "抖动的跨度不该超过 band / speed，实际 {span}");
+    }
+}
+
 // ---------------------------------------------------------- 无引擎时的兜底
 
 #[test]
@@ -1026,6 +1279,9 @@ fn every_entry_point_is_safe_without_an_engine() {
     assert_eq!(float_off(), 0);
     assert_eq!(ripple_on(2.0, 2.0, 80.0, 240.0, 0), 0);
     assert_eq!(ripple_off(), 0);
+    assert_eq!(wipe_on(20.0, 50.0, 4.0), 0);
+    assert_eq!(wipe_on(-1.0, 50.0, 4.0), 0, "负 drop 也不合法");
+    assert_eq!(wipe_off(), 0);
     assert_eq!(resize(64, 64, 4.0), -1);
     settle(); // 只是不能 panic
     assert!(eng().is_none(), "兜底路径不应当顺手建出引擎");
