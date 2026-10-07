@@ -7,9 +7,10 @@
     "format-markdown-check": "prettier --check '**/*.md'",
     "rename-posts": "deno run -A scripts/rename-posts.ts",
     "rename-posts-dry": "deno run -A scripts/rename-posts.ts --dry-run",
+    "rename-posts-check": "deno run -A scripts/rename-posts.ts --check",
     "optimize-images": "deno run --no-lock -A scripts/optimize-images.ts",
     "optimize-images-dry": "deno run --no-lock -A scripts/optimize-images.ts --dry-run",
-    "build-wasm": "cd wasm/particles && cargo build --release --target wasm32-unknown-unknown && cp target/wasm32-unknown-unknown/release/particles.wasm ../../themes/sdttttt-paper/assets/wasm/particles.wasm && chmod 644 ../../themes/sdttttt-paper/assets/wasm/particles.wasm",
+    "build-wasm": "./bin/build-wasm.sh",
     "test-wasm": "cd wasm/particles && cargo test",
     "lint": "deno lint scripts/"
   },

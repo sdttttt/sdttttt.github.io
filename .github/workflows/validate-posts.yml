@@ -1,29 +1,35 @@
 name: Validate Posts
 
+# PR 与 push 时的 front matter 快检，跑什么由 bin/validate-posts.sh 决定。
 on:
   workflow_dispatch:
   push:
-    branches: [master, main]
+    branches:
+      - master
+      - main
     paths:
       - 'content/posts/**'
       - 'scripts/**'
+      - 'bin/**'
       - 'deno.json'
       - '.github/workflows/validate-posts.yml'
   pull_request:
-    branches: [master, main]
+    branches:
+      - master
+      - main
 
 jobs:
   validate:
-    # 跳过 github-actions[bot] 的 push：避免 auto-fix commit 触发新一轮校验
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: denoland/setup-deno@v2
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: '2.9.5'
 
       - name: Validate posts
-        run: deno task validate-posts
+        run: ./bin/validate-posts.sh

@@ -12,6 +12,7 @@
  *
  * 用法：
  *   deno run -A scripts/rename-posts.ts --dry-run --verbose   # 预览计划
+ *   deno run -A scripts/rename-posts.ts --check               # 只读门禁（有待改文件即退出 1）
  *   deno task rename-posts                                     # 实际执行
  *
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
@@ -26,7 +27,11 @@ import { parseArgs, getBoolean } from './lib/args.js';
 import { listPostFiles, POSTS_DIR } from './lib/paths.js';
 
 const args = parseArgs(process.argv);
-const dryRun = getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun');
+const dryRun =
+  getBoolean(args, 'dry-run') || getBoolean(args, 'dryRun') || getBoolean(args, 'check');
+// --check：只读门禁。不改一个文件（因此隐含 dry-run），但「有待改文件」本身就是失败
+// （退出码 1），用来在 CI / pre-push 里断言「本地内容 == CI 会产出的内容」。
+const check = getBoolean(args, 'check');
 const verbose = getBoolean(args, 'verbose');
 
 // ─────────────────────────────────────────────────────────────
@@ -350,11 +355,16 @@ async function main(): Promise<void> {
   const { plans, skipped, files } = await buildReport();
 
   if (skipped.length > 0) {
-    console.log(`跳过 ${skipped.length} 篇：`);
-    for (const s of skipped) {
-      console.log(`  ${s.file}: ${s.reason}`);
+    // --check 是门禁模式（pre-push hook / CI），不值得为「已是新格式」刷 200 行日志
+    if (check && !verbose) {
+      console.log(`跳过 ${skipped.length} 篇（已是新格式 / 缺 date 等，加 --verbose 看明细）`);
+    } else {
+      console.log(`跳过 ${skipped.length} 篇：`);
+      for (const s of skipped) {
+        console.log(`  ${s.file}: ${s.reason}`);
+      }
+      console.log('');
     }
-    console.log('');
   }
 
   if (plans.length === 0) {
@@ -386,13 +396,9 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const tag = dryRun ? '[dry-run] 计划' : '完成';
+  const tag = check ? '--check：需要' : dryRun ? '[dry-run] 计划' : '完成';
   console.log(`${tag}重命名 ${plans.length} 篇文章${dryRun ? '：' : ''}`);
-  if (dryRun) {
-    for (const p of plans) {
-      printPlan(p);
-    }
-  } else {
+  if (!dryRun) {
     for (const p of plans) {
       if (verbose) {
         console.log(`  ${basename(p.oldPath)} → ${basename(p.newPath)}`);
@@ -400,6 +406,16 @@ async function main(): Promise<void> {
       await executePlan(p);
     }
     console.log(`✓ 重命名 ${plans.length} 篇文章成功`);
+    return;
+  }
+
+  for (const p of plans) {
+    printPlan(p);
+  }
+
+  if (check) {
+    console.error(`✗ --check：有 ${plans.length} 篇文章的文件名不符合规范（跑 deno task rename-posts 修复）`);
+    process.exit(1);
   }
 }
 

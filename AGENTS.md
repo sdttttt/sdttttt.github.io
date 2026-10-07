@@ -27,6 +27,9 @@
 - `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`（当前 32,062 字节）；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 37 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
+- `bin/` — **CI 与本地共用的 shell 脚本层**（bash 3.2 兼容，macOS 自带 bash 也能跑）。`.github/workflows/*.yml` 只声明「触发条件 + 权限 + 第三方 action + 工具链安装」，实际跑什么全在 `bin/*.sh` 里 —— 所以本地能跑出和 CI 一样的结果，也不用读 YAML 才知道 CI 干了什么：
+  - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
+  - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
 - `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
@@ -37,7 +40,7 @@
 1. **同步父主题**（`themes/hugo-paper/`）：手动 `git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`，`diff -ru themes/hugo-paper/ /tmp/hp-clone/`，把需要的上游改动 patch 到 `themes/hugo-paper/`。
 2. **同步子主题自定义 override**（`themes/sdttttt-paper/`）：每个 override 文件头注释已写明 "When bumping hugo-paper upstream, sync against themes/hugo-paper/.../X and reapply the diff"，按注释指引手动同步。
 
-推送到 `master` 分支即触发 GitHub Actions 自动部署。
+推送到 `master` 即触发 `.github/workflows/deploy.yml` 自动部署（部署前会先跑一遍 `bin/*.sh`）。
 
 ## 构建、测试与开发命令
 
@@ -56,6 +59,26 @@ deno task format-markdown-check   # 检查 Markdown 格式（不写入）
 deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
 deno task lint                    # deno lint scripts/（已 exclude no-sloppy-imports）
 ```
+
+## CI 与本地检查（`bin/`）
+
+**设计原则：YAML 只做 YAML 该做的事** —— 触发条件、`permissions`、`environment`、第三方 action、工具链安装、`concurrency`；所有逻辑都写进 `bin/*.sh`。改 CI 行为 = 改 shell 脚本，而本地跑同一个脚本就能复现 CI 的结果。
+
+```bash
+./bin/preflight.sh                   # 只读：CI 会跑的那五道检查，本地跑一遍就知道 CI 会不会绿
+./bin/preflight.sh --fix             # 就地修（文件名 + Markdown 格式），CI 里用这个
+./bin/install-hooks.sh               # 装一次 pre-commit / pre-push hook（core.hooksPath=bin/hooks）
+./bin/artifacts.sh check             # 图片 / wasm 产物是否齐全且新鲜
+./bin/artifacts.sh check --rebuild   # 额外用 cargo 重编译 wasm 并逐字节比对（需 cargo）
+./bin/test.sh                        # shell 语法检查 + deno 单测
+./bin/build.sh                       # hugo --minify
+./bin/check-links.sh                 # 死链检查（CI 里失败只出 warning，不挡部署）
+```
+
+- **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
+- **产物新鲜度靠指纹，不靠 mtime**：`themes/sdttttt-paper/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
+- 改了 `wasm/**` 后跑 `deno task build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
+- 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `build.sh` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
 ## 编码与命名规范
 
@@ -97,8 +120,8 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 
 - 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(changelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
-- 推送前跑一遍 `deno task test` / `validate-posts` / `format-markdown-check` / `lint`；不要提交 `public/` 或临时文件。
-- **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`，把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎。
+- 推送前跑一遍 `./bin/preflight.sh`（只读，等价于 CI 的检查；装了 `./bin/install-hooks.sh` 后 push 会自动跑）；不要提交 `public/` 或临时文件。
+- **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认

@@ -1,47 +1,33 @@
 name: Check Dead Links
 
+# 每周一次 + 内容变化时检查外链，跑什么与「失败怎么处理」都由 bin/check-links.sh 决定。
+# 死链不阻塞部署（外链会抖），但必须有可见痕迹：脚本会写 ::warning:: 与 job summary。
 on:
   workflow_dispatch:
   schedule:
-    # 每周日 02:17 UTC 检查一次
     - cron: '17 2 * * 0'
   push:
-    branches: [master, main]
+    branches:
+      - master
+      - main
     paths:
       - 'content/**'
       - 'scripts/check-dead-links.ts'
+      - 'bin/check-links.sh'
       - '.github/workflows/check-dead-links.yml'
 
 jobs:
   check:
-    # 跳过 github-actions[bot] 的 push：避免 auto-fix commit 触发新一轮检查
-    if: github.actor != 'github-actions[bot]'
     runs-on: ubuntu-latest
+    if: github.actor != 'github-actions[bot]'
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - uses: denoland/setup-deno@v2
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          deno-version: '2.9.5'
 
-      # 死链不阻塞部署（外链会抖动），但必须留下可见痕迹：命中时写一条
-      # ::warning:: 注解 + job summary。此前的 `|| true` 让这个 job 永远绿着，
-      # 2026-10-05 发现的 9 张静默失效的外链图就是被它吞掉的。
       - name: Check dead links
-        run: |
-          set +e
-          output=$(deno task check-dead-links 2>&1)
-          status=$?
-          echo "$output"
-          if [ "$status" -ne 0 ]; then
-            echo "::warning title=死链检查::检查发现失效外链（不阻塞部署），详见 job summary 与上方日志"
-            {
-              echo '## ⚠️ 死链检查发现失效外链'
-              echo ''
-              echo '```'
-              echo "$output"
-              echo '```'
-            } >> "$GITHUB_STEP_SUMMARY"
-          fi
-          exit 0
+        run: ./bin/check-links.sh

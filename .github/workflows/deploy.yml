@@ -1,13 +1,16 @@
 name: Hugo on GitHub Pages
 
+# 这个文件只声明「GitHub 强制依赖的东西」：触发条件、权限、第三方 action、
+# 工具链安装、artifact 上传 / Pages 部署。
+# 所有实际逻辑都在 bin/*.sh 里，本地跑的是同一份脚本 —— 见 AGENTS.md「工作流」。
 on:
   workflow_dispatch:
   push:
     branches:
       - master
 
-# 同一时刻只允许一个部署，后到的 push 取消进行中的旧构建，
-# 避免旧 artifact 后完成、覆盖新内容的乱序。
+# 同一时刻只允许一个部署：后到的 push 取消进行中的旧构建，
+# 避免旧的 artifact 后完成、把新内容盖回去。
 concurrency:
   group: pages
   cancel-in-progress: true
@@ -15,49 +18,40 @@ concurrency:
 jobs:
   build:
     runs-on: ubuntu-latest
-    # 仅跳过 github-actions[bot] 的 push：避免 auto-fix commit 触发新一轮自部署。
-    # workflow_dispatch 放行 bot：sync-covers / update-papermod 推完改动后会用
-    # gh workflow run 显式触发部署（GITHUB_TOKEN 的 push 本就不会触发任何 workflow，
-    # 不放行的话这些维护改动要等下一次人工 push 才上线）。
+    # 冗余保险：GITHUB_TOKEN 发起的 push 本来就不会触发 workflow，
+    # 但哪天换成 PAT，bin/publish-autofix.sh 的推回就会自触发一轮。
     if: github.event_name == 'workflow_dispatch' || github.actor != 'github-actions[bot]'
     permissions:
-      contents: write # 自动修复结果需要提交回仓库
+      contents: write # bin/publish-autofix.sh 把修复结果提交回仓库
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          submodules: true
-          fetch-depth: 0 # pull --rebase 需要完整历史
+          fetch-depth: 0 # publish-autofix.sh 里的 git pull --rebase 需要完整历史
 
-      - uses: denoland/setup-deno@v2
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
         with:
-          deno-version: v2.x
+          # 与本地 vendored 的 .tools/deno 对齐，见 AGENTS.md
+          deno-version: '2.9.5'
 
-      # deno task format-markdown 现在就是 prettier 命令本身（旧的 wrapper 脚本已删）；
-      # 用 deno install 替代 npm install -g，prettier 落在 ~/.deno/bin/(与 deno 同目录,已在 PATH),省掉 setup-node。
+      # 工具链安装：prettier 用版本钉死的 npm 包，本地 .tools/deno/bin/prettier 是同一版本
       - name: Install Prettier
         run: deno install -g -A npm:prettier@3.9.6
-
-      - name: Rename posts
-        run: deno task rename-posts
-
-      - name: Format Markdown files
-        run: deno task format-markdown
-
-      # 发布前最后门槛：front matter 缺字段的就地失败，不带病构建上线。
-      - name: Validate posts
-        run: deno task validate-posts
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
         with:
-          # 固定版本，避免上游 breaking change 无预警打挂部署；升级时手动改这里，
-          # 并与 update-papermod.yml 的冒烟构建保持一致
+          # 固定版本：上游 breaking change 不该在无人知晓时打挂部署
           hugo-version: '0.161.1'
           extended: true
 
+      # 规范化 + 校验：文件名 / Markdown / front matter / 单测 / 产物新鲜度
+      - name: Preflight
+        run: ./bin/preflight.sh --fix
+
       - name: Build
-        run: hugo --minify
+        run: ./bin/build.sh
 
       - name: Setup Pages
         uses: actions/configure-pages@v5
@@ -67,32 +61,19 @@ jobs:
         with:
           path: './public'
 
-      # 放在 artifact 上传之后：万一撞上并发 push 导致失败，也不阻塞本次部署。
-      # 这里原本是 scripts/git-commit-push.ts（按 staged 内容自动分类 commit message），
-      # 现已精简成内联 shell：提交信息统一为 chore: auto-fix content。
+      # 放在后台上传之后：万一这里撞上并发 push 失败，也不影响本次部署已经完成的部分
       - name: Commit auto-fix results
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add -A
-          if git diff --cached --quiet; then
-            echo "No changes to commit"
-            exit 0
-          fi
-          git commit -m "chore: auto-fix content"
-          git pull --rebase
-          git push
+        run: ./bin/publish-autofix.sh
 
   deploy:
     needs: build
     runs-on: ubuntu-latest
     permissions:
-      pages: write # to deploy to Pages
-      id-token: write # to verify the deployment originates from an appropriate source
+      pages: write
+      id-token: write
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
-
     steps:
       - name: Deploy to GitHub Pages
         id: deployment

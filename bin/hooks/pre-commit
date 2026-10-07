@@ -1,0 +1,19 @@
+#!/usr/bin/env bash
+#
+# pre-commit hook（由 bin/install-hooks.sh 通过 core.hooksPath 启用）。
+#
+# 提交前把文章文件名与 Markdown 格式就地规范好、重新 git add，于是
+# 「你提交的内容」== 「CI 会产出的内容」，CI 不再需要替你推一个 chore: auto-fix 提交。
+#
+# 绕过（AGENTS.md 里属于需要确认的动作）：git commit --no-verify
+set -euo pipefail
+
+ROOT="$(git rev-parse --show-toplevel)"
+
+# 本机没有工具链时不要拦住提交：这只是个便利设施，不是门禁
+if [ ! -x "$ROOT/.tools/deno/bin/deno" ] && ! command -v deno >/dev/null 2>&1; then
+  echo "  ~~  跳过 preflight：找不到 deno（本机应有 .tools/deno/bin/deno）" >&2
+  exit 0
+fi
+
+exec "$ROOT/bin/preflight.sh" --fix --re-stage

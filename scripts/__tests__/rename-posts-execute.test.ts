@@ -218,3 +218,71 @@ describe('rename-posts CLI 端到端（PATH 里没有 git）', () => {
     }
   });
 });
+
+/**
+ * --check 是 pre-push hook / CI 用的只读门禁：
+ * 「有待改文件」本身就是失败（退出码 1），而且一个字节都不许改。
+ *
+ * 这是把「CI 会替你改名」变成「本地就能发现」的那道闸门。
+ */
+describe('rename-posts CLI --check（只读门禁）', () => {
+  test('文件名不合规范时退出码 1，且文件一个都不动', async () => {
+    const workDir = mkdtempSync(join(tmpdir(), 'rename-posts-check-fail-'));
+    try {
+      mkdirSync(join(workDir, 'content/posts'), { recursive: true });
+      writeFileSync(
+        join(workDir, 'content/posts/2020-05-05-need-rename.md'),
+        '---\ntitle: Need Rename\ndate: 2020-05-05\n---\nbody\n',
+      );
+
+      const script = fileURLToPath(new URL('../rename-posts.ts', import.meta.url));
+      const result = await runDenoScript(
+        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--check'],
+        { cwd: workDir, path: '/nonexistent-bin' },
+      );
+
+      expect(result.code).toBe(1);
+      expect(result.stdout).toContain('--check：需要');
+      // 只读：文件名没被改，也没写 aliases
+      const names = readdirSync(join(workDir, 'content/posts'));
+      expect(names.length).toBe(1);
+      expect(names[0]).toBe('2020-05-05-need-rename.md');
+      const raw = readFileSync(join(workDir, 'content/posts/2020-05-05-need-rename.md'), 'utf8');
+      expect(raw).not.toContain('aliases');
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+
+  test('已经规范化过时退出码 0（先真改名一次，再 --check）', async () => {
+    const workDir = mkdtempSync(join(tmpdir(), 'rename-posts-check-ok-'));
+    try {
+      mkdirSync(join(workDir, 'content/posts'), { recursive: true });
+      writeFileSync(
+        join(workDir, 'content/posts/2020-06-06-already-fine.md'),
+        '---\ntitle: Already Fine\ndate: 2020-06-06\n---\nbody\n',
+      );
+
+      const script = fileURLToPath(new URL('../rename-posts.ts', import.meta.url));
+      const env = { cwd: workDir, path: '/nonexistent-bin' };
+
+      const renamed = await runDenoScript(
+        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--execute'],
+        env,
+      );
+      expect(renamed.code).toBe(0);
+
+      const checked = await runDenoScript(
+        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--check'],
+        env,
+      );
+      expect(checked.code).toBe(0);
+      expect(checked.stdout).toContain('✓ 0 篇文章需要重命名');
+      // 已规范化时不该刷一屏「已是新格式」，只给一行汇总
+      expect(checked.stdout).toContain('跳过 1 篇（');
+      expect(checked.stdout).not.toContain('跳过 1 篇：');
+    } finally {
+      rmSync(workDir, { recursive: true, force: true });
+    }
+  });
+});
