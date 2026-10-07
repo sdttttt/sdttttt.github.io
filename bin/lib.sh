@@ -63,12 +63,6 @@ sha256_of() {
   else fail "缺少 shasum / sha256sum，无法计算摘要"; return 127; fi
 }
 
-sha256_stream() {
-  if have shasum; then shasum -a 256 | awk '{print $1}'
-  elif have sha256sum; then sha256sum | awk '{print $1}'
-  else fail "缺少 shasum / sha256sum，无法计算摘要"; return 127; fi
-}
-
 # bash -n 一次只检查第一个文件（其余会被当成位置参数），所以必须逐个来
 shell_syntax_check() {
   local f

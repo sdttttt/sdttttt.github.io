@@ -3,7 +3,8 @@
  *
  * 仅支持 Hugo/hugo-paper 中实际用到的 YAML 子集：
  * - 标量字符串、数字、布尔、null
- * - 数组：inline（`tags: [a, b]`）与块式（`aliases:` + `  - /a/`）
+ * - 数组：inline（`tags: [a, b]`）、块式（`aliases:` + `  - /a/`）与 Prettier
+ *   折行的 inline 数组（`aliases:` + `[` 与 `]` 各占一行）
  * - 一级嵌套对象（如 { image: ..., alt: ... }）
  */
 
@@ -18,7 +19,11 @@ function parseScalar(s: string): unknown {
   if (s.startsWith('[') && s.endsWith(']')) {
     const inner = s.slice(1, -1).trim();
     if (!inner) return [];
-    return inner.split(',').map((x) => unquote(x.trim()));
+    return inner
+      .split(',')
+      .map((x) => unquote(x.trim()))
+      // Prettier 折行的数组末项带尾逗号（`"b",`），展开后会多出一个空串
+      .filter((x) => x.length > 0);
   }
   if (s === 'true') return true;
   if (s === 'false') return false;
@@ -62,6 +67,21 @@ export function parseFrontMatter(raw: string): FrontMatter {
         const nl = lines[i]!;
         if (!nl.startsWith('  ') && !nl.startsWith('\t')) break;
         const trimmed = nl.trim();
+        // Prettier 折行的 inline 数组：`aliases:` + `[` 起头的一行，收集到含 `]` 的行为止
+        if (trimmed.startsWith('[')) {
+          const flow: string[] = [];
+          while (i < lines.length) {
+            const fl = lines[i]!;
+            if (!fl.startsWith('  ') && !fl.startsWith('\t')) break;
+            const piece = fl.trim();
+            flow.push(piece);
+            i++;
+            if (piece.includes(']')) break;
+          }
+          const parsed = parseScalar(flow.join(' '));
+          if (Array.isArray(parsed)) list.push(...parsed);
+          continue;
+        }
         const nkv = trimmed.match(/^(\w[\w.-]*):\s*(.*)$/);
         if (nkv) {
           nested[nkv[1]!] = parseScalar(nkv[2]!.trim());

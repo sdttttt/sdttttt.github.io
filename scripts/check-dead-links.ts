@@ -7,6 +7,8 @@
  * 用法：
  *   deno task check-dead-links
  *   deno run -A scripts/check-dead-links.ts --timeout 10000
+ *
+ * 退出码：0 = 没有死链（被服务器拦下的不算，见 BLOCKED_STATUSES）；1 = 有死链。
  */
 
 import { readdir, readFile } from 'node:fs/promises';
@@ -59,6 +61,77 @@ interface DeadLink {
   file: string;
   url: string;
   status: LinkStatus['status'];
+}
+
+/**
+ * 「服务器答了、但明确拒绝我们」的状态码：401/403/429 是反爬与频率限制，
+ * 451 是法律原因下架。这些链接在浏览器里往往是好的 —— 百度百科和 GitHub 的
+ * user-attachments 对 CI 的 IP 一律回 403，而正文里的链接是给人点的。
+ *
+ * 把它们算成死链只会淹掉真问题：2026-10-07 那次 20 条告警里有 16 条属于这一类，
+ * 真死链只有 3 条。所以单独归到「没能验证」一栏，不计入死链、也不改退出码。
+ */
+const BLOCKED_STATUSES = new Set([401, 403, 429, 451]);
+
+/**
+ * 反爬严重的域名：它们对自动检查会给出互相矛盾的码（同一链接时而 403、时而 404），
+ * 所以从这些域名拿到的**任何**结论都不可信，一律归入「没能验证」。
+ *
+ * 触发这条的现场：`content/posts/20231209-Unix平台和Windows的文件分享问题-lzc.md`
+ * 里 13 条百度百科链接，并发 6 个请求打过去时偶发返回 404，于是每次跑出来的
+ * 「真死链」数量都不一样（3 条 / 2 条）。curl 与 deno 单独打都稳定 403。
+ */
+const ANTI_CRAWL_HOSTS = new Set(['baike.baidu.com']);
+
+/** 服务器把我们挡在门外 —— 链接本身未必坏，但也确实没验证过 */
+export function isBlockedStatus(status: LinkStatus['status']): boolean {
+  return typeof status === 'number' && BLOCKED_STATUSES.has(status);
+}
+
+/** 这个链接所在域名会不会对自动检查乱报（见 ANTI_CRAWL_HOSTS） */
+export function isAntiCrawlHost(url: string): boolean {
+  try {
+    return ANTI_CRAWL_HOSTS.has(new URL(url).hostname);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * 已知失效、但**故意留着**的链接（正文里已经注明原因）。
+ *
+ * 典型是 `content/posts/20230912-关于查找自己想要的软件的问题-pyx.md` 里那个
+ * 已经 404 下线的 Awesome Windows 仓库：正文里保留了它 + 一句「仅作存档」——
+ * 存档记录本身有价值，但每天再报一次只会淹掉真问题（所以连请求都不发）。
+ *
+ * 新增条目时必须同时确认：正文里能找到这个 URL、且带了说明。
+ */
+export const ARCHIVED_URLS = new Set(['https://github.com/Awesome-Windows/Awesome']);
+
+/** 该链接是不是「已归档的已知死链」 */
+export function isArchived(url: string): boolean {
+  return ARCHIVED_URLS.has(url);
+}
+
+/**
+ * 按「真的坏了 / 没能验证」把探测结果分成两组。
+ * 同一 URL 出现在多篇文件里会出现多条（保留原有的逐文件上报行为）。
+ */
+export function partitionByStatus(
+  references: { file: string; url: string }[],
+  statuses: Map<string, LinkStatus>,
+): { dead: DeadLink[]; blocked: DeadLink[] } {
+  const dead: DeadLink[] = [];
+  const blocked: DeadLink[] = [];
+
+  for (const { file, url } of references) {
+    const entry = statuses.get(url)!;
+    if (entry.ok) continue; // 能打开的链接两组都不进
+    const unverifiable = isBlockedStatus(entry.status) || isAntiCrawlHost(url);
+    (unverifiable ? blocked : dead).push({ file, url, status: entry.status });
+  }
+
+  return { dead, blocked };
 }
 
 /**
@@ -189,12 +262,17 @@ async function main(): Promise<void> {
   // 先把「文件 → 链接」收齐再并发探测：死链清单最后一次性打印
   //（旧版边扫边打 `✗ …`、末尾又整列一遍，同一条日志出现两次）
   const references: { file: string; url: string }[] = [];
+  const archived: { file: string; url: string }[] = [];
   const urls = new Set<string>();
 
   for await (const path of walkMarkdown(CONTENT_DIR)) {
     const raw = await readFile(path, 'utf8');
     for (const url of new Set(extractLinksOutsideCodeBlocks(raw))) {
       if (shouldSkip(url)) continue;
+      if (isArchived(url)) {
+        archived.push({ file: path, url });
+        continue;
+      }
       references.push({ file: path, url });
       urls.add(url);
     }
@@ -212,20 +290,34 @@ async function main(): Promise<void> {
   console.log(`检查 ${urls.size} 个唯一外链（并发 ${CONCURRENCY}）…`);
   await checkAll([...urls], statuses);
 
-  const dead: DeadLink[] = references
-    .filter(({ url }) => !statuses.get(url)!.ok)
-    .map(({ file, url }) => ({ file, url, status: statuses.get(url)!.status }));
+  const { dead, blocked } = partitionByStatus(references, statuses);
 
-  if (dead.length === 0) {
+  if (dead.length > 0) {
+    console.error(`\n发现 ${dead.length} 个死链:\n`);
+    for (const { file, url, status } of dead) {
+      console.error(`  ${file}: ${url} (${status})`);
+    }
+  } else {
     console.log('✓ 未发现死链');
-    process.exit(0);
   }
 
-  console.error(`\n发现 ${dead.length} 个死链:\n`);
-  for (const { file, url, status } of dead) {
-    console.error(`  ${file}: ${url} (${status})`);
+  // 被拦住的单独列出（不算死链）：不列的话，「✓ 未发现死链」会被误读成
+  // 「全都验证过了」，而这批链接其实一次都没验证成功。
+  if (blocked.length > 0) {
+    console.log(`\n${blocked.length} 个链接没能验证（服务器拦住 / 反爬域名乱报，不算死链）:\n`);
+    for (const { file, url, status } of blocked) {
+      console.log(`  ${file}: ${url} (${status})`);
+    }
   }
-  process.exit(1);
+
+  if (archived.length > 0) {
+    console.log(`\n${archived.length} 个链接已归档（正文里注明已失效、故意保留，不做探测）:\n`);
+    for (const { file, url } of archived) {
+      console.log(`  ${file}: ${url}`);
+    }
+  }
+
+  process.exit(dead.length > 0 ? 1 : 0);
 }
 
 if (import.meta.main) {

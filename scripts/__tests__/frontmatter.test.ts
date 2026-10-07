@@ -91,6 +91,11 @@ describe('parseFrontMatter：块式数组', () => {
     expect(parseFrontMatter(raw)).toEqual({ cover: { image: 'cover.svg' }, aliases: ['/a/'] });
   });
 
+  test('Prettier 折行的 inline 数组（`[` 与 `]` 各占一行）也算数组', () => {
+    const raw = '---\ntitle: x\naliases:\n  [\n    "/posts/a/",\n    "/posts/b/",\n  ]\n---\n';
+    expect(parseFrontMatter(raw)).toEqual({ title: 'x', aliases: ['/posts/a/', '/posts/b/'] });
+  });
+
   test('空的缩进块仍是对象（历史行为）', () => {
     const raw = '---\ncover:\n---\n';
     expect(parseFrontMatter(raw)).toEqual({ cover: {} });

@@ -152,7 +152,7 @@ function splitInlineArray(inner: string): string[] {
  * 把旧 URL 追加进 front matter 的 `aliases`，返回新的文件内容（幂等）。
  *
  * - 已有 `aliases: ["/a/"]`：追加一项（Prettier 折叠成 `aliases:` + 缩进的 `[...]`
- *   时也能识别）
+ *   时也能识别；数组再长一点，Prettier 还会把方括号内部也拆成多行，同样能识别）
  * - 已有 YAML 块式 `aliases:` + `  - /a/`：在该行后插一行
  * - 完全没有 `aliases`：在 front matter 末尾新建
  * - 该 URL 已存在 / 没有 front matter：原样返回
@@ -169,8 +169,11 @@ export function addAlias(raw: string, url: string): string {
     return raw.replace(block, () => block.replace(inline[0]!, next));
   }
 
-  // Prettier 会把过长的 inline 数组折成 `aliases:` + 缩进的 `["...", "..."]`
-  const indented = block.match(/^(aliases:[ \t]*\n[ \t]+\[)(.*)(\][ \t]*)$/m);
+  // Prettier 会把过长的 inline 数组折成 `aliases:` + 缩进的 `["...", "..."]`；
+  // 再长一点它会把 `[` 与 `]` 也各占一行、末项带尾逗号。两种都要认：漏到下面的
+  // 块式分支会插出 `aliases:` + `- "…"` + `[ … ]` 这种非法 YAML（下次改名 = Hugo 构建失败）。
+  const indented = block.match(/^(aliases:[ \t]*\n[ \t]*\[)([\s\S]*?)(\][ \t]*)$/m);
+  // 追加后统一压成一行，交给 Prettier 决定要不要重新折行（两种形态都能再认回来）
   if (indented) {
     const items = splitInlineArray(indented[2]!);
     const next = `${indented[1]}${[...items, JSON.stringify(url)].join(', ')}${indented[3]}`;
@@ -355,15 +358,15 @@ async function main(): Promise<void> {
   const { plans, skipped, files } = await buildReport();
 
   if (skipped.length > 0) {
-    // --check 是门禁模式（pre-push hook / CI），不值得为「已是新格式」刷 200 行日志
-    if (check && !verbose) {
-      console.log(`跳过 ${skipped.length} 篇（已是新格式 / 缺 date 等，加 --verbose 看明细）`);
-    } else {
+    // 明细只给 --verbose：正常情况（本地 / CI）里 225 篇「已是新格式」会把日志淹掉
+    if (verbose) {
       console.log(`跳过 ${skipped.length} 篇：`);
       for (const s of skipped) {
         console.log(`  ${s.file}: ${s.reason}`);
       }
       console.log('');
+    } else {
+      console.log(`跳过 ${skipped.length} 篇（已是新格式 / 缺 date 等，加 --verbose 看明细）`);
     }
   }
 

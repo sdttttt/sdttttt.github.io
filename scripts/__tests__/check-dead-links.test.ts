@@ -1,14 +1,18 @@
 import { describe, test, mock, afterEach } from 'node:test';
 import {
   extractLinksOutsideCodeBlocks,
+  partitionByStatus,
   shouldSkip,
+  isArchived,
+  isAntiCrawlHost,
+  ARCHIVED_URLS,
   checkUrl,
   trimUrlTail,
   walkMarkdown,
 } from '../check-dead-links.js';
 import { expect } from './expect.js';
 import { inTempDir } from './temp-dir.js';
-import { mkdirSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
@@ -194,4 +198,92 @@ describe('walkMarkdown', () => {
       }
       expect(paths).toEqual([]);
     }));
+});
+
+describe('已归档的已知死链', () => {
+  test('归档清单里的链接算已归档，普通链接不算', () => {
+    expect(isArchived('https://github.com/Awesome-Windows/Awesome')).toBe(true);
+    expect(isArchived('https://example.com/')).toBe(false);
+  });
+
+  // 允许清单是「不报」的特权，所以它自己得有人管：每条都必须在正文里真的出现、
+  // 并且带一句说明，否则就是「悄悄放行了一条死链」。
+  test('归档清单不腐：每条都在正文里出现、且带「仅作存档」说明', async () => {
+    const hits = new Map<string, string[]>();
+    for (const url of ARCHIVED_URLS) hits.set(url, []);
+
+    for await (const path of walkMarkdown('content')) {
+      const raw = readFileSync(path, 'utf8');
+      for (const url of ARCHIVED_URLS) {
+        if (raw.includes(url)) hits.get(url)!.push(raw);
+      }
+    }
+
+    for (const [, files] of hits) {
+      expect(files.length > 0).toBe(true);
+      expect(files.some((raw) => raw.includes('仅作存档'))).toBe(true);
+    }
+  });
+});
+
+describe('partitionByStatus', () => {
+  const references = [
+    { file: 'a.md', url: 'https://gone.example/404' },
+    { file: 'b.md', url: 'https://forbidden.example/' },
+    { file: 'c.md', url: 'https://legal.example/' },
+    { file: 'd.md', url: 'https://slow.example/' },
+    { file: 'e.md', url: 'https://down.example/' },
+    { file: 'f.md', url: 'https://ok.example/' },
+  ];
+  const statuses = new Map([
+    ['https://gone.example/404', { ok: false, status: 404 }],
+    ['https://forbidden.example/', { ok: false, status: 403 }],
+    ['https://legal.example/', { ok: false, status: 451 }],
+    ['https://slow.example/', { ok: false, status: 'timeout' }],
+    ['https://down.example/', { ok: false, status: 'error: fetch failed' }],
+    ['https://ok.example/', { ok: true, status: 200 }],
+  ]);
+
+  test('404 / 超时 / DNS 失败都算死链', () => {
+    const { dead } = partitionByStatus(references, statuses);
+    expect(dead.map((d) => d.url)).toEqual([
+      'https://gone.example/404',
+      'https://slow.example/',
+      'https://down.example/',
+    ]);
+  });
+
+  test('403 / 451 归到「被拦住」，不算死链', () => {
+    const { blocked } = partitionByStatus(references, statuses);
+    expect(blocked.map((d) => d.url + ' (' + d.status + ')')).toEqual([
+      'https://forbidden.example/ (403)',
+      'https://legal.example/ (451)',
+    ]);
+  });
+
+  test('反爬域名下的 404 也算「没能验证」（百度百科时而 403 时而 404）', () => {
+    const refs = [{ file: 'a.md', url: 'https://baike.baidu.com/item/UDP/571511' }];
+    const st = new Map([['https://baike.baidu.com/item/UDP/571511', { ok: false, status: 404 }]]);
+    const { dead, blocked } = partitionByStatus(refs, st);
+    expect(dead.length).toBe(0);
+    expect(blocked.map((d) => d.url + ' (' + d.status + ')')).toEqual([
+      'https://baike.baidu.com/item/UDP/571511 (404)',
+    ]);
+    expect(isAntiCrawlHost('https://baike.baidu.com/item/x')).toBe(true);
+    expect(isAntiCrawlHost('https://example.com/')).toBe(false);
+    // 不是合法 URL 时不该抛异常
+    expect(isAntiCrawlHost('not-a-url')).toBe(false);
+  });
+
+  test('ok 的链接两组都不进', () => {
+    const { dead, blocked } = partitionByStatus(references, statuses);
+    const seen = [...dead, ...blocked].map((d) => d.url);
+    expect(seen).toEqual([
+      'https://gone.example/404',
+      'https://slow.example/',
+      'https://down.example/',
+      'https://forbidden.example/',
+      'https://legal.example/',
+    ]);
+  });
 });

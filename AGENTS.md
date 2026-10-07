@@ -51,7 +51,7 @@ hugo --minify                     # 生产构建到 public/
 deno task test                    # 跑 scripts/__tests__/ 下全部测试
 deno task test-wasm               # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
 deno task validate-posts          # 校验 front matter
-deno task check-dead-links        # 检查外链死链
+deno task check-dead-links        # 检查外链死链（拆成「真死链 / 没能验证 / 已归档」三栏）
 deno task rename-posts-dry        # 预览文章改名
 deno task optimize-images-dry     # 预览图片转换（不写盘、不装 sharp）
 deno task optimize-images         # 把 assets/src/ 的原图转成 static/ 的发布图
@@ -73,6 +73,8 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 ./bin/test.sh                        # shell 语法检查 + deno 单测
 ./bin/build.sh                       # hugo --minify
 ./bin/check-links.sh                 # 死链检查（CI 里失败只出 warning，不挡部署）
+#   死链只算「确实打不开」的；403/429/451 与反爬域名（baike.baidu.com）下的任何响应都归「没能验证」，
+#   正文里已注明失效的链接写进 scripts/check-dead-links.ts 的 ARCHIVED_URLS（连请求都不发，有测试守着）
 ```
 
 - **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。

@@ -15,7 +15,7 @@ import {
   executePlan,
   type RenamePlan,
 } from '../rename-posts.js';
-import { toYyyymmdd } from '../lib/frontmatter.js';
+import { toYyyymmdd, parseFrontMatter } from '../lib/frontmatter.js';
 import { expect } from './expect.js';
 
 // ─────────────────────────────────────────────────────────────
@@ -304,6 +304,15 @@ describe('addAlias', () => {
     const raw = fm('title: x\naliases:\n  ["/posts/a/", "/posts/b/"]');
     const out = addAlias(raw, '/posts/c/');
     expect(out).toContain('aliases:\n  ["/posts/a/", "/posts/b/", "/posts/c/"]');
+  });
+
+  test('Prettier 把数组折成多行（`[` 与 `]` 各占一行）也能追加，且不产出非法 YAML', () => {
+    const raw = fm('title: x\naliases:\n  [\n    "/posts/a/",\n    "/posts/b/",\n  ]');
+    const out = addAlias(raw, '/posts/c/');
+    expect(out).toContain('aliases:\n  ["/posts/a/", "/posts/b/", "/posts/c/"]');
+    // 折行式曾经漏到块式分支，插出 `aliases:` + `- "…"` + `[ … ]` 这种非法 YAML
+    expect(out).not.toContain('  - "/posts/c/"');
+    expect(parseFrontMatter(out).aliases).toEqual(['/posts/a/', '/posts/b/', '/posts/c/']);
   });
 
   test('没有 front matter 时原样返回', () => {
