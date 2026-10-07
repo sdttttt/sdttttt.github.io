@@ -60,6 +60,13 @@ theme = "self"
     name = "Archive"
     url = "/archives/"
     weight = 2
+  # 站内搜索（content/search.md 的 `layout: search` + themes/self/layouts/_default/search.html
+  # 渲染，索引是构建期产出的 /searchindex.json）。
+  [[menu.main]]
+    identifier = "search"
+    name = "Search"
+    url = "/search/"
+    weight = 3
   # CHANGELOG 已隐藏，不再显示在导航菜单中
   # 如需恢复，取消下面注释
   # [[menu.main]]
@@ -71,7 +78,7 @@ theme = "self"
     identifier = "source"
     name = "Source"
     url = "https://github.com/sdttttt/sdttttt.github.io"
-    weight = 3
+    weight = 4
   [[menu.main]]
     identifier = "about"
     name = "About"
