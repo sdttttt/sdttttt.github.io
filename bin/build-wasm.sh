@@ -22,6 +22,6 @@ cp "$REPO_ROOT/$WASM_SRC_DIR/target/wasm32-unknown-unknown/release/particles.was
 chmod 644 "$REPO_ROOT/$WASM_ARTIFACT"
 ok "产物已更新：${WASM_ARTIFACT}（$(wc -c <"$REPO_ROOT/$WASM_ARTIFACT" | tr -d ' ') 字节）"
 
-"$BIN_DIR/artifacts.sh" stamp
+"$BIN_DIR/artifacts.sh" stamp-wasm
 
 warn "记得把产物与指纹一起提交：git add $WASM_ARTIFACT $WASM_MANIFEST"

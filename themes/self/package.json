@@ -1,0 +1,24 @@
+{
+  "name": "self",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Tailwind toolchain for the `self` Hugo theme: `bun run build:css` compiles assets/app.css into assets/main.css.",
+  "license": "MIT",
+  "scripts": {
+    "build:css": "postcss ./assets/app.css -o ./assets/main.css"
+  },
+  "devDependencies": {
+    "@tailwindcss/cli": "^4.1.18",
+    "@tailwindcss/postcss": "^4.1.18",
+    "@tailwindcss/typography": "^0.5.19",
+    "autoprefixer": "^10.4.23",
+    "postcss": "^8.5.6",
+    "postcss-cli": "^11.0.1",
+    "postcss-preset-env": "^11.1.2",
+    "prettier": "^3.8.1",
+    "prettier-plugin-css-order": "^2.2.0",
+    "prettier-plugin-organize-imports": "^4.3.0",
+    "prettier-plugin-tailwindcss": "^0.7.2",
+    "tailwindcss": "^4.1.18"
+  }
+}

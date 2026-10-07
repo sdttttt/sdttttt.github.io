@@ -40,10 +40,26 @@ Files either come from upstream, or they are ours. The ones below are ours — e
 | `assets/js/particles.js`                     | new                      | pure Canvas 2D fallback for `/particles/`                                                                                                                                                                                                                                                                       |
 | `assets/js/search.js`                        | new                      | `/search/` logic: lazy index fetch, scoring, highlight, keyboard nav, `?q=` sync                                                                                                                                                                                                                                |
 | `assets/wasm/particles.wasm` + `.sha256`     | committed build artifact | the Rust engine compiled from `wasm/particles/`; rebuild with `deno task build-wasm` and commit both files                                                                                                                                                                                                      |
-| `static/theme.svg`                           | copied                   | the dark-mode toggle icon; upstream's `monoDarkIcon` flag selects it over the (deleted, 8 KB) `theme.png`                                                                                                                                                                                                       |
+| `static/theme.svg`                           | copied                   | the dark-mode toggle icon; the `monoDarkIcon` flag and `theme.png` were deleted on 2026-10-07                                                                                                                                                                                                                   |
 | `theme.toml`                                 | forked                   | theme metadata                                                                                                                                                                                                                                                                                                  |
 
-Everything else — `layouts/404.html`, `layouts/_default/list.html` (outside the archive/tag additions above), `assets/main.css`, `assets/app.css`, `LICENSE` — is untouched upstream code. `assets/main.css` is the compiled Tailwind output (`app.css` is its source); neither is processed by Hugo at build time.
+Everything else — `layouts/404.html`, `layouts/_default/list.html` (outside the archive/tag additions above), `LICENSE` — is untouched upstream code.
+
+### The Tailwind pipeline
+
+`assets/app.css` is the Tailwind v4 source (`@import 'tailwindcss'`, `@plugin '@tailwindcss/typography'`, `@custom-variant dark`, `@theme`, the dark-mode utility); `assets/main.css` is its **compiled output, committed to the repo**. Hugo does not compile it — `layouts/partials/head.html` only concatenates it with `assets/custom.css`, minifies and fingerprints. Upstream's `package.json` / `bun.lock` / `postcss.config.mjs` went missing when the themes were merged, which left `main.css` editable only by hand; they were restored on 2026-10-07:
+
+```bash
+deno task build-css   # = bin/build-css.sh: bun install --frozen-lockfile, then postcss, then refresh the fingerprint
+```
+
+Details that are easy to lose:
+
+- **Never hand-edit `assets/main.css`** — edit `app.css` (or `custom.css` for site-only rules) and rebuild.
+- `bun.lock` is vendored verbatim from upstream, unused devDependencies included, and must be installed with `--frozen-lockfile`: the output is sensitive to the resolved versions of `postcss-preset-env`'s transitive `@csstools/*` packages, so a fresh resolve compiles different bytes from the same `app.css` (observed: `#0000` becoming `rgba(0,0,0,0)`).
+- Tailwind v4 scans **the directory it is run from** (the theme root), not just templates: `README.md`, `i18n/*.yaml` and _the previous `main.css` itself_ are all inputs. That is how dead rules survive — every rebuild re-emits whatever the last output contained (upstream's deleted `exampleSite/` is why the social-icon classes lingered) — and why a prose edit here can add a rule of its own (`collapse` came from this file).
+- Do not spell out real class names in prose here: writing the literal name of the `@utility` declared in `app.css` into this file took the compiled output from 57,943 to 58,801 bytes, purely by giving that utility's selector one extra `:not(#\#)` specificity bumper; dropping the word restored byte-for-byte identity.
+- CI installs neither bun nor Rust, so `assets/main.css.sha256` records the artifact plus every scanned file; `./bin/artifacts.sh check` fails when they disagree, and `./bin/artifacts.sh check --rebuild` recompiles and compares bytes locally (needs bun + `themes/self/node_modules`).
 
 Deleted on 2026-10-07 — all of it dead code (no config key set, no content using it, or no asset ever vendored):
 
@@ -61,3 +77,4 @@ RSS is off site-wide: `hugo.toml`'s `[outputs]` pins `section` / `taxonomy` / `t
 - 2026-10-07 — the two directories merged into one theme; upstream sync dropped.
 - 2026-10-07 — that theme renamed `sdttttt-paper` → `self`; `hugo.toml` reduced to `theme = "self"`.
 - 2026-10-07 — dead-feature sweep: RSS generation turned off site-wide, `<meta name="description">` removed, comment systems / KaTeX / mermaid / highlight.js / the `collapse` shortcode deleted, `i18n/` trimmed to `zh.yaml`, social-icon nav dropped.
+- 2026-10-07 — the last dead CSS in `assets/main.css` (27 selectors left over from the deleted social-icon nav and upstream's `exampleSite/`) was removed by hand, then the whole file was reproduced by rebuilding Tailwind: `package.json` / `bun.lock` / `postcss.config.mjs` vendored back, `deno task build-css` added, artifact fingerprinted as `assets/main.css.sha256`. The `monoDarkIcon` flag and `theme.png` were dropped along the way.

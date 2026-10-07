@@ -23,10 +23,17 @@ if [ -d "$REPO_ROOT/.tools/deno/bin" ]; then
   export PATH
 fi
 
-# ── 构建产物布局（bin/artifacts.sh 与 bin/build-wasm.sh 共用，改路径只改这一处）──
+# ── 构建产物布局（bin/artifacts.sh / build-wasm.sh / build-css.sh 共用，改路径只改这一处）──
 WASM_SRC_DIR="wasm/particles"
 WASM_ARTIFACT="themes/self/assets/wasm/particles.wasm"
 WASM_MANIFEST="themes/self/assets/wasm/particles.sha256"
+
+# Tailwind：CSS_THEME_DIR 是编译时的 cwd（Tailwind v4 以 cwd 为扫描根），
+# CSS_ARTIFACT 既是产物、又是下一次编译的扫描输入（化石自我延续，见 bin/build-css.sh）。
+CSS_THEME_DIR="themes/self"
+CSS_APP="themes/self/assets/app.css"
+CSS_ARTIFACT="themes/self/assets/main.css"
+CSS_MANIFEST="themes/self/assets/main.css.sha256"
 
 # ── 输出 ──
 log() { printf '==> %s\n' "$*"; }

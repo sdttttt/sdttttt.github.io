@@ -6,7 +6,7 @@
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
 - `content/changelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`；目录在 `99d262c` 由 `content/claudelog/` 改名而来）。
-- `themes/self/` — 唯一的主题（`hugo.toml` 里 `theme = "self"`）。以下文件是本仓库自己维护的；其余（`404.html` / `main.css` / `static/*`）仍来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过。**2026-10-07 删掉了一批死功能**（RSS 生成、`<meta name="description">`、评论 / KaTeX / mermaid / highlight.js / `collapse` shortcode、20 个用不上的 `i18n/*.yaml`、无资源的社交图标导航）—— 细节见 `themes/self/README.md` 的删除清单，别再照上游抄回来：
+- `themes/self/` — 唯一的主题（`hugo.toml` 里 `theme = "self"`）。以下文件是本仓库自己维护的；其余（`404.html` / `static/*`）仍来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过。**2026-10-07 删掉了一批死功能**（RSS 生成、`<meta name="description">`、评论 / KaTeX / mermaid / highlight.js / `collapse` shortcode、20 个用不上的 `i18n/*.yaml`、无资源的社交图标导航）—— 细节见 `themes/self/README.md` 的删除清单，别再照上游抄回来：
   - `theme.toml` — 主题元数据
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
   - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「自上而下一层层显现 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，且要等上一条淡出动画走完才算「藏起来」，见下），`$cfg` 里的 `wipeDrop` / `wipeDuration` / `wipeBand` 是入场动效旋钮（另有 `thumpPower`，**当前 0 = 落定后不再弹一下**），`idleEffect` / `floatAmp` / `floatPeriod` 是待机旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
@@ -20,6 +20,8 @@
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
   - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标 + 逐行显现/待机漂浮的 rAF 状态机）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
+  - `assets/app.css` + `assets/main.css` + `package.json` + `bun.lock` + `postcss.config.mjs` — **Tailwind v4 管线**（2026-10-07 恢复）：`app.css` 是源（`@import 'tailwindcss'` + `@plugin '@tailwindcss/typography'` + `@custom-variant dark` + `@theme` + `@utility dark-bg`），`main.css` 是提交进仓库的编译产物（Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。改样式 / 类名后跑 `deno task build-css`（= `bin/build-css.sh`：`bun install --frozen-lockfile` → `postcss assets/app.css -o assets/main.css` → 更新 `assets/main.css.sha256`），**别手改 `main.css`**。`bun.lock` 原样 vendor 自上游（连用不上的 prettier devDeps 也留着）：产物对 `postcss-preset-env` 的传递依赖（`@csstools/*`）版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份 `app.css` 编出不同字节（实测 `#0000` 变成 `rgba(0,0,0,0)`）
+  - ⚠️ **Tailwind v4 的扫描根就是主题目录（编译时的 cwd）**，所以 `layouts/**` 之外的 `README.md`、`i18n/*.yaml`、**上一版 `main.css` 自己**都在扫描范围内：上一版产物里的类会被重新发射（死类化石自我延续 —— 上游删掉的 `exampleSite/` 就是这么留下社交图标的类），README 的散文也可能造出规则（`collapse` 就是这么进来的）。因此改 README 也会让指纹失配，重跑一次 `build-css` 即可（幂等）。但**别在散文里写真实类名**：实测把字面量 `dark-bg`（`app.css` 里 `@utility` 的名字）写进 `themes/self/README.md`，会让 `.dark-bg:where(.dark,.dark *)` 多背一层 `:not(#\#)` 特异性 bumpers（产物 57,943 → 58,801 字节）；把那个词换掉就逐字节复原
 
   （上述路径相对于 `themes/self/`，完整路径如 `themes/self/layouts/partials/bg.html`。）
 
@@ -27,10 +29,10 @@
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `bin/` — **CI 与本地共用的 shell 脚本层**（bash 3.2 兼容，macOS 自带 bash 也能跑）。`.github/workflows/*.yml` 只声明「触发条件 + 权限 + 第三方 action + 工具链安装」，实际跑什么全在 `bin/*.sh` 里 —— 所以本地能跑出和 CI 一样的结果，也不用读 YAML 才知道 CI 干了什么：
-  - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
+  - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`build-css.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
+- `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）；`deno.json` — Deno 任务定义（含 `build-wasm` / `build-css`）。
 
 首次克隆不需要 submodule：`git clone`。
 
@@ -46,6 +48,8 @@ hugo --minify                     # 生产构建到 public/
 
 deno task test                    # 跑 scripts/__tests__/ 下全部测试
 deno task test-wasm               # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
+deno task build-wasm              # 重建 wasm 产物 + 指纹（需 cargo；CI 不跑）
+deno task build-css               # 重建 Tailwind 产物 main.css + 指纹（需 bun；CI 不跑）
 deno task validate-posts          # 校验 front matter
 deno task check-dead-links        # 检查外链死链（拆成「真死链 / 没能验证 / 已归档」三栏）
 deno task rename-posts-dry        # 预览文章改名
@@ -64,18 +68,20 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 ./bin/preflight.sh                   # 只读：CI 会跑的那五道检查，本地跑一遍就知道 CI 会不会绿
 ./bin/preflight.sh --fix             # 就地修（文件名 + Markdown 格式），CI 里用这个
 ./bin/install-hooks.sh               # 装一次 pre-commit / pre-push hook（core.hooksPath=bin/hooks）
-./bin/artifacts.sh check             # 图片 / wasm 产物是否齐全且新鲜
-./bin/artifacts.sh check --rebuild   # 额外用 cargo 重编译 wasm 并逐字节比对（需 cargo）
+./bin/artifacts.sh check             # 图片 / wasm / Tailwind 产物是否齐全且新鲜
+./bin/artifacts.sh check --rebuild   # 额外重编译逐字节比对：cargo 编 wasm；有 bun + node_modules 时也重编 CSS
 ./bin/test.sh                        # shell 语法检查 + deno 单测
 ./bin/build.sh                       # hugo --minify
+./bin/build-css.sh                   # Tailwind：bun install --frozen-lockfile → postcss → main.css + 指纹（幂等）
 ./bin/check-links.sh                 # 死链检查（CI 里失败只出 warning，不挡部署）
 #   死链只算「确实打不开」的；403/429/451 与反爬域名（baike.baidu.com）下的任何响应都归「没能验证」，
 #   正文里已注明失效的链接写进 scripts/check-dead-links.ts 的 ARCHIVED_URLS（连请求都不发，有测试守着）
 ```
 
-- **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
+- **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度（图片 / wasm / Tailwind）。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
 - **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
 - 改了 `wasm/**` 后跑 `deno task build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
+- 改了 `themes/self/` 里被 Tailwind 扫描的内容（`assets/app.css`、模板里的类名、`README.md`）后跑 `deno task build-css`，**产物 `assets/main.css` 与指纹 `assets/main.css.sha256` 一起提交**。
 - 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `build.sh` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
 ## 编码与命名规范
@@ -88,6 +94,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - 文章内联图片：外链图床（Gitee / imgkr / idanmu）会烂掉，**原图丢了就换成 `static/images/image-lost.svg` 占位**，markdown 写成 `![alt](/images/image-lost.svg "原托管方 + 暂缺原因")`（`title` 由 `render-image.html` 渲染成图下小字）；新图建议放 `static/images/posts/<slug>/` 并提交进仓库。
 - **碰过 `assets/src/**` 就必须重跑 `deno task optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。
 - **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；改完先 `deno task test-wasm` 过一遍单元测试（`src/tests.rs`，测试直接读写 `Engine` 私有字段，靠一把全局锁把并行的 `cargo test` 串起来）；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
+- **Tailwind 管线**：`themes/self/assets/main.css` 是编译产物（首行 `/*! tailwindcss v4.1.18 | MIT License */`），不要手改；改样式 / 类名后跑 `deno task build-css` 并提交 `main.css` + `main.css.sha256`（幂等，可反复跑）。搜索建议：`@theme` / `@utility dark-bg` 在 `themes/self/assets/app.css`，站点自有样式全在 `themes/self/assets/custom.css`（`main.css` 里的规则是 Tailwind 生成的，改它会被下次编译覆盖）。
 - **降级链**：左下角徽标的渲染路径会写到 `html[data-pt-engine]` 上，排查时先看这个属性：
   `deferred`（还没滚到接近页底，引擎按需预热尚未开始）/ `pending`（引擎加载中，或已加载完但还没滚到页底揭示）/ `unsupported`（浏览器不支持 WASM，直接显示原图，连 wasm 都不拉）/ `error`（下载·编译·构建失败，回退原图）/ `wasm`（粒子已就绪）/ `png`（未配置或加载器缺失）。`assets/js/pt-wasm.js` 导出 `supported` 做显式能力检测。
 - **徽标按需预热**：`assets/js/page-bg.js` 只在「距离页底还有 2 个视口高度」时才拉 wasm（`start()` **只拉 wasm**），所以不读到底的访问不会付 23KB wasm 的成本；`mark('deferred')` 在首个 `syncGate()` 之前同步写下，用来挡住 baseof 的 2s 兜底定时器。
@@ -120,6 +127,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `./bin/preflight.sh`（只读，等价于 CI 的检查；装了 `./bin/install-hooks.sh` 后 push 会自动跑）；不要提交 `public/` 或临时文件。
 - **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/self/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
+- **碰过 Tailwind 源码就必须重编译**：改了 `themes/self/assets/app.css`、任何模板里的 class、甚至 `themes/self/README.md`（它也在扫描范围内），推送前跑 `deno task build-css`，把 `themes/self/assets/main.css` 与 `themes/self/assets/main.css.sha256` 一起提交。CI 不装 bun，`./bin/artifacts.sh check` 是唯一能逮住陈旧的关卡（本地有 bun 时用 `--rebuild` 做最强校验）。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认

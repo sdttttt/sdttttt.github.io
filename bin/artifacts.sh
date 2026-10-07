@@ -4,10 +4,13 @@
 #
 # 用法：
 #   ./bin/artifacts.sh check              校验（默认）
-#   ./bin/artifacts.sh check --rebuild    额外用 cargo 重编译一次并逐字节比对（最严，需要几秒）
-#   ./bin/artifacts.sh stamp              重新记录 wasm 指纹（bin/build-wasm.sh 会调它）
+#   ./bin/artifacts.sh check --rebuild    额外重编译一次并逐字节比对（最严，需要几秒；
+#                                         cargo 编 wasm，有 bun + node_modules 时也重编 CSS）
+#   ./bin/artifacts.sh stamp-wasm         重新记录 wasm 指纹（bin/build-wasm.sh 会调它）
+#   ./bin/artifacts.sh stamp-css          重新记录 Tailwind 指纹（bin/build-css.sh 会调它）
+#   ./bin/artifacts.sh stamp              等价于 stamp-wasm（旧名，保留）
 #
-# 检查三件事：
+# 检查四件事：
 #   1. 每张 assets/src/bg/ 下的原图都有对应的 static/bg/*.avif 产物。
 #      缺了就是真会出事：CI 不跑图片转换（见 AGENTS.md），发布出去的就是缺图。
 #   2. static/ 里没有「源图已删」的孤儿产物 —— 左下角徽标靠 readDir static/bg 发现背景，
@@ -16,6 +19,10 @@
 #      所以「改了 lib.rs 却没重建产物」在 CI 里本来是完全不可见的 ——
 #      靠 particles.sha256 这份指纹文件（源文件 + 产物各自的 sha256）把它变得可见。
 #      有 Rust 工具链时可用 --rebuild 做最强校验（真编译出来逐字节比）。
+#   4. Tailwind 产物与它扫描的源码一致。`themes/self/assets/main.css` 是编译产物
+#      （Hugo 只做 concat + minify，见 themes/self/layouts/partials/head.html），
+#      而 CI 不装 bun —— 同样靠 main.css.sha256 把「改了 app.css / 模板却没重编译」变可见。
+#      扫描输入是整个 themes/self/ 目录（含产物自身，见 css_sources 的注释）。
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 BG_SRC_DIR="assets/src/bg"
@@ -84,6 +91,77 @@ check_images() {
   return "$bad"
 }
 
+# ── ④ Tailwind 产物 ────────────────────────────────────────────────
+# 参与指纹的文件 = 整个 themes/self/ 目录，除了：node_modules（依赖不参与编译）、
+# 打包产物 assets/main.css（它已经是记录里的第一行）、指纹文件自身（自引用）、
+# assets/wasm/*.wasm（二进制，Tailwind 的扫描器直接跳过 —— 列上它只会让每次
+# `build-wasm` 白搭一次 CSS 重编译）。
+# 为什么用「整个目录」而不是列几个文件：Tailwind v4 的扫描根就是 cwd（主题根），
+# 凡是那个目录里的文本文件都可能贡献 class（连 README.md 的散文都算 —— `collapse`
+# 就是这么进产物的），枚举必然漏；目录级 find 才关得住这个口子。
+css_sources() {
+  find "$CSS_THEME_DIR" -type f \
+    -not -path '*/node_modules/*' \
+    -not -path "$CSS_THEME_DIR/assets/wasm/*" \
+    -not -path "$CSS_ARTIFACT" \
+    -not -path "$CSS_MANIFEST" | LC_ALL=C sort
+}
+
+write_css_manifest() {
+  local out="$1" f
+  : >"$out"
+  printf '%s  %s\n' "$(sha256_of "$REPO_ROOT/$CSS_ARTIFACT")" "$CSS_ARTIFACT" >>"$out"
+  while IFS= read -r f; do
+    printf '%s  %s\n' "$(sha256_of "$REPO_ROOT/$f")" "$f" >>"$out"
+  done < <(css_sources)
+}
+
+check_css() {
+  local bad=0
+  if [ ! -f "$REPO_ROOT/$CSS_ARTIFACT" ]; then
+    fail "缺少 Tailwind 产物：${CSS_ARTIFACT}（跑 deno task build-css）"
+    return 1
+  fi
+  if [ ! -f "$REPO_ROOT/$CSS_MANIFEST" ]; then
+    fail "缺少 Tailwind 指纹：${CSS_MANIFEST}（跑 deno task build-css 生成）"
+    return 1
+  fi
+
+  write_css_manifest "$TMP_MANIFEST"
+  if diff -u --label "记录（main.css.sha256）" --label "现在（工作区）" "$REPO_ROOT/$CSS_MANIFEST" "$TMP_MANIFEST" >"$TMP_DIFF"; then
+    ok "Tailwind 产物与源码一致（$(wc -c <"$REPO_ROOT/$CSS_ARTIFACT" | tr -d ' ') 字节）"
+  else
+    fail "Tailwind 产物与源码不一致（- 记录 / + 现在）："
+    cat "$TMP_DIFF" >&2
+    fail "  改了 themes/self/ 里被 Tailwind 扫描的内容（assets/app.css、layouts/**、README.md …）"
+    fail "  就得跑 deno task build-css，把产物与指纹一起提交（CI 不装 bun，不会重编译）"
+    bad=1
+  fi
+
+  if [ "$REBUILD" = 1 ]; then
+    if ! have bun; then
+      warn "跳过 CSS 重编译校验（本机没有 bun）"
+    elif [ ! -x "$REPO_ROOT/$CSS_THEME_DIR/node_modules/.bin/postcss" ]; then
+      warn "跳过 CSS 重编译校验（themes/self/node_modules 不在；先跑 deno task build-css）"
+    else
+      log "bun run build:css（校验用，输出到临时目录）"
+      if (cd "$REPO_ROOT/$CSS_THEME_DIR" && ./node_modules/.bin/postcss assets/app.css -o "$TMP_TARGET/main.css"); then
+        if cmp -s "$TMP_TARGET/main.css" "$REPO_ROOT/$CSS_ARTIFACT"; then
+          ok "重编译复现：产物逐字节一致"
+        else
+          fail "重编译产物与提交的 $CSS_ARTIFACT 不一致"
+          bad=1
+        fi
+      else
+        fail "重编译失败"
+        bad=1
+      fi
+    fi
+  fi
+
+  return "$bad"
+}
+
 check_wasm() {
   local bad=0
   if [ ! -f "$WASM_ARTIFACT" ]; then
@@ -125,14 +203,21 @@ check_wasm() {
 }
 
 REBUILD=0
-case "${1:-check}" in
-check | stamp | "") ;;
-*) fail "未知子命令：${1}（check | stamp）"; exit 2 ;;
+CMD="${1:-check}"
+case "$CMD" in
+check | stamp | stamp-wasm | stamp-css | "") ;;
+*) fail "未知子命令：${1}（check | stamp-wasm | stamp-css）"; exit 2 ;;
 esac
 
-if [ "${1:-check}" = stamp ]; then
+if [ "$CMD" = stamp ] || [ "$CMD" = stamp-wasm ]; then
   write_manifest "$REPO_ROOT/$WASM_MANIFEST"
-  ok "指纹已更新：${WASM_MANIFEST}（$(wc -l <"$REPO_ROOT/$WASM_MANIFEST" | tr -d ' ') 条）"
+  ok "wasm 指纹已更新：${WASM_MANIFEST}（$(wc -l <"$REPO_ROOT/$WASM_MANIFEST" | tr -d ' ') 条）"
+  exit 0
+fi
+
+if [ "$CMD" = stamp-css ]; then
+  write_css_manifest "$REPO_ROOT/$CSS_MANIFEST"
+  ok "Tailwind 指纹已更新：${CSS_MANIFEST}（$(wc -l <"$REPO_ROOT/$CSS_MANIFEST" | tr -d ' ') 条）"
   exit 0
 fi
 
@@ -153,5 +238,7 @@ log "① 图片产物"
 if check_images; then ok "图片产物齐全"; else fail "图片产物不齐"; BAD=1; fi
 log "② wasm 产物"
 if check_wasm; then ok "wasm 产物新鲜"; else fail "wasm 产物不新鲜"; BAD=1; fi
+log "③ Tailwind 产物"
+if check_css; then ok "Tailwind 产物新鲜"; else fail "Tailwind 产物不新鲜"; BAD=1; fi
 if [ "$BAD" -ne 0 ]; then exit 1; fi
 ok "构建产物检查通过"
