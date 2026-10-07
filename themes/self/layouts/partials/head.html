@@ -35,11 +35,7 @@
   <link rel="preload stylesheet" as="style" href="{{- $css.Permalink -}}" integrity="{{ $css.Data.Integrity }}" />
 
   <!-- dark icon -->
-  {{- $dark_icon := "theme.png" -}}
-  <!---->
-  {{- if site.Params.monoDarkIcon -}}{{- $dark_icon = "theme.svg" -}}{{- end -}}
-  <!---->
-  <link rel="preload" as="image" href="{{- $dark_icon | absURL -}}" />
+  <link rel="preload" as="image" href="{{- "theme.svg" | absURL -}}" />
 
   <!-- avatar -->
   {{- $avatar_url := $.Scratch.Get "avatar_url" -}}

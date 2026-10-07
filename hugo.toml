@@ -42,9 +42,6 @@ theme = "self"
   # 首页 / 标签页 / 归档页这类没有 front matter description 的页面靠它拿到
   # og:description / twitter:description（删掉后这些页面的分享卡片就没有描述）。
   description = "sdttttt 的个人博客：编程笔记与生活随笔。"
-  # 深色模式切换按钮改用单色 SVG（869B），而不是彩色 PNG（8KB）：
-  # 父主题 head.html 会 preload 它，header.html 换用 dark:invert 反色。
-  monoDarkIcon = true
 
 [menu]
   [[menu.main]]
