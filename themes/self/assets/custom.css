@@ -30,6 +30,11 @@
 :root {
     --page-bg-w: clamp(220px, 24vw, 320px);
     --page-bg-ratio: 5 / 7;
+    /* Reveal opacity, shared by light and dark (one knob on purpose —
+       the user asked for the same treatment in both modes).
+       `mix-blend-mode: luminosity` decides how solid the badge reads,
+       so this is the only thing to tune: 1 = fully opaque. */
+    --page-bg-opacity: 1;
 }
 
 /* Geometry + fade-in gate + the visual treatment. The mask lives on the BOX
@@ -126,21 +131,21 @@ html:not(.js) .page-bg__png {
     opacity: 1;
 }
 
-/* Reveal gate: only once the user has scrolled to (or near) the bottom.
-   Held below 1 because mix-blend-mode gets loud at full strength. */
+/* Reveal gate: only once the user has scrolled to (or near) the bottom. */
 html.at-bottom .page-bg__box {
-    opacity: 0.85;
+    opacity: var(--page-bg-opacity);
 }
 
 /* No-JS fallback: we can't observe scroll, so just show it. */
 html:not(.js) .page-bg__box {
-    opacity: 0.85;
+    opacity: var(--page-bg-opacity);
 }
 
-/* Dark mode: keep it from popping against the near-black canvas. */
-[data-theme="dark"] .page-bg__box {
-    filter: brightness(0.9) saturate(0.85) blur(0.3px);
-}
+/* Dark mode deliberately has no extra treatment: dimming the badge made
+   the pale particles read as a washed-out smudge, so light and dark share
+   the rules above. (The dark flag is a `dark` class on <html>, set by
+   partials/header.html — the old `[data-theme="dark"]` selectors here
+   never matched anything.) */
 
 /* Small screens: shrink the badge and nudge it further off the left edge. */
 @media (max-width: 768px) {
@@ -160,10 +165,10 @@ html:not(.js) .page-bg__box {
         transition: none;
     }
     html.at-bottom .page-bg__box {
-        opacity: 0.7;
+        opacity: var(--page-bg-opacity);
     }
     html:not(.js) .page-bg__box {
-        opacity: 0.7;
+        opacity: var(--page-bg-opacity);
     }
 }
 
@@ -209,7 +214,7 @@ html:not(.js) .page-bg__box {
 }
 
 /* Dark theme: soften the frame against the near-black canvas. */
-[data-theme="dark"] .pt-stage {
+html.dark .pt-stage {
     border-color: rgba(255, 255, 255, 0.1);
     background: radial-gradient(
         120% 100% at 50% 0%,
