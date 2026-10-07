@@ -12,11 +12,11 @@ ignoreErrors = ["error-remote-getjson"]
 enableGitInfo = true
 summaryLength = 100
 
-# Single theme. `sdttttt-paper` used to be a thin override layer sitting on
-# top of a vendored `hugo-paper`; on 2026-10-07 the two were merged into this
-# one directory and the upstream sync was dropped, so every layout/asset the
-# site needs now lives under themes/sdttttt-paper/.
-theme = "sdttttt-paper"
+# Single theme. This used to be a thin override layer sitting on top of a
+# vendored `hugo-paper`; on 2026-10-07 the two directories were merged into
+# this one, upstream sync was dropped, and the theme was renamed to `self`,
+# so every layout/asset the site needs now lives under themes/self/.
+theme = "self"
 
 [params]
   # Theme color preset: linen / wheat / gray / light
@@ -55,7 +55,7 @@ theme = "sdttttt-paper"
     name = "Posts"
     url = "/posts/"
     weight = 1
-  # 归档页（themes/sdttttt-paper/layouts/_default/archives.html 渲染）。
+  # 归档页（themes/self/layouts/_default/archives.html 渲染）。
   # 页面本体的 h1 用的是 content/archives.md 的 title（中文「归档」），
   # 导航标签这里跟 Posts / Source / About 保持英文。
   [[menu.main]]
@@ -82,7 +82,7 @@ theme = "sdttttt-paper"
     weight = 20
 
 # 站内搜索需要一份构建期索引：首页额外产出一份 /searchindex.json
-# （模板见 themes/sdttttt-paper/layouts/index.json），/search/ 页在前端
+# （模板见 themes/self/layouts/index.json），/search/ 页在前端
 # 拉取它做过滤。下面覆盖的是 Hugo 内置的 JSON 输出格式，字段与内置一致，
 # 只改文件名（index.json → searchindex.json）；只有 home 输出 JSON。
 [outputs]

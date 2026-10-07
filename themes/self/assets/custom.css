@@ -225,7 +225,7 @@ html:not(.js) .page-bg__box {
 }
 
 /* ==========================================================================
-   Archive page — themes/sdttttt-paper/layouts/_default/archives.html
+   Archive page — themes/self/layouts/_default/archives.html
 
    Compact year → month listing: a month is one inline flow of titles
    (`9月 · title · title …`, no day prefix — the order inside a month already
@@ -362,7 +362,7 @@ html:not(.js) .page-bg__box {
 }
 
 /* ==========================================================================
-   Search page — themes/sdttttt-paper/layouts/_default/search.html
+   Search page — themes/self/layouts/_default/search.html
 
    The markup is inert without assets/js/search.js: everything here just
    dresses the input, the status line and the result rows. Same rules as the

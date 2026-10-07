@@ -1,4 +1,4 @@
-cac4cbe724af2526d2e2a3ed90242854992e4371cb1d82bff6ac5edcaa28fbad  themes/sdttttt-paper/assets/wasm/particles.wasm
+cac4cbe724af2526d2e2a3ed90242854992e4371cb1d82bff6ac5edcaa28fbad  themes/self/assets/wasm/particles.wasm
 cb45f9ea298fb30619f297fb51784d1804c524592364bf7ff0d3a09bcf2fd000  wasm/particles/Cargo.lock
 10a9252f2d07fcc886a14eb8d93edaf79bc0b67b20f67e59edc503390dfac91a  wasm/particles/Cargo.toml
 0d81e1ae06d946425d3d7e9cf311d109f995faf642fb85ce728e3793c25adfb0  wasm/particles/src/lib.rs

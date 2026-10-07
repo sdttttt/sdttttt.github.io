@@ -1,7 +1,7 @@
 {{/*
   Search index — the home page's JSON output format (hugo.toml defines it),
   published as /searchindex.json and fetched by /search/
-  (themes/sdttttt-paper/layouts/_default/search.html + assets/js/search.js).
+  (themes/self/layouts/_default/search.html + assets/js/search.js).
 
   One entry per post. The text is pre-flattened at build time (plainify drops
   the markup, htmlUnescape turns `&amp;` back into `&`, strings.TrimSpace

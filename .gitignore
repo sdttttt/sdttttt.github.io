@@ -18,5 +18,5 @@ hugo_stats.json
 scripts/dist/
 
 # Rust/WASM build artifacts (the built particles.wasm is committed under
-# themes/sdttttt-paper/assets/wasm/, only the cargo target dir is ignored)
+# themes/self/assets/wasm/, only the cargo target dir is ignored)
 wasm/**/target/

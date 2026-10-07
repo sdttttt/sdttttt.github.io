@@ -25,8 +25,8 @@ fi
 
 # ── 构建产物布局（bin/artifacts.sh 与 bin/build-wasm.sh 共用，改路径只改这一处）──
 WASM_SRC_DIR="wasm/particles"
-WASM_ARTIFACT="themes/sdttttt-paper/assets/wasm/particles.wasm"
-WASM_MANIFEST="themes/sdttttt-paper/assets/wasm/particles.sha256"
+WASM_ARTIFACT="themes/self/assets/wasm/particles.wasm"
+WASM_MANIFEST="themes/self/assets/wasm/particles.sha256"
 
 # ── 输出 ──
 log() { printf '==> %s\n' "$*"; }

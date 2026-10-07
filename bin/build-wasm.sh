@@ -7,7 +7,7 @@
 # 需要 Rust 工具链（rustup target add wasm32-unknown-unknown）。CI 故意不装 Rust，
 # 所以这一步永远在本地跑，产物 + 指纹一起提交（见 AGENTS.md）。
 #
-# 为什么多出一个指纹文件：`themes/sdttttt-paper/assets/wasm/particles.sha256`
+# 为什么多出一个指纹文件：`themes/self/assets/wasm/particles.sha256`
 # 记录「源码摘要 + 产物摘要」，让没有 cargo 的 CI 也能发现「改了 lib.rs 却没重建」
 # —— 否则这类陈旧会一路发布出去（2026-10-06 就承诺过 CI 不构建 wasm，
 # 那这个承诺的代价必须由检查来还）。

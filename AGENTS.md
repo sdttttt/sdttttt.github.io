@@ -1,12 +1,12 @@
 # 仓库贡献指南（Repository Guidelines）
 
-基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`sdttttt-paper` 主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)；2026-10-07 起上游同步已停止，原 `themes/hugo-paper/` 合并进 `themes/sdttttt-paper/`，现在它是仓库里唯一的主题，`hugo.toml` 只写 `theme = "sdttttt-paper"`）。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
+基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`self` 主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)；2026-10-07 起上游同步已停止，原 `themes/hugo-paper/` 合并进 `themes/self/`，现在它是仓库里唯一的主题，`hugo.toml` 只写 `theme = "self"`）。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
 
 ## 项目结构
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
 - `content/changelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`；目录在 `99d262c` 由 `content/claudelog/` 改名而来）。
-- `themes/sdttttt-paper/` — 唯一的主题（`hugo.toml` 里 `theme = "sdttttt-paper"`）。以下文件是本仓库自己维护的；其余（`head.html` / `single.html` / `404.html` / `math.html` / `mermaid.html` / `collapse.html` / `main.css` / `i18n/*` / `static/*`）来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过：
+- `themes/self/` — 唯一的主题（`hugo.toml` 里 `theme = "self"`）。以下文件是本仓库自己维护的；其余（`head.html` / `single.html` / `404.html` / `math.html` / `mermaid.html` / `collapse.html` / `main.css` / `i18n/*` / `static/*`）来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过：
   - `theme.toml` — 主题元数据
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
   - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「自上而下一层层显现 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，且要等上一条淡出动画走完才算「藏起来」，见下），`$cfg` 里的 `wipeDrop` / `wipeDuration` / `wipeBand` 是入场动效旋钮（另有 `thumpPower`，**当前 0 = 落定后不再弹一下**），`idleEffect` / `floatAmp` / `floatPeriod` 是待机旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
@@ -21,20 +21,20 @@
   - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（徽标 + 逐行显现/待机漂浮的 rAF 状态机）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
 
-  （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
+  （上述路径相对于 `themes/self/`，完整路径如 `themes/self/layouts/partials/bg.html`。）
 
-- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`（当前 32,062 字节）；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 37 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
+- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/self/assets/wasm/particles.wasm`（当前 32,062 字节）；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 37 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `bin/` — **CI 与本地共用的 shell 脚本层**（bash 3.2 兼容，macOS 自带 bash 也能跑）。`.github/workflows/*.yml` 只声明「触发条件 + 权限 + 第三方 action + 工具链安装」，实际跑什么全在 `bin/*.sh` 里 —— 所以本地能跑出和 CI 一样的结果，也不用读 YAML 才知道 CI 干了什么：
   - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = "sdttttt-paper"`）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
+- `hugo.toml` — Hugo 配置（`theme = "self"`）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
 首次克隆不需要 submodule：`git clone`。
 
-**主题不再跟随上游同步**（2026-10-07 把 `themes/hugo-paper/` 合并进了 `themes/sdttttt-paper/`，两个目录的同名文件冲突已在当时解决）。想看上游有没有值得抄的改动，临时 clone 一份对比即可（`git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`），需要的话直接把改动落在这个主题的对应文件里。
+**主题不再跟随上游同步**（2026-10-07 把 `themes/hugo-paper/` 合并进了 `themes/self/`，两个目录的同名文件冲突已在当时解决）。想看上游有没有值得抄的改动，临时 clone 一份对比即可（`git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`），需要的话直接把改动落在这个主题的对应文件里。
 
 推送到 `master` 即触发 `.github/workflows/deploy.yml` 自动部署（部署前会先跑一遍 `bin/*.sh`）。
 
@@ -74,7 +74,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 ```
 
 - **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
-- **产物新鲜度靠指纹，不靠 mtime**：`themes/sdttttt-paper/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
+- **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
 - 改了 `wasm/**` 后跑 `deno task build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
 - 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `build.sh` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
@@ -119,7 +119,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(changelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `./bin/preflight.sh`（只读，等价于 CI 的检查；装了 `./bin/install-hooks.sh` 后 push 会自动跑）；不要提交 `public/` 或临时文件。
-- **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/sdttttt-paper/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
+- **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/self/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认

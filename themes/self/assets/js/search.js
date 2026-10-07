@@ -1,9 +1,9 @@
 /* ---------------------------------------------------------------------------
  * 站内搜索 —— /search/ 页面用
- * （布局 themes/sdttttt-paper/layouts/_default/search.html）。
+ * （布局 themes/self/layouts/_default/search.html）。
  *
  * 索引是构建期生成的 /searchindex.json
- * （themes/sdttttt-paper/layouts/index.json + hugo.toml 的 JSON 输出格式），
+ * （themes/self/layouts/index.json + hugo.toml 的 JSON 输出格式），
  * 只在访客第一次输入关键词时才请求，之后缓存在内存里。
  *
  * 匹配：查询按空白切成若干词（中文没有空格，整串算一个词），逐词在

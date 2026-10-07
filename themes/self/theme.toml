@@ -1,7 +1,7 @@
-name = "sdttttt-paper"
+name = "self"
 license = "MIT"
-licenselink = "https://github.com/sdttttt/sdttttt.github.io/blob/master/themes/sdttttt-paper/LICENSE"
-description = "sdttttt's personal fork of hugo-paper"
+licenselink = "https://github.com/sdttttt/sdttttt.github.io/blob/master/themes/self/LICENSE"
+description = "The Hugo theme behind sdttttt.online (forked from hugo-paper)"
 homepage = "https://sdttttt.online/"
 tags = ["Responsive", "Simple", "Clean", "Light", "Blog"]
 features = ["Responsive", "One Column", "Blog"]
@@ -14,4 +14,4 @@ min_version = "0.100.0"
 # Standalone theme since 2026-10-07: this used to be a thin override layer
 # on top of a vendored hugo-paper, combined through the site's theme list. The
 # two directories were merged into this one and upstream sync was dropped, so
-# hugo.toml now simply says `theme = "sdttttt-paper"`.
+# hugo.toml now simply says `theme = "self"`.

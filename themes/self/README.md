@@ -1,4 +1,4 @@
-# sdttttt-paper
+# self
 
 The Hugo theme behind <https://sdttttt.online/>. It is a fork of [`nanxiaobei/hugo-paper`](https://github.com/nanxiaobei/hugo-paper), but **upstream sync was dropped on 2026-10-07**: the previously vendored `themes/hugo-paper/` was merged into this directory, so this is now the only theme in the repository.
 
@@ -7,7 +7,7 @@ The Hugo theme behind <https://sdttttt.online/>. It is a fork of [`nanxiaobei/hu
 In the site's `hugo.toml`:
 
 ```toml
-theme = "sdttttt-paper"
+theme = "self"
 ```
 
 That's it — no theme list, no Hugo Modules, no `go.mod`, no `[parent]` block. (`[parent]` is a Hugo Modules concept and is a no-op for directory-based themes.)
@@ -18,7 +18,7 @@ Hugo overlays `layouts/`, `assets/`, `static/` and `i18n/` from the theme onto t
 
 Files either come from upstream, or they are ours. The ones below are ours — edit them freely:
 
-| File (relative to `themes/sdttttt-paper/`)   | Origin                   | What it does                                                                                                                                                                                                                                                                                                    |
+| File (relative to `themes/self/`)            | Origin                   | What it does                                                                                                                                                                                                                                                                                                    |
 | -------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `layouts/_default/baseof.html`               | copied                   | adds the trailing `{{ partial "bg.html" . }}` and resolves `avatar_url` only on the home page (so upstream's unconditional avatar preload is skipped elsewhere; `head.html` is left untouched)                                                                                                                  |
 | `layouts/_default/list.html`                 | copied                   | upstream's list layout plus the archive/tag customizations                                                                                                                                                                                                                                                      |
@@ -47,4 +47,5 @@ Everything else — `layouts/partials/{head,math,mermaid}.html`, `layouts/_defau
 
 - Upstream: <https://github.com/nanxiaobei/hugo-paper>
 - 2026-10-05 — `hugo-paper` vendored into `themes/hugo-paper/`, with `sdttttt-paper` as a thin override layer on top.
-- 2026-10-07 — the two directories merged into this one; upstream sync dropped; `hugo.toml` reduced to `theme = "sdttttt-paper"`.
+- 2026-10-07 — the two directories merged into one theme; upstream sync dropped.
+- 2026-10-07 — that theme renamed `sdttttt-paper` → `self`; `hugo.toml` reduced to `theme = "self"`.
