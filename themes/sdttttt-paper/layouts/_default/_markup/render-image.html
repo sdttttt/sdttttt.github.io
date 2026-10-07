@@ -18,8 +18,7 @@
   display:block 负责。（layouts/_markup/render-image.html 这个新位置 Hugo 0.161.1
   不认，别把文件搬过去。）
 
-  When bumping hugo-paper upstream, sync against
-  themes/hugo-paper/layouts/_default/_markup/ —— 上游目前没有同名文件。
+  上游 nanxiaobei/hugo-paper 没有这个文件，不存在与上游同步的问题。
 */ -}}
 {{- $lost := eq (path.Base .Destination) "image-lost.svg" -}}
 {{- if $lost }}<span class="img-lost">{{ end -}}

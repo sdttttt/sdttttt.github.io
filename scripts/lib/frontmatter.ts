@@ -1,7 +1,7 @@
 /**
  * 轻量级 front matter 解析
  *
- * 仅支持 Hugo/hugo-paper 中实际用到的 YAML 子集：
+ * 仅支持 Hugo 中实际用到的 YAML 子集：
  * - 标量字符串、数字、布尔、null
  * - 数组：inline（`tags: [a, b]`）、块式（`aliases:` + `  - /a/`）与 Prettier
  *   折行的 inline 数组（`aliases:` + `[` 与 `]` 各占一行）

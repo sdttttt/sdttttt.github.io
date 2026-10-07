@@ -20,6 +20,6 @@
     }
   },
   "unstable": ["sloppy-imports"],
-  "exclude": ["themes/hugo-paper", ".tools", ".npm-cache"],
+  "exclude": ["themes/sdttttt-paper", ".tools", ".npm-cache"],
   "nodeModulesDir": "none"
 }

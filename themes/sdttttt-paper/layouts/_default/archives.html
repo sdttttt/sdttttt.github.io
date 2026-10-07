@@ -9,18 +9,18 @@
   worth scanning.
 
   The page list uses the same filter as the theme's own post navigation
-  (themes/hugo-paper/layouts/_default/single.html): only
+  (layouts/_default/single.html): only
   `site.Params.mainSections` (= posts). Changelog entries are RegularPages too
   and would otherwise be mixed into the archive. Drafts / future-dated posts
   are dropped by Hugo before a template ever sees them.
 
-  Styling lives in assets/custom.css (`.arch*`) on purpose — hugo-paper's
-  assets/main.css is a checked-in Tailwind build (the site's CI only installs
+  Styling lives in assets/custom.css (`.arch*`) on purpose — assets/main.css
+  is a checked-in Tailwind build (the site's CI only installs
   Deno), so utilities that were never compiled into it (grid, text-sm,
   tabular-nums, …) would silently do nothing here.
 
-  This file is new (no upstream counterpart): nothing to re-sync when bumping
-  hugo-paper. It shadows nothing — upstream has no archives.html either.
+  Upstream nanxiaobei/hugo-paper has no archives.html, so this file has no
+  counterpart and no sync burden.
 */}}
 
 {{- define "main" -}}

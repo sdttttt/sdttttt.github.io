@@ -1,59 +1,50 @@
 # sdttttt-paper
 
-`sdttttt-paper` is a personal fork of [`nanxiaobei/hugo-paper`](https://github.com/nanxiaobei/hugo-paper). It is **not** a standalone theme — it is designed to be combined with the vendored `themes/hugo-paper/` via the site's theme list, so its same-path layouts/assets shadow the upstream ones.
+The Hugo theme behind <https://sdttttt.online/>. It is a fork of [`nanxiaobei/hugo-paper`](https://github.com/nanxiaobei/hugo-paper), but **upstream sync was dropped on 2026-10-07**: the previously vendored `themes/hugo-paper/` was merged into this directory, so this is now the only theme in the repository.
 
 ## How it is wired up
 
 In the site's `hugo.toml`:
 
 ```toml
-theme = ["sdttttt-paper", "hugo-paper"]
+theme = "sdttttt-paper"
 ```
 
-Hugo resolves layouts/assets by walking the theme list in order, first hit wins:
+That's it — no theme list, no Hugo Modules, no `go.mod`, no `[parent]` block. (`[parent]` is a Hugo Modules concept and is a no-op for directory-based themes.)
 
-- `themes/sdttttt-paper/…` is searched first — its files shadow hugo-paper's same-path files.
-- Anything missing there (e.g. `head.html`, `list.html`, `single.html`, `assets/main.css`) falls through to `themes/hugo-paper/`.
+Hugo overlays `layouts/`, `assets/`, `static/` and `i18n/` from the theme onto the site's own directories, with the site winning on conflicts. That's why `static/apple-touch-icon.png` and `static/favicon.ico` are owned by the **site**, not by this theme.
 
-Both themes live in `themes/`; no Hugo Modules, no `go.mod`, no `[parent]` block. (`[parent]` is a Hugo Modules concept and is a no-op for directory-based theme lists.)
+## What lives here
 
-> ⚠️ The order in the `theme` list is load-bearing — `sdttttt-paper` must come before `hugo-paper`, otherwise none of the overrides below take effect.
+Files either come from upstream, or they are ours. The ones below are ours — edit them freely:
 
-## What this theme owns
+| File (relative to `themes/sdttttt-paper/`)   | Origin                   | What it does                                                                                                                                                                                                                                                                                                    |
+| -------------------------------------------- | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `layouts/_default/baseof.html`               | copied                   | adds the trailing `{{ partial "bg.html" . }}` and resolves `avatar_url` only on the home page (so upstream's unconditional avatar preload is skipped elsewhere; `head.html` is left untouched)                                                                                                                  |
+| `layouts/_default/list.html`                 | copied                   | upstream's list layout plus the archive/tag customizations                                                                                                                                                                                                                                                      |
+| `layouts/_default/particles.html`            | new                      | `/particles/` — the WASM particle playground (**`draft: true`**, never published; view locally with `hugo server -D`)                                                                                                                                                                                           |
+| `layouts/_default/archives.html`             | new                      | `/archives/` — posts grouped by year → month, each month one compact inline flow                                                                                                                                                                                                                                |
+| `layouts/_default/search.html`               | new                      | `/search/` — client-side search box + result list; pairs with `layouts/index.json` + `assets/js/search.js`                                                                                                                                                                                                      |
+| `layouts/index.json`                         | new                      | build-time search index (`/searchindex.json`), declared via `[outputFormats.JSON]` in `hugo.toml`                                                                                                                                                                                                               |
+| `layouts/_default/_markup/render-image.html` | new                      | image render hook: adds `loading="lazy"` + `decoding="async"` everywhere, and turns the `title` of the `/images/image-lost.svg` placeholder into a caption line under the image (`.IsBlock` is always false on this Hugo version, and the image sits inside a `<p>`, hence a `<span>`, not `figure/figcaption`) |
+| `layouts/partials/header.html`               | forked                   | dark-mode JS defaults to light and ignores `prefers-color-scheme`                                                                                                                                                                                                                                               |
+| `layouts/partials/footer.html`               | copied                   | removes upstream's "powered by hugo" + "hugo-paper" links                                                                                                                                                                                                                                                       |
+| `layouts/partials/bg.html`                   | new                      | the decorative bottom-left badge: random avif/webp background + a scroll-revealed WASM particle render (the engine only warms up once the reader nears the page bottom)                                                                                                                                         |
+| `layouts/robots.txt`                         | new                      | overrides Hugo's built-in `robots.txt` to add the `Sitemap:` line                                                                                                                                                                                                                                               |
+| `assets/custom.css`                          | extended                 | all `.page-bg` / `.arch*` / `.search*` rules plus site-wide tweaks (⚠️ Tailwind v4's `:not(#\#)` bumpers beat plain class selectors, so `font-size` on headings needs `!important` — see the comment in the file)                                                                                               |
+| `assets/js/page-bg.js`                       | new                      | badge state machine (wasm warm-up, wipe-in reveal, idle float, lazy image pick)                                                                                                                                                                                                                                 |
+| `assets/js/pt-wasm.js`                       | new                      | shared wasm loader (`WebAssembly` capability check lives here)                                                                                                                                                                                                                                                  |
+| `assets/js/particles-wasm.js`                | new                      | engine driver for `/particles/`                                                                                                                                                                                                                                                                                 |
+| `assets/js/particles.js`                     | new                      | pure Canvas 2D fallback for `/particles/`                                                                                                                                                                                                                                                                       |
+| `assets/js/search.js`                        | new                      | `/search/` logic: lazy index fetch, scoring, highlight, keyboard nav, `?q=` sync                                                                                                                                                                                                                                |
+| `assets/wasm/particles.wasm` + `.sha256`     | committed build artifact | the Rust engine compiled from `wasm/particles/`; rebuild with `deno task build-wasm` and commit both files                                                                                                                                                                                                      |
+| `static/theme.svg`                           | copied                   | the dark-mode toggle icon; upstream's `monoDarkIcon` flag selects it over the (deleted, 8 KB) `theme.png`                                                                                                                                                                                                       |
+| `theme.toml`                                 | forked                   | theme metadata                                                                                                                                                                                                                                                                                                  |
 
-| File (relative to `themes/sdttttt-paper/`)   | Origin   | Diff vs upstream                                                                                                                                                                                                                                                  |
-| -------------------------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `layouts/_default/baseof.html`               | copied   | adds the trailing `{{ partial "bg.html" . }}` and resolves `avatar_url` only on the home page (so hugo-paper's unconditional avatar preload is skipped off-home; `head.html` stays a fall-through)                                                                |
-| `layouts/partials/header.html`               | forked   | dark-mode JS defaults to light; does not follow `prefers-color-scheme`                                                                                                                                                                                            |
-| `layouts/partials/footer.html`               | copied   | removes the "powered by hugo" + "hugo-paper" links                                                                                                                                                                                                                |
-| `layouts/partials/bg.html`                   | new      | page-level decorative background (random avif/webp image with `fetchpriority="low"` + WASM particles, revealed on scroll-to-bottom; engine only warms up once the reader nears it)                                                                                |
-| `layouts/_default/archives.html`             | new      | `/archives/` — posts grouped by year → month, each month one compact inline flow (no upstream counterpart)                                                                                                                                                        |
-| `layouts/_default/search.html`               | new      | `/search/` — client-side search box + result list; pairs with `layouts/index.json` + `assets/js/search.js`                                                                                                                                                        |
-| `layouts/index.json`                         | new      | build-time search index (`/searchindex.json`, 209 entries); declared via `[outputFormats.JSON]` in `hugo.toml`                                                                                                                                                    |
-| `assets/js/search.js`                        | new      | `/search/` logic: lazy index fetch, scoring, highlight, keyboard nav, `?q=` sync                                                                                                                                                                                  |
-| `layouts/_default/_markup/render-image.html` | new      | markdown 图片统一补 `loading="lazy"` + `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下小字（`<span class="img-lost__note">`，**不是** `figure/figcaption`：`.IsBlock` 在本站 Hugo 版本恒为 false，且图片嵌在 `<p>` 里）                 |
-| `layouts/robots.txt`                         | new      | 覆盖 Hugo 内置 robots.txt，补上 `Sitemap:` 行（内置模板只写 `User-agent: *`）                                                                                                                                                                                     |
-| `assets/custom.css`                          | extended | all `.page-bg` / `.page-bg__img` / `.arch*` / `.search*` rules + custom CSS (⚠️ Tailwind v4's `:not(#\#)` bumpers beat plain class rules, so `font-size` on headings and `margin`/`padding`/`border` on anything need `!important` — see the comment in the file) |
+Everything else — `layouts/partials/{head,math,mermaid}.html`, `layouts/_default/single.html`, `layouts/404.html`, `layouts/shortcodes/collapse.html`, `assets/main.css`, `assets/app.css`, `i18n/*.yaml`, `LICENSE` — is untouched upstream code. `assets/main.css` is the compiled Tailwind output (`app.css` is its source); neither is processed by Hugo at build time.
 
-## Bumping the upstream `hugo-paper`
-
-1. Clone upstream to a scratch dir:
-
-   ```bash
-   git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone
-   ```
-
-2. Diff against `themes/hugo-paper/`:
-
-   ```bash
-   diff -ru themes/hugo-paper/ /tmp/hp-clone/
-   ```
-
-3. Apply desired upstream changes to `themes/hugo-paper/` directly (it's vendored, not a submodule).
-
-4. For each of this theme's overrides listed above, re-sync the upstream version and reapply the local diff. The file headers document what to sync against.
-
-## Origins
+## History
 
 - Upstream: <https://github.com/nanxiaobei/hugo-paper>
-- Vendored parent: `themes/hugo-paper/` (last synced 2026-10-05)
+- 2026-10-05 — `hugo-paper` vendored into `themes/hugo-paper/`, with `sdttttt-paper` as a thin override layer on top.
+- 2026-10-07 — the two directories merged into this one; upstream sync dropped; `hugo.toml` reduced to `theme = "sdttttt-paper"`.

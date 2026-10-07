@@ -11,7 +11,7 @@ min_version = "0.100.0"
   name = "sdttttt"
   homepage = "https://sdttttt.online/about/"
 
-# No [parent] block: this theme is combined with hugo-paper through the
-# site's `theme = ["sdttttt-paper", "hugo-paper"]` list in hugo.toml, where
-# the first theme's same-path layouts/assets shadow the second's. [parent]
-# is a Hugo Modules concept and is a no-op under directory-based theme lists.
+# Standalone theme since 2026-10-07: this used to be a thin override layer
+# on top of a vendored hugo-paper, combined through the site's theme list. The
+# two directories were merged into this one and upstream sync was dropped, so
+# hugo.toml now simply says `theme = "sdttttt-paper"`.

@@ -1,20 +1,20 @@
 # 仓库贡献指南（Repository Guidelines）
 
-基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`sdttttt-paper` 子主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)）。父主题 vendor-in 到 `themes/hugo-paper/`，自定义修改集中在 `themes/sdttttt-paper/`；两者通过 `hugo.toml` 的 `theme = ["sdttttt-paper", "hugo-paper"]` 列表组合，第一个主题的同名文件覆盖第二个。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
+基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`sdttttt-paper` 主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)；2026-10-07 起上游同步已停止，原 `themes/hugo-paper/` 合并进 `themes/sdttttt-paper/`，现在它是仓库里唯一的主题，`hugo.toml` 只写 `theme = "sdttttt-paper"`）。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
 
 ## 项目结构
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
 - `content/changelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`；目录在 `99d262c` 由 `content/claudelog/` 改名而来）。
-- `themes/sdttttt-paper/` — 自定义子主题，与 `themes/hugo-paper/` 组合（`hugo.toml` 里 `theme = ["sdttttt-paper", "hugo-paper"]`，前者优先，同名文件覆盖后者）：
-  - `theme.toml` — 主题元数据（无 `[parent]` —— 那是 Hugo Modules 概念，目录式主题列表下不生效）
+- `themes/sdttttt-paper/` — 唯一的主题（`hugo.toml` 里 `theme = "sdttttt-paper"`）。以下文件是本仓库自己维护的；其余（`head.html` / `single.html` / `404.html` / `math.html` / `mermaid.html` / `collapse.html` / `main.css` / `i18n/*` / `static/*`）来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过：
+  - `theme.toml` — 主题元数据
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
   - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「自上而下一层层显现 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，且要等上一条淡出动画走完才算「藏起来」，见下），`$cfg` 里的 `wipeDrop` / `wipeDuration` / `wipeBand` 是入场动效旋钮（另有 `thumpPower`，**当前 0 = 落定后不再弹一下**），`idleEffect` / `floatAmp` / `floatPeriod` 是待机旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
-  - `layouts/partials/footer.html` — footer，去掉 powered by / hugo-paper 链接
+  - `layouts/partials/footer.html` — footer，去掉上游的 powered by 链接
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
   - `layouts/_default/archives.html` — `/archives/` 归档页（`content/archives.md` 的 `layout: archives` 指向它）：按年 → 月分组，每月一段 inline 流；口径是 `where site.RegularPages "Type" "in" site.Params.mainSections`（= 209 篇，自动排除 changelog 与 `build.list: never` 的私密文章）
-  - `assets/custom.css` — 自定义 CSS（徽标 + 粒子页 + 归档页样式）。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`themes/hugo-paper/assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
+  - `assets/custom.css` — 自定义 CSS（徽标 + 粒子页 + 归档页样式）。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
@@ -23,7 +23,6 @@
 
   （上述路径相对于 `themes/sdttttt-paper/`，完整路径如 `themes/sdttttt-paper/layouts/partials/bg.html`。）
 
-- `themes/hugo-paper/` — vendor-in 的父主题（普通目录，不是 submodule），sync 时只动这个目录
 - `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/sdttttt-paper/assets/wasm/particles.wasm`（当前 32,062 字节）；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 37 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
@@ -31,14 +30,11 @@
   - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = ["sdttttt-paper", "hugo-paper"]` 主题列表，顺序即优先级）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
+- `hugo.toml` — Hugo 配置（`theme = "sdttttt-paper"`）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
 首次克隆不需要 submodule：`git clone`。
 
-主题同步分两部分（互不干扰）：
-
-1. **同步父主题**（`themes/hugo-paper/`）：手动 `git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`，`diff -ru themes/hugo-paper/ /tmp/hp-clone/`，把需要的上游改动 patch 到 `themes/hugo-paper/`。
-2. **同步子主题自定义 override**（`themes/sdttttt-paper/`）：每个 override 文件头注释已写明 "When bumping hugo-paper upstream, sync against themes/hugo-paper/.../X and reapply the diff"，按注释指引手动同步。
+**主题不再跟随上游同步**（2026-10-07 把 `themes/hugo-paper/` 合并进了 `themes/sdttttt-paper/`，两个目录的同名文件冲突已在当时解决）。想看上游有没有值得抄的改动，临时 clone 一份对比即可（`git clone --depth 1 https://github.com/nanxiaobei/hugo-paper.git /tmp/hp-clone`），需要的话直接把改动落在这个主题的对应文件里。
 
 推送到 `master` 即触发 `.github/workflows/deploy.yml` 自动部署（部署前会先跑一遍 `bin/*.sh`）。
 

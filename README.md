@@ -1,6 +1,6 @@
 # 海边
 
-我的个人博客，基于 [Hugo](https://gohugo.io/)，主题是自定义子主题 `sdttttt-paper`（fork 自 [hugo-paper](https://github.com/nanxiaobei/hugo-paper)）。正文默认简体中文。
+我的个人博客，基于 [Hugo](https://gohugo.io/)，主题是 `sdttttt-paper`（fork 自 [hugo-paper](https://github.com/nanxiaobei/hugo-paper)，已合并为仓库内独立主题、不再跟随上游同步）。正文默认简体中文。
 
 线上：<https://sdttttt.online/>
 

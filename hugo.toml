@@ -12,11 +12,11 @@ ignoreErrors = ["error-remote-getjson"]
 enableGitInfo = true
 summaryLength = 100
 
-# Theme components: sdttttt-paper is looked up first, hugo-paper second.
-# Layouts/assets present in the first theme shadow the second's same-path
-# files; everything else falls through (e.g. head.html, list.html come from
-# hugo-paper). Order matters — do not swap.
-theme = ["sdttttt-paper", "hugo-paper"]
+# Single theme. `sdttttt-paper` used to be a thin override layer sitting on
+# top of a vendored `hugo-paper`; on 2026-10-07 the two were merged into this
+# one directory and the upstream sync was dropped, so every layout/asset the
+# site needs now lives under themes/sdttttt-paper/.
+theme = "sdttttt-paper"
 
 [params]
   # Theme color preset: linen / wheat / gray / light
@@ -24,10 +24,10 @@ theme = ["sdttttt-paper", "hugo-paper"]
   # Favicon: pi.dev mark (SVG, adapts to prefers-color-scheme).
   # appleTouchIcon defaults to apple-touch-icon.png, which we also replace.
   favicon = "favicon.svg"
-  # Date format used by hugo-paper head.html
+  # Date format used by head.html
   DateFormat = "2006年01月02日"
   # Which content sections to show on the home page list.
-  # Without this, hugo-paper's list.html pulls every RegularPage and the
+  # Without this, list.html pulls every RegularPage and the
   # changelog entries would crowd the home feed.
   mainSections = ["posts"]
   # Avatar: local optimized image in static/ (served at /avatar.webp).

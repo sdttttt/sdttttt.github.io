@@ -1,5 +1,4 @@
 /* Place custom css here. */
-@reference './app.css';
 
 /*
  * Page-level decorative background (bottom-left badge).
@@ -173,7 +172,7 @@ html:not(.js) .page-bg__box {
  *
  * Pure Canvas 2D: the stage is just a framed box, the canvas fills it and
  * draws the assembled particle image. `not-prose` on the wrapping section
- * already neutralizes hugo-paper's typographic rules.
+ * already neutralizes main.css's typographic rules.
  */
 .pt-stage {
     position: relative;
@@ -242,10 +241,9 @@ html:not(.js) .page-bg__box {
    CSS here.
 
    ⚠️ Any font-size set on a heading below needs `!important`: Tailwind v4
-   compiles `h1…h6 { font-size: inherit }` (preflight) and hugo-paper's own
+   compiles `h1…h6 { font-size: inherit }` (preflight) and main.css's own
    `h1, h2, h3 { @apply font-semibold }` with `:not(#\#)` specificity
-   bumpers — (2,0,1) and (5,0,1), see themes/hugo-paper/assets/main.css
-   lines 74 / 1382 — and `:not(#\#)` counts as an ID selector, so no plain
+   bumpers — (2,0,1) and (5,0,1), see assets/main.css lines 74 / 1382 — and `:not(#\#)` counts as an ID selector, so no plain
    class-based rule can ever win. Font-weight is deliberately not declared:
    the theme's semibold (600) is what every other heading on the site uses.
 
