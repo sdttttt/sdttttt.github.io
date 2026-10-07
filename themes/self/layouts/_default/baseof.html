@@ -8,27 +8,23 @@
   Local diffs vs the original upstream file:
     1. the trailing `{{ partial "bg.html" . }}` call before </body>;
     2. `avatar_url` is only resolved on the home page (see comment at the
-       avatar_url block).
+       avatar_url block);
+    3. the `social_list` scratch (and the social-icon nav in header.html) was
+       removed — upstream expects `twitter.svg` / `github.svg` / … under the
+       theme's static/, but they were never vendored here, so every icon
+       resolved to a 404 image and the nav could only ever render as empty
+       boxes.
 */}}
 
 <!doctype html>
 
 {{- $.Scratch.Delete "bg_color" -}}<!---->
-{{- $.Scratch.Delete "social_list" -}}<!---->
 {{- $.Scratch.Delete "avatar_url" -}}
 
 <!-- bg_color -->
 {{- $color_map := dict "linen" "#faf8f1" "wheat" "#f8f5d7" "gray" "#fbfbfb" "light" "#fff" -}}<!---->
 {{- $.Scratch.Set "bg_color" (index $color_map (site.Params.color | default (print "linen"))) -}}<!---->
 {{- $bg_color := $.Scratch.Get "bg_color" -}}
-
-<!-- social_list -->
-{{- $social_params := slice "twitter" "github" "instagram" "linkedin" "mastodon" "threads" "bluesky" "rss" -}}<!---->
-{{- range $social_params -}}<!---->
-{{- if isset site.Params . -}}<!---->
-{{- $.Scratch.Add "social_list" (slice .) -}}<!---->
-{{- end -}}<!---->
-{{- end -}}
 
 <!-- avatar_url — home page only.
 

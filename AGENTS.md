@@ -6,7 +6,7 @@
 
 - `content/posts/` — 博客文章（Markdown + front matter）。
 - `content/changelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`；目录在 `99d262c` 由 `content/claudelog/` 改名而来）。
-- `themes/self/` — 唯一的主题（`hugo.toml` 里 `theme = "self"`）。以下文件是本仓库自己维护的；其余（`head.html` / `single.html` / `404.html` / `math.html` / `mermaid.html` / `collapse.html` / `main.css` / `i18n/*` / `static/*`）来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过：
+- `themes/self/` — 唯一的主题（`hugo.toml` 里 `theme = "self"`）。以下文件是本仓库自己维护的；其余（`404.html` / `main.css` / `static/*`）仍来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过。**2026-10-07 删掉了一批死功能**（RSS 生成、`<meta name="description">`、评论 / KaTeX / mermaid / highlight.js / `collapse` shortcode、20 个用不上的 `i18n/*.yaml`、无资源的社交图标导航）—— 细节见 `themes/self/README.md` 的删除清单，别再照上游抄回来：
   - `theme.toml` — 主题元数据
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
   - `layouts/partials/bg.html` — 左下角装饰徽标：**WASM 粒子渲染**（滚到底部时「自上而下一层层显现 → 待机漂浮」，**每次揭示都重新随机一张图**（抽签推迟到滚到页底那一刻，且要等上一条淡出动画走完才算「藏起来」，见下），`$cfg` 里的 `wipeDrop` / `wipeDuration` / `wipeBand` 是入场动效旋钮（另有 `thumpPower`，**当前 0 = 落定后不再弹一下**），`idleEffect` / `floatAmp` / `floatPeriod` 是待机旋钮，`rippleMode` / `rippleAmp` / `rippleLength` / `ripplePeriod` 是备选水波（`idleEffect: 'ripple'` 时才生效），`gapFree` / `sizeRatio` / `pitchCss` 是密度与无缝旋钮），双击可切回真实 PNG
@@ -30,7 +30,7 @@
   - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = "self"`）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
+- `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）；`deno.json` — Deno 任务定义（含 `build-wasm`）。
 
 首次克隆不需要 submodule：`git clone`。
 
@@ -83,7 +83,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - TypeScript 脚本使用 2 空格缩进；依赖 Deno 任务运行，无 `tsc`、无 `node_modules`；只用 `node:` 内置 API 与 import map 里显式列出的 npm 包。
 - Markdown 由全局安装的 Prettier 3 格式化（`deno install -g -A npm:prettier@3.9.6`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `deno task format-markdown`。
 - 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 3–4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。hash 取自**正文**，所以改正文 / 标题都会触发 `rename-posts` 改名；脚本会自动把旧 URL 追加进该篇的 `aliases`（幂等），**别名不要手删**，否则旧链接 404。
-- Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。
+- Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。`description` 现在只喂 OG / Twitter 卡片与 schema（`og:description` / `twitter:description` / `itemprop=description`，来自 `_internal/*.html`），**不再**生成 `<meta name="description">`（那行已从 `head.html` 删除）。
 - 背景图 / 头像：**原图放 `assets/src/`，发布图放 `static/`**。背景 cutouts 是 `assets/src/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切），跑 `deno task optimize-images` 生成 `static/bg/*.avif`（640px q45，`--format webp` 可切 WebP）；头像是 `assets/src/avatar/avatar.jpg` → `static/avatar.webp`（192px，固定 WebP）。新增/删除图片会在左下角徽标和 `/particles/` 自动生效（两处都靠 `readDir "static/bg"` 发现 `.avif` / `.webp`）。
 - 文章内联图片：外链图床（Gitee / imgkr / idanmu）会烂掉，**原图丢了就换成 `static/images/image-lost.svg` 占位**，markdown 写成 `![alt](/images/image-lost.svg "原托管方 + 暂缺原因")`（`title` 由 `render-image.html` 渲染成图下小字）；新图建议放 `static/images/posts/<slug>/` 并提交进仓库。
 - **碰过 `assets/src/**` 就必须重跑 `deno task optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。

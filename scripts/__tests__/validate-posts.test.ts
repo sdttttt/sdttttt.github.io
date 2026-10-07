@@ -69,13 +69,6 @@ describe('validate', () => {
       expect(issues.some((i) => i.message.includes('slug 重复'))).toBe(false);
     }));
 
-  test('private 非布尔', () =>    inTempDir(async () => {
-      mkdirSync('content/posts', { recursive: true });
-      writeFileSync('content/posts/hello.md', '---\ntitle: Hello\ndate: 2024-01-15\nprivate: "yes"\n---\n');
-      const issues = await validate();
-      expect(issues.some((i) => i.message.includes('private'))).toBe(true);
-    }));
-
   test('title 与 date 都缺时两条都报（判据来自 lib/frontmatter 的共享清单）', () =>
     inTempDir(async () => {
       mkdirSync('content/posts', { recursive: true });

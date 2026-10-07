@@ -6,7 +6,6 @@
  *   - title / date 必填，date 为 `YYYY-MM-DD`（真实日历校验），见 lib/frontmatter
  *     的 `checkTitleAndDate` / `toYyyymmdd`
  *   - slug（文件名）不重复
- *   - private 如存在必须是布尔值
  *
  * 用法：
  *   deno task validate-posts
@@ -42,10 +41,6 @@ export async function validate(): Promise<Issue[]> {
       issues.push({ file: f, message: `slug 重复: ${slug}` });
     } else {
       slugs.add(slug);
-    }
-
-    if (meta.private !== undefined && typeof meta.private !== 'boolean') {
-      issues.push({ file: f, message: 'private 必须是布尔值' });
     }
   }
 

@@ -5,10 +5,8 @@ copyright = "© 2026, sdttttt"
 locale = "zh"
 DefaultContentLanguage = "zh"
 hasCJKLanguage = true
-enableInlineShortcodes = true
 enableRobotsTXT = true
 enableEmoji = true
-ignoreErrors = ["error-remote-getjson"]
 enableGitInfo = true
 summaryLength = 100
 
@@ -38,13 +36,12 @@ theme = "self"
   # `site.Params.bio | default (print `A personal blog by ` name)`，空字符串
   # 在 Go 模板里算 falsy，会被 default 接管又显示出来，所以这里必须是个空格。
   bio = " "
-  # 首页 <meta name="description">。父主题 head.html 对非文章页走
-  # `site.Params.description | default "A personal blog"`，不配就是英文兜底。
+  # 主题侧已经不再拿它生成 <meta name="description">（那行已从 head.html 删除）。
+  # 但这个参数**不是**死配置：Hugo 内建的 _internal/opengraph.html 与
+  # _internal/twitter_cards.html 会回退到 site.Params.description，
+  # 首页 / 标签页 / 归档页这类没有 front matter description 的页面靠它拿到
+  # og:description / twitter:description（删掉后这些页面的分享卡片就没有描述）。
   description = "sdttttt 的个人博客：编程笔记与生活随笔。"
-  # Hugo 已经在构建时用 Chroma 把代码块高亮成内联样式（见下方 [markup.highlight]
-  # 的 noClasses/style），主题再挂一个 highlight.js 只会把同一份代码重新标一遍。
-  # 关掉它：227 个页面各省 48KB（gzip 20KB）。
-  disableHLJS = true
   # 深色模式切换按钮改用单色 SVG（869B），而不是彩色 PNG（8KB）：
   # 父主题 head.html 会 preload 它，header.html 换用 dark:invert 反色。
   monoDarkIcon = true
@@ -85,15 +82,23 @@ theme = "self"
 # （模板见 themes/self/layouts/index.json），/search/ 页在前端
 # 拉取它做过滤。下面覆盖的是 Hugo 内置的 JSON 输出格式，字段与内置一致，
 # 只改文件名（index.json → searchindex.json）；只有 home 输出 JSON。
+#
+# RSS 已全面关闭：Hugo 默认会给 home / section / taxonomy / term 都加 RSS 输出，
+# 所以只写 `home` 关不干净（tags/*/index.xml、changelog/index.xml 就是这么来的），
+# 必须把四类页面逐个列出来。将来要恢复，把 "RSS" 加回 home，
+# 并删掉 section / taxonomy / term 这三行即可。
 [outputs]
-  home = ["HTML", "RSS", "JSON"]
+  home = ["HTML", "JSON"]
+  section = ["HTML"]
+  taxonomy = ["HTML"]
+  term = ["HTML"]
 
 [outputFormats.JSON]
   baseName = "searchindex"
   mediaType = "application/json"
   isPlainText = false
-  # 它不是「本页的另一种表现」，别让 head.html 的 AlternativeOutputFormats
-  # 循环把它当成订阅源写进 <link rel="alternate">。
+  # 它不是「本页的另一种表现」，别让别处
+  # （比如未来的 alternative-output <link>）把它当成订阅源。
   notAlternative = true
 
 [taxonomies]

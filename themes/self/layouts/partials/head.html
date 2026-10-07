@@ -18,17 +18,13 @@
   {{- $site_author := or .Params.author site.Params.author site.Title -}}
 
   <!---->
-  {{- if eq .Kind "page" -}}
-  <meta name="description" content="{{- .Summary -}}" />
   <meta name="author" content="{{- or .Params.author $site_author -}}" />
-  {{- else -}}
-  <!---->
-  <meta
-    name="description"
-    content="{{- site.Params.description | default (print `A personal blog`) -}}"
-  />
-  <meta name="author" content="{{- $site_author -}}" />
-  {{- end -}}
+
+  <!-- 这里曾经输出 <meta name="description">：文章页取 .Summary，
+       其余页取 site.Params.description。已按需求移除 —— 注意 front matter 里的
+       `description` 仍然有效：它喂给 _internal/opengraph.html、
+       _internal/twitter_cards.html 与 _internal/schema.html（og:description /
+       twitter:description / itemprop=description），删这里不影响分享卡片。 -->
 
   <!-- css & js -->
   {{- $main := resources.Get "main.css" -}}
@@ -50,29 +46,6 @@
   <!---->
   {{- if $avatar_url -}}
   <link rel="preload" as="image" href="{{- $avatar_url -}}" />
-  {{- end -}}
-  <!---->
-
-  <!-- social list -->
-  {{- range $.Scratch.Get "social_list" -}}
-  <link rel="preload" as="image" href="{{- printf `%s.svg` . | absURL -}}" />
-  {{- end -}}
-  <!---->
-
-  <!-- highlight js -->
-  {{- if and .IsPage (not site.Params.disableHLJS) -}}
-  <script
-    defer
-    src="{{- `highlight.min.js` | absURL -}}"
-    onload="hljs.initHighlightingOnLoad()"
-  ></script>
-  {{- end -}}
-
-  <!-- math -->
-  {{- if or .Params.math site.Params.math -}}
-  <!---->
-  {{- partial "math.html" . -}}
-  <!---->
   {{- end -}}
   <!---->
 
@@ -99,15 +72,6 @@
   {{- template "_internal/opengraph.html" . -}}
   <!---->
   {{- template "_internal/twitter_cards.html" . -}}
-  <!-- RSS -->
-  {{- range .AlternativeOutputFormats -}}
-  <link
-    rel="{{- .Rel -}}"
-    type="{{- .MediaType.Type -}}"
-    href="{{- .Permalink -}}"
-    title="{{- site.Title -}}"
-  />
-  {{- end -}}
 
   <!-- canonical -->
   <link rel="canonical" href="{{- .Permalink -}}" />
