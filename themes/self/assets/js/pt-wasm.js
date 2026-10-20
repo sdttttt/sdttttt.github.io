@@ -2,8 +2,8 @@
  * 共享：编译并缓存 WASM Module。
  *
  * 为什么共享 Module 而不共享 Instance：
- *   wasm 里的引擎是 `static mut ENGINE` 单例。页面左下角徽标和 /particles/
- *   大画布可能同时出现在同一页，共用同一个 Instance 会互相覆盖彼此的状态。
+ *   wasm 里的引擎是 `static mut ENGINE` 单例。待机屏保和 /particles/ 大画布
+ *   可能同时出现在同一页，共用同一个 Instance 会互相覆盖彼此的状态。
  *   所以这里只共享「编译结果」，每个消费方各自 `new WebAssembly.Instance()`：
  *   代码只编译一次，线性内存各自独立。
  *

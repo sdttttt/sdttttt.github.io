@@ -9,10 +9,9 @@
 //! 直接读写 `Engine` 的私有字段（同一 crate 内可见）：这样断言的是**状态**，
 //! 不只是几个公开的返回值。
 //!
-//! 覆盖度（实测于 2026-10-06，rustc 1.99 + `rustup component add llvm-tools-preview`）：
-//! `lib.rs` 836 regions / 30 个函数 / 530 行 —— 全部 100%；`tests.rs` 只差 2 个
-//! region（就是下面 `setup()` 里“锁中毒恢复”那个闭包，除非有测试持锁 panic，
-//! 否则跑不到）。复现：
+//! 覆盖度：`lib.rs` 的全部 region（含 2026-10 新增的 `assemble_on` 随机放行
+//! 闸门）都有测试覆盖；`tests.rs` 只差 `setup()` 里“锁中毒恢复”那个闭包，
+//! 除非有测试持锁 panic，否则跑不到。复现：
 //!
 //! ```text
 //! cd wasm/particles
@@ -1263,6 +1262,128 @@ fn wipe_band_gives_the_front_a_ragged_edge() {
 // ---------------------------------------------------------- 无引擎时的兜底
 
 #[test]
+fn assemble_on_validates_and_keeps_the_scattered_start_positions() {
+    let _g = setup();
+    build_demo(2);
+    for frames in [0.0f32, -1.0, f32::NAN, f32::INFINITY] {
+        assert_eq!(assemble_on(frames), 0, "frames = {frames} 应当被拒");
+        assert_eq!(engine().asm_gate, 0);
+        assert_eq!(engine().asm_elapsed, 0.0);
+        assert_eq!(engine().asm_frames, 0.0);
+    }
+    let start: Vec<f32> = engine().px.clone();
+    assert_eq!(assemble_on(40.0), 1);
+    {
+        let e = engine();
+        assert_eq!(e.asm_gate, 1);
+        assert_eq!(e.asm_frames, 40.0);
+        assert_eq!(e.asm_elapsed, 0.0);
+        assert_eq!(e.px, start, "随机闸门不该像 wipe 那样重置起始位");
+    }
+    // settle 的语义仍是「立刻给我成品帧」：闸门一并解除、粒子回目标位
+    settle();
+    assert_eq!(engine().asm_gate, 0);
+    assert_eq!(engine().asm_elapsed, 0.0);
+    assert_eq!(engine().asm_frames, 0.0);
+    assert_eq!(max_offset(), 0.0);
+    // resize 重建引擎 → 闸门自动关
+    assert_eq!(assemble_on(40.0), 1);
+    assert_eq!(resize(40, 40, 4.0), 0);
+    assert_eq!(engine().asm_gate, 0);
+}
+
+#[test]
+fn assemble_gate_releases_by_hash_and_keeps_tick_reporting_motion() {
+    let _g = setup();
+    build_demo(2); // 40×40 画布、step 4 → 100 颗
+    assert_eq!(assemble_on(30.0), 1);
+    let n = engine().n;
+    let start: Vec<f32> = engine().px.clone();
+    for f in 1..=30 {
+        // 放行窗口内哪怕这一帧没有粒子动过，也必须报「还在动」，否则 JS 会
+        // 提前以为组装结束。这条和 wipe 的回归守卫是同一个坑。
+        assert_eq!(tick(), 1, "第 {f} 帧闸门还没结束");
+        let e = engine();
+        for i in 0..n {
+            let due = hash01(i) * 30.0 <= f as f32;
+            if due {
+                assert!(
+                    e.px[i] != start[i] || e.tx[i] == start[i],
+                    "第 {f} 帧：hash = {} 的粒子应当已放行",
+                    hash01(i)
+                );
+            } else {
+                assert_eq!(e.px[i], start[i], "第 {f} 帧：hash = {} 还没轮到", hash01(i));
+                assert_eq!(e.vx[i], 0.0);
+            }
+        }
+    }
+    {
+        let e = engine();
+        assert_eq!(e.asm_gate, 0, "放行窗口结束应当自关");
+        assert_eq!(e.asm_elapsed, 30.0);
+    }
+    // 窗口结束后弹簧继续收尾：所有粒子都应该至少动过（起点恰好等于目标的除外）
+    let _ = run_until_still();
+    let e = engine();
+    for i in 0..n {
+        assert!(
+            e.px[i] != start[i] || e.tx[i] == start[i],
+            "第 {i} 颗在闸门结束后还没动过"
+        );
+    }
+}
+
+#[test]
+fn pointer_set_fades_particles_to_transparent_and_clear_fades_them_back() {
+    let _g = setup();
+    build_demo(1); // 40×40、step 4 → 100 颗，边长 4
+    settle();
+    let n = engine().n;
+    let inner = (0..n)
+        .find(|&i| engine().tx[i] == 20.0 && engine().ty[i] == 20.0)
+        .expect("应当有目标位在 (20,20) 的粒子");
+    let outer = (0..n)
+        .find(|&i| engine().tx[i] == 0.0 && engine().ty[i] == 0.0)
+        .expect("应当有目标位在 (0,0) 的粒子");
+
+    // 非法参数清掉指针
+    assert_eq!(pointer_set(f32::NAN, 20.0, 9.0), 0);
+    assert_eq!(engine().ptr_on, 0);
+    assert_eq!(pointer_set(20.0, 20.0, 0.0), 0);
+    assert_eq!(pointer_set(20.0, 20.0, f32::INFINITY), 0);
+
+    // 半径内淡出，半径外保持；12 帧 × 0.12 正好到 0
+    assert_eq!(pointer_set(20.0, 20.0, 9.0), 1);
+    assert_eq!(engine().ptr_on, 1);
+    for _ in 0..12 {
+        let _ = tick();
+    }
+    {
+        let e = engine();
+        assert!(e.fade[inner] < 0.01, "inner fade = {}", e.fade[inner]);
+        assert_eq!(e.fade[outer], 1.0);
+    }
+    assert_eq!(alpha_at(20, 20), 0, "洞中心应当完全透明");
+    assert_eq!(alpha_at(0, 0), 255, "半径外应当保持不透明");
+
+    // 清空后淡回
+    assert_eq!(pointer_clear(), 1);
+    for _ in 0..12 {
+        let _ = tick();
+    }
+    {
+        let e = engine();
+        assert!(e.fade[inner] > 0.99, "inner fade = {}", e.fade[inner]);
+    }
+    assert_eq!(alpha_at(20, 20), 255, "移开后应当恢复");
+
+    // 重新 build 重置 alpha 表
+    build_demo(1);
+    assert_eq!(engine().fade.iter().filter(|&&a| a == 1.0).count(), 100);
+}
+
+#[test]
 fn every_entry_point_is_safe_without_an_engine() {
     let _g = setup();
     assert!(fb_ptr().is_null());
@@ -1282,6 +1403,10 @@ fn every_entry_point_is_safe_without_an_engine() {
     assert_eq!(wipe_on(20.0, 50.0, 4.0), 0);
     assert_eq!(wipe_on(-1.0, 50.0, 4.0), 0, "负 drop 也不合法");
     assert_eq!(wipe_off(), 0);
+    assert_eq!(assemble_on(60.0), 0);
+    assert_eq!(assemble_on(0.0), 0, "0 帧不合法");
+    assert_eq!(pointer_set(1.0, 1.0, 10.0), 0);
+    assert_eq!(pointer_clear(), 0);
     assert_eq!(resize(64, 64, 4.0), -1);
     settle(); // 只是不能 panic
     assert!(eng().is_none(), "兜底路径不应当顺手建出引擎");

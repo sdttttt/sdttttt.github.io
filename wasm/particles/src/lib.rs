@@ -155,6 +155,25 @@ struct Engine {
     wipe_band: f32,
     wipe_drop: f32,
     wipe_gate: u32,
+    // ---- 待机屏保的「随机放行」闸门（开关是 assemble_on）----
+    //
+    // 与 wipe 的区别只在**放行顺序**：wipe 按目标行 ty 自上而下，这里按索引
+    // 哈希在 asm_frames 帧内随机放行。未放行的粒子同样既不跑弹簧、也不画。
+    // 起始位仍用 build() 撒在画布外的随机散布 —— 于是观感是「粒子陆续出现，
+    // 各自从远处飞回自己的位置」，而不是整幅图被一条线擦出来。
+    asm_elapsed: f32,
+    asm_frames: f32,
+    asm_gate: u32,
+    // ---- 鼠标透明场（开关是 pointer_set / pointer_clear）----
+    //
+    // 指针半径内的粒子淡出到透明，移开 / 清空后淡回 1。`fade` 是每颗粒子的
+    // 当前 alpha（0..1），rasterize 用它写 RGBA 的 alpha 字节；粒子不会真的
+    // 被删除，目标位和漂浮状态都还在，所以移开指针就能恢复。
+    ptr_on: u8,
+    ptr_x: f32,
+    ptr_y: f32,
+    ptr_r: f32,
+    fade: Vec<f32>,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -367,6 +386,14 @@ fn make(
         wipe_band: 0.0,
         wipe_drop: 0.0,
         wipe_gate: 0,
+        asm_elapsed: 0.0,
+        asm_frames: 0.0,
+        asm_gate: 0,
+        ptr_on: 0,
+        ptr_x: 0.0,
+        ptr_y: 0.0,
+        ptr_r: 0.0,
+        fade: vec![1.0; n],
     }
 }
 
@@ -492,9 +519,15 @@ impl Engine {
         // 在那儿、只是被挪了位置」的分水岭 —— 画布一开始是全空的。
         let gating = self.wipe_gate != 0;
         let (front, band) = (self.wipe_front, self.wipe_band);
+        // 屏保的随机放行闸门；与 wipe 可以同时存在，命中任一条就跳过
+        let assembling = self.asm_gate != 0;
+        let (asm_elapsed, asm_frames) = (self.asm_elapsed, self.asm_frames);
 
         for i in 0..self.n {
             if gating && self.ty[i] + (hash01(i) - 0.5) * band > front {
+                continue;
+            }
+            if assembling && hash01(i) * asm_frames > asm_elapsed {
                 continue;
             }
             let (ox, oy) = if floating {
@@ -504,7 +537,12 @@ impl Engine {
             };
             let x0 = (self.px[i] + ox).round() as i32 - half;
             let y0 = (self.py[i] + oy).round() as i32 - half;
-            let bytes = self.col[i].to_le_bytes();
+            let a = (self.fade[i] * 255.0).round() as u8;
+            if a == 0 {
+                continue;
+            }
+            let c = self.col[i].to_le_bytes();
+            let bytes = [c[0], c[1], c[2], a];
             for yy in y0..(y0 + s) {
                 if yy < 0 || yy >= h {
                     continue;
@@ -639,6 +677,7 @@ pub extern "C" fn tick() -> i32 {
     // 否则 JS 会以为入场结束、立刻去放落地那记「顿挫」，整段动画就废了。
     let rising = e.wipe_gate != 0;
     let mut gating = rising;
+    let assembling = e.asm_gate != 0;
     if rising {
         e.wipe_front += e.wipe_step;
         if e.wipe_front >= e.fb_h as f32 + e.wipe_band {
@@ -649,8 +688,51 @@ pub extern "C" fn tick() -> i32 {
             gating = false;
         }
     }
+    // 随机放行：每帧推进一格，窗口结束的那一帧让所有阈值都 ≤ elapsed，
+    // 于是 rasterize 会画出全部粒子。asm_gate 清零后 tick 不再推进它。
+    if assembling {
+        e.asm_elapsed += 1.0;
+        if e.asm_elapsed >= e.asm_frames {
+            e.asm_gate = 0;
+        }
+    }
     // 读成局部量：下面的循环要同时可变借走 px/py/vx/vy，别再回头碰 e
     let (front, band) = (e.wipe_front, e.wipe_band);
+    let (asm_elapsed, asm_frames) = (e.asm_elapsed, e.asm_frames);
+
+    // 鼠标透明场：目标 alpha 由「粒子目标位到指针的距离」决定 —— 半径内
+    // 60% 完全透明，向外到半径处线性回到不透明；每帧朝目标走 0.12。
+    // 用目标位而不是当前位置，保证指针停在图片上时是一个稳定的洞，
+    // 飞散的粒子不会把洞的形状带跑。
+    let ptr_on = e.ptr_on != 0;
+    let (ptr_x, ptr_y, ptr_r) = (e.ptr_x, e.ptr_y, e.ptr_r);
+    let mut fading = false;
+    for i in 0..e.n {
+        let target = if !ptr_on {
+            1.0
+        } else {
+            let dx = e.tx[i] - ptr_x;
+            let dy = e.ty[i] - ptr_y;
+            let d = (dx * dx + dy * dy).sqrt();
+            if d >= ptr_r {
+                1.0
+            } else if d <= ptr_r * 0.6 {
+                0.0
+            } else {
+                (d - ptr_r * 0.6) / (ptr_r * 0.4)
+            }
+        };
+        let a = e.fade[i];
+        let next = if a < target {
+            (a + 0.12).min(target)
+        } else {
+            (a - 0.12).max(target)
+        };
+        if (next - a).abs() > 1e-4 {
+            fading = true;
+        }
+        e.fade[i] = next;
+    }
 
     {
         let (px, py, vx, vy, tx, ty) = (
@@ -664,6 +746,9 @@ pub extern "C" fn tick() -> i32 {
         for i in 0..e.n {
             // 还没轮到的层：冻在起始位（也不画），连速度都不算进 max_v
             if gating && ty[i] + (hash01(i) - 0.5) * band > front {
+                continue;
+            }
+            if assembling && hash01(i) * asm_frames > asm_elapsed {
                 continue;
             }
             let target_x = tx[i];
@@ -747,7 +832,7 @@ pub extern "C" fn tick() -> i32 {
     }
 
     e.rasterize();
-    if rising || max_v > 0.05 || floating || rippling {
+    if rising || assembling || max_v > 0.05 || floating || rippling || fading {
         1
     } else {
         0
@@ -771,6 +856,9 @@ pub extern "C" fn settle() {
     e.wipe_gate = 0;
     e.wipe_step = 0.0;
     e.wipe_front = 0.0;
+    e.asm_gate = 0;
+    e.asm_elapsed = 0.0;
+    e.asm_frames = 0.0;
     e.rasterize();
 }
 
@@ -812,6 +900,69 @@ pub extern "C" fn burst(x: f32, y: f32, radius: f32, power: f32) -> i32 {
         hit += 1;
     }
     hit
+}
+
+/// 设置鼠标透明场：指针坐标 (x, y) 与半径都是**设备像素**（JS 侧按 backing
+/// 缩放换算）。半径内的粒子会在随后的 tick() 里淡到透明；指针移开 / 离开
+/// 窗口时调用 `pointer_clear()`，alpha 会淡回 1 —— 粒子本身从未被删除，
+/// 目标位、漂浮和散射速度都还在。
+///
+/// 返回 1；0 表示没有引擎 / 参数非法（此时指针被清掉）。
+#[no_mangle]
+pub extern "C" fn pointer_set(x: f32, y: f32, radius: f32) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !x.is_finite() || !y.is_finite() || !(radius > 0.0) || !radius.is_finite() {
+        e.ptr_on = 0;
+        return 0;
+    }
+    e.ptr_x = x;
+    e.ptr_y = y;
+    e.ptr_r = radius;
+    e.ptr_on = 1;
+    1
+}
+
+/// 清空鼠标透明场：所有粒子的 alpha 会在 tick() 里淡回 1。
+#[no_mangle]
+pub extern "C" fn pointer_clear() -> i32 {
+    match eng() {
+        Some(e) => {
+            e.ptr_on = 0;
+            1
+        }
+        None => 0,
+    }
+}
+
+/// 打开**随机放行**闸门：在 `frames` 帧内按索引哈希（`hash01(i)`）把粒子
+/// 陆续放出来 —— 每颗粒子在自己的放行时刻之前既**不跑弹簧、也不画**，之后
+/// 从 `build()` 撒好的随机起始位飞回目标位。观感是「粒子陆续出现、慢慢拼成
+/// 图片」，用于待机屏保的组装；`wipe_on` 则是自上而下的逐行显现。
+///
+/// 起始位**不重置**（与 wipe 相反）：build() 的随机散布正是「从远处飞来」
+/// 的来源。`frames` 是放行窗口的帧数（按调用方的固定步长换算成墙钟时间）。
+///
+/// 返回 1 表示已开启；0 表示没有引擎 / 参数非法（此时闸门被关掉）。
+#[no_mangle]
+pub extern "C" fn assemble_on(frames: f32) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !frames.is_finite() || frames <= 0.0 {
+        e.asm_gate = 0;
+        e.asm_elapsed = 0.0;
+        e.asm_frames = 0.0;
+        return 0;
+    }
+    // 夹一个上限：调用方传个天文数字时别让闸门永远开着
+    e.asm_frames = frames.min(1_000_000.0);
+    e.asm_elapsed = 0.0;
+    e.asm_gate = 1;
+    1
 }
 
 /// 打开**显现闸门**：让一条水平波前从画布上缘**自上而下**扫过，扫到哪一行

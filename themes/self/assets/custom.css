@@ -1,174 +1,93 @@
 /* Place custom css here. */
 
 /*
- * Page-level decorative background (bottom-left badge).
+ * Idle screensaver: a frosted-glass sheet with a 2px particle figure.
  *
  * Structure:
- *   .page-bg          固定视口、位于内容之后、不吃指针事件
- *     .page-bg__box   尺寸 / 遮罩 / 混合模式 / 淡入 —— 两个子层共用它
- *       .page-bg__png    真实图片（avif/webp，无 JS 时的内容，也是双击切换的目标）
- *       .page-bg__canvas WASM 粒子画布
+ *   .page-bg           fixed viewport layer above the page, fades in
+ *     .page-bg__canvas  full-viewport particle canvas (transparent background)
+ *     .page-bg__wake    transparent hit layer: swallows the first input
  *
- * State classes toggled on <html> by assets/js/page-bg.js:
- *   .pt-bg-ready  WASM 粒子就绪 → canvas 接管
- *   .pt-bg-photo  双击切回真实 PNG
- *   .at-bottom    滚到文档底部   → 盒子淡入
+ * State:
+ *   html.pt-bg-on      the screensaver is visible (opacity 1)
+ *
+ * The page's own content stays behind the layer: the translucent background +
+ * backdrop-filter turn it into frosted glass, and the canvas only paints the
+ * particle figure, so there is no second, larger image underneath. The canvas
+ * backing store is sized in JS (CSS px, capped at 1.5MP), so the element itself
+ * is just stretched 100%/100%; no `image-rendering: pixelated` because the
+ * backing is slightly smaller than the viewport on large screens and smooth
+ * upscaling reads better than unevenly-sized hard blocks.
  */
-
-/* Container: fixed behind everything; children opt back into pointer events. */
 .page-bg {
     position: fixed;
     inset: 0;
-    z-index: -1;
+    z-index: 100;
     pointer-events: none;
-    overflow: hidden;
-    background: transparent;
-}
-
-/* Sizing variables so the @media block can override width without
-   duplicating the aspect-ratio / mask rules. */
-:root {
-    --page-bg-w: clamp(220px, 24vw, 320px);
-    --page-bg-ratio: 5 / 7;
-    /* Reveal opacity, shared by light and dark (one knob on purpose —
-       the user asked for the same treatment in both modes).
-       `mix-blend-mode: luminosity` decides how solid the badge reads,
-       so this is the only thing to tune: 1 = fully opaque. */
-    --page-bg-opacity: 1;
-}
-
-/* Geometry + fade-in gate + the visual treatment. The mask lives on the BOX
-   so it clips both children identically — the particle render and the photo
-   then transition into each other with no seam. */
-.page-bg__box {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    width: var(--page-bg-w);
-    aspect-ratio: var(--page-bg-ratio);
-
     opacity: 0;
-    /* luminosity keeps the subject's colors but adopts the page's
-       luminosity, so flat backgrounds dissolve into the page. */
-    mix-blend-mode: luminosity;
-    filter: blur(0.3px) saturate(0.95);
-
-    /* Soft radial fade covering the WHOLE rectangle (including corners):
-       `circle farthest-corner` sizes the mask so it passes through the
-       farthest corner, so every pixel participates in the fade. */
-    -webkit-mask-image: radial-gradient(circle farthest-corner at 50% 50%,
-            #000 0%,
-            #000 30%,
-            rgba(0, 0, 0, 0.92) 50%,
-            rgba(0, 0, 0, 0.65) 75%,
-            rgba(0, 0, 0, 0.25) 90%,
-            transparent 100%);
-    mask-image: radial-gradient(circle farthest-corner at 50% 50%,
-            #000 0%,
-            #000 30%,
-            rgba(0, 0, 0, 0.92) 50%,
-            rgba(0, 0, 0, 0.65) 75%,
-            rgba(0, 0, 0, 0.25) 90%,
-            transparent 100%);
-
-    transition: opacity 0.8s ease;
-    will-change: opacity;
+    /* Fallback for browsers without color-mix(); the theme's presets are all
+       near-white, so linen is a safe base. */
+    background: rgba(250, 248, 241, 0.55);
+    background: color-mix(in srgb, var(--bg) 55%, transparent);
+    -webkit-backdrop-filter: blur(10px) saturate(0.92);
+    backdrop-filter: blur(10px) saturate(0.92);
+    transition: opacity 0.55s ease;
 }
 
-/* Both layers occupy the same box.
-   NOTE: pointer-events here is moot — .page-bg is z-index:-1 so the whole
-   badge is painted *behind* the content and can never win a hit test
-   (elementFromPoint returns MAIN). The double-click is therefore caught by a
-   document-level listener in page-bg.js that does a rect test. */
-.page-bg__png,
+/* The dark theme keeps --bg at the light preset and paints its darkening in a
+   body::before overlay (z-index -1). This layer sits at z-index 100, so it has
+   to pick the dark tint explicitly or the screensaver would frost the page in
+   linen. */
+.dark .page-bg {
+    background: rgba(11, 11, 11, 0.55);
+    background: color-mix(in srgb, #0b0b0b 55%, transparent);
+}
+
+/* A full-screen backdrop blur is noticeably more expensive on phones; 6px is
+   still frosted but keeps the compositor comfortable. */
+@media (max-width: 768px) {
+    .page-bg {
+        -webkit-backdrop-filter: blur(6px) saturate(0.92);
+        backdrop-filter: blur(6px) saturate(0.92);
+    }
+}
+
+html.pt-bg-on .page-bg {
+    opacity: 1;
+}
+
 .page-bg__canvas {
     position: absolute;
     inset: 0;
+    display: block;
     width: 100%;
     height: 100%;
-    transition: opacity 0.35s ease;
 }
 
-/* 两层默认都不可见 —— 下面每条规则正好激活其中一层。
-   这样就不存在“先显示 PNG、等 WASM 就绪再交叉淡入粒子”的中间态了
-   （那个过渡在首屏也会被看成闪一下）。 */
-.page-bg__png,
-.page-bg__canvas {
-    opacity: 0;
+/* The wake layer exists only while the screensaver is visible. It sits above
+   the canvas so the first pointerdown / wheel / touch is swallowed instead of
+   reaching a link underneath. pointer-events: auto re-enables hit testing even
+   though the parent sets pointer-events: none. */
+.page-bg__wake {
+    position: absolute;
+    inset: 0;
+    display: none;
+    pointer-events: auto;
 }
 
-.page-bg__png {
-    object-fit: contain;
-    object-position: center;
-}
-
-.page-bg__canvas {
+html.pt-bg-on .page-bg__wake {
     display: block;
 }
 
-/* WASM 引擎就绪 → 粒子层 */
-html.pt-bg-ready:not(.pt-bg-photo) .page-bg__canvas {
-    opacity: 1;
-}
-
-/* 双击切回真实图片 */
-html.pt-bg-photo .page-bg__png {
-    opacity: 1;
-}
-
-/* 降级：不支持 WASM / 加载失败 / 未配置 → 真实图片。
-   data-pt-engine 由 assets/js/page-bg.js 写入。 */
-html[data-pt-engine="unsupported"] .page-bg__png,
-html[data-pt-engine="error"] .page-bg__png,
-html[data-pt-engine="png"] .page-bg__png {
-    opacity: 1;
-}
-
-/* 无 JS：既加载不了引擎也观察不了滚动，就直接显示图片。
-   `:not(.js)` 靠 baseof.html 里的同步内联脚本消掉 —— 那里注释解释了
-   为什么这个类不能用 defer 加。 */
-html:not(.js) .page-bg__png {
-    opacity: 1;
-}
-
-/* Reveal gate: only once the user has scrolled to (or near) the bottom. */
-html.at-bottom .page-bg__box {
-    opacity: var(--page-bg-opacity);
-}
-
-/* No-JS fallback: we can't observe scroll, so just show it. */
-html:not(.js) .page-bg__box {
-    opacity: var(--page-bg-opacity);
-}
-
-/* Dark mode deliberately has no extra treatment: dimming the badge made
-   the pale particles read as a washed-out smudge, so light and dark share
-   the rules above. (The dark flag is a `dark` class on <html>, set by
-   partials/header.html — the old `[data-theme="dark"]` selectors here
-   never matched anything.) */
-
-/* Small screens: shrink the badge and nudge it further off the left edge. */
-@media (max-width: 768px) {
-    :root {
-        --page-bg-w: min(170px, 46vw);
-    }
-    .page-bg__box {
-        left: -3vw;
-    }
-}
-
-/* Honor the OS-level "reduce motion" preference. */
 @media (prefers-reduced-motion: reduce) {
-    .page-bg__box,
-    .page-bg__png,
-    .page-bg__canvas {
+    .page-bg {
         transition: none;
     }
-    html.at-bottom .page-bg__box {
-        opacity: var(--page-bg-opacity);
-    }
-    html:not(.js) .page-bg__box {
-        opacity: var(--page-bg-opacity);
+}
+
+@media print {
+    .page-bg {
+        display: none !important;
     }
 }
 

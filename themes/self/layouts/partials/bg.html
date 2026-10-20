@@ -1,29 +1,41 @@
 {{/*
-  self's page-level decorative background partial.
+  self's idle screensaver partial.
 
-  Called from baseof.html right before </body>. Auto-discovers images in
-  static/bg/ (the optimized *.avif / *.webp outputs produced by
-  `deno task optimize-images`; the sources live in assets/src/bg/ so they
-  don't get published) and renders the badge with the WASM particle
-  engine (same module as the /particles/ page).
+  Called from baseof.html right before </body>. After 10 s without any user
+  input the fixed .page-bg layer fades in as a frosted-glass sheet over the
+  page, and a WASM particle engine assembles one of the images from static/bg/
+  on a 2 px grid with 1 px particles and 1 px gaps. The particles keep floating
+  after the assembly; moving the pointer over them scatters them and fades
+  them to transparent, and moving the pointer away fades them back in. Only a
+  click (or a key) exits.
+  The page itself is never modified, so the scroll position and DOM survive —
+  the original content stays visible through the frost instead of being
+  replaced by a larger blurred image.
 
   DOM shape:
-    .page-bg            固定视口左下角的定位层（inset:0, pointer-events:none）
-      .page-bg__box     装尺寸 / 遮罩 / 混合模式 / 淡入
-        .page-bg__png   真实图片 —— 无 JS 时的内容，也是双击切换的目标
-                        （类名沿用了 PNG 时代的叫法，现在是 avif/webp）
-        .page-bg__canvas WASM 粒子的画布
-  Two children cross-fade; html.pt-bg-ready 让 canvas 接管，
-  html.pt-bg-photo 又切回真实图片。逻辑全在 assets/js/page-bg.js。
+    .page-bg              固定视口层（z-index 100），半透明 + backdrop-filter
+      .page-bg__canvas    2px 粒子画布（1px 方块 + 1px 缝隙，透明底）
+      .page-bg__wake      命中层：点击 / 按键退出；滚轮与触摸滚动被吞掉
 
-  Graceful degradation: 只要 WASM 加载 / 构建 / 建帧任何一步失败，
-  JS 什么都不做，盒子就一直是那张图片（= 改造前的行为）。
+  Images are auto-discovered from static/bg/*.avif|webp (the sources live in
+  assets/src/bg/ so they don't get published). There is deliberately **no
+  <img>** here any more: the layer is purely decorative, and paying ~50KB on
+  every page load for a screensaver that may never appear is not worth it.
+  No JS / no wasm = no screensaver; the page itself is unaffected.
 
-  性能：这张 <img> 是页面里唯一的即时开销 —— `fetchpriority="low"` 把它排在
-  CSS / 字体之后，而它同时充当「无 JS」与「引擎失败」两条路径的兜底，所以不能
-  改成 JS 赋值（那样 SRI 失败时就只剩空白）。wasm 下载与采样建帧都由
-  assets/js/page-bg.js 在滚到接近页底时才启动（那边的 start()），
-  不读到底的访问一分钱不付。
+  Performance (the live knobs are documented in assets/js/page-bg.js):
+    2px CSS grid, backing store at CSS resolution (no dpr) capped at 1.5MP.
+    1440×900 is 720×450 = 324,000 grid cells, but only the cutout figure's
+    opaque pixels become particles (roughly 50–75k); the framebuffer is still
+    5.2MB / 30fps ≈ 156MB/s, about the old badge's peak at 60fps. The idle
+    float keeps tick() returning 1, so the 30fps loop runs while visible and
+    stops on exit / when the tab is hidden (there is no freeze any more).
+
+  Composition: the chosen image is drawn at contain size on a **transparent**
+  viewport-sized canvas (no backdrop, no tint) and sampled 1:1 by the engine.
+  The glass effect is CSS (`background` + `backdrop-filter` on .page-bg), so
+  the blog's own content shows through between the particles instead of a
+  second, larger copy of the image. See compose() in page-bg.js.
 */}}
 
 {{- $bgImages := slice -}}
@@ -44,127 +56,66 @@
 {{- with $bgImages }}
 {{- $urls := slice -}}
 {{- range . -}}
-    {{- $urls = $urls | append (printf "%s%s" site.BaseURL (strings.TrimPrefix "/" .)) -}}
+    {{- $path := strings.TrimPrefix "/" . -}}
+    {{- if or (hasPrefix $path "http://") (hasPrefix $path "https://") (hasPrefix $path "//") -}}
+        {{- $urls = $urls | append $path -}}
+    {{- else -}}
+        {{- $urls = $urls | append (relURL $path) -}}
+    {{- end -}}
 {{- end -}}
 {{- $wasm := resources.Get "wasm/particles.wasm" | fingerprint -}}
 {{- $loader := resources.Get "js/pt-wasm.js" | minify | fingerprint -}}
 {{- $script := resources.Get "js/page-bg.js" | minify | fingerprint -}}
-{{/* 徽标粒子参数（2026-10-06 实测标定）。间距换算规则：
-     step = round(pitchCss × 源图宽 / 画布CSS宽)，**与 dpr 无关** —— dpr 在 scale 和
-     pitchDev 里同时出现被约掉了；dprCap 只影响 sizePx 的取整粒度与光栅锐度。
-     现状 800px 源图 / 320px 画布：pitchCss 1.4 → step 4，间距 3.2 设备 px
-     （= 1.6 CSS px），方块 5 设备 px（= 2.5 CSS px），31,025 颗粒子。
+{{/* 待机屏保参数。时间都是**墙钟毫秒**；内部按固定 30Hz 换算成帧。
 
-     pitchCss 是视觉密度的唯一旋钮，但 step = round(...) 是**阶梯式**的：
-     1.2 → step3（间距 1.2 CSS px，糊成照片）、1.4 → step4（1.6，方块质感
-     刚好）、1.8 → step5（2.0，像素马赛克）。无白线和看得出粒子是互斥的，
-     step4 是实测下来的折中。
+     · idleMs      10s 没有任何输入 → 进入待机（淡入 + 组装）。
+     · prewarmMs   8s 时先拉 wasm（约 34KB）并解码一张图，保证 10s 到点即可
+                   开始；如果 prewarmMs ≥ idleMs，JS 会夹到 idleMs - 1s。
+     · blockPx     2px 网格的目标边长（CSS px）。屏幕特别大（网格数超过
+                   maxBlocks）时会自动放大，4K 约 4.6px —— 这是性能上限，
+                   不是可选项。
+     · sizeRatio   粒子边长 / 网格间距。0.55 → 2px 网格里是 1px 方块 +
+                   1px 缝隙（mode 1 = round(spacing × ratio)）。
+     · maxBlocks   网格上限（≈ 视口面积 / blockPx²）。1440×900 的 2px 网格
+                   是 720×450 = 324,000 格；但图是透明底 cutout，只有人物
+                   覆盖的格子会变成粒子（1440×900 实测 5.3–7.4 万颗，随图
+                   不同），所以 400,000 的预算足够让 1440/1920 保持 2px 左右。
+     · maxPixels   backing store 的像素上限。超过就降分辨率、让 CSS 放大：
+                   dpr2 的全屏 buffer 是 20.7MB/帧，30fps 要 620MB/s，不可行；
+                   1440×900@1x 只有 5.2MB/帧。
+     · maxParticles 引擎的安全阀（超了会把 step 往上推、格子变粗）。
+     · assembleMs  随机放行的窗口。每颗粒子按 hash01(i) 在窗口内陆续出现，
+                   之后从 build() 撒好的远处飞回目标位；窗口 + 弹簧尾巴
+                   实测约 3.5–4s。
+     · floatAmp    待机漂浮的振幅（CSS px），0 = 不漂。每颗粒子拿自己的一套
+                   随机相位，各自绕目标位画圆；它让 tick() 永远返回 1，
+                   所以画面会一直跑 30Hz，直到退出 / 切后台。
+     · floatPeriod 漂浮周期（ms）。
+     · scatterRadius / scatterPower
+                   鼠标透明场 / 径向冲量：半径（CSS px）与力度（速度）。
+                   半径内粒子先飞散、再淡到透明；指针移开 / 离开窗口后由
+                   pointer_clear() 淡回 1，不会真的删除粒子。
 
-     gapFree + sizeRatio 解决的是**白线**。光栅化会把每颗粒子居中吸附到整数
-     像素，相邻方块的中心距因此在 floor(间距) 与 ceil(间距) 之间跳变 —— 跳到
-     ceil 而边长只有 floor 时，中间就裂出 1px 白线（旧的 ratio 0.95 + round：
-     间距 3.2 / 边长 3，整幅图上一层肉眼可见的白色网格，是用户直接反馈的问题）。
-     现在走 size_mode = 2：size = ceil(间距) + sizeRatio，而 **sizeRatio 的含
-     义从“比例”变成“额外出血量（设备 px）”** —— 出血 1 设备 px（= 0.5 CSS px）
-     是给常驻漂浮留的余量：相邻两颗粒子各自最多反向走 2×振幅，不预先重叠就会
-     在运动中重新裂出洞。实测出血 1 时漂浮 0.4 CSS px（@dpr2 = 0.8 设备 px）
-     下的透明孔洞与静止帧完全一致（1.20% → 1.16%，都是剪影边缘的固有损耗）。
-
-     maxParticles 是**粒子预算**：Rust 侧 count_opaque > 预算时会把 step 往上推。
-     60000 留在 step 4（31,025 粒子、间距 3.2 设备 px、边长 5 设备 px）；
-     预算压到 20000 会掉到 step 5（19,849 粒子），马赛克明显变粗。另外两张图
-     会各自落在 2w–4w 量级。
-
-     开场「自上而下一层层显现」（2026-10-06 新增，Rust 的 wipe_on()，只跑一次）：
-     build() 把粒子撒在画布外之后，wipe_on() 立刻把它们收进目标位（或者抬到自己
-     目标位上方 wipeDrop），再由一条**自上而下**的波前逐行放行 —— 还没轮到的粒子
-     既不跑弹簧、**也根本不会被画出来**，所以画面是一层层「渲染」出来的（这正是
-     与「整幅已经在那儿、只是被挪了位置」的分水岭，两种观感差得很远）。
-     之所以必须动引擎：弹簧的收敛时间只由阻尼决定、与距离无关（起点放多远落定
-     时刻几乎一样），所以「分层」只能靠显式放行闸门。
-       · wipeDrop —— 粒子出现时比目标位高多少，CSS px（内部乘 dpr）。
-             0  = 一出现就到位、完全不动，最纯粹的「逐行渲染」（**当前采用**）；
-             6–12 = 每行都轻轻「落」下来，边界更柔和（一出现就在最终位置会显得
-                    有点硬，像擦拭而不是落下）；
-             24 以上 = 已经能看出明显的下坠与重影。
-         注意：无论取几，**未放行的粒子都不画**，画布一开始永远是全空的。
-       · wipeDuration —— 波前扫过整幅的墙钟毫秒数（按实测帧间隔换算成帧，60/120Hz
-         一致）。2400（当前）实测：覆盖顶到 56.7% 在 2.30s、`tick()` 归零在
-         2.42s 并随即（`thumpPower > 0` 时）放落地顿挫 —— `wipeDrop = 0` 时粒子一出现就在目标位、
-         弹簧没有活干，**总时长 ≈ 波前时长**；只有 `wipeDrop > 0` 才会多出一截
-         0.6–1.2s 的弹簧尾巴。1200 是标定过的原速，用户觉得偏快，改成 2400。
-       · wipeBand —— 波前边缘的抖动带宽度，CSS px（由粒子索引哈希出的 ±半带宽
-         偏移，逐帧稳定不沸腾）。0 = 一条笔直的水平线。
-     只作用于**首次**揭示：第二次起走 draw() 里的 settle() 直接吸附成型，不重放。
-
-     动效三件套（2026-10-06 起，只在左下角徽标上）。区分标准是**位移梯度**：
-     格子已几乎拼满（间距 3.2 / 方块 5 设备 px，出血 1.8），凡是一次性、
-     大范围的冲量都无所谓（只跑一次，而且没人会去数格子），但**长期待机**
-     必须用一个梯度足够低的场：
-       · 逐行显现 —— 首次入场用 wipe_on() 自上而下一层层显现（见上一段的
-         wipeDrop / wipeDuration / wipeBand）；若 wipe_on 缺失或 wipeDuration = 0，
-         则退回旧行为：build() 时粒子被随机撒在比画布大的范围里，tick() 的弹簧
-         （spring 0.08 / damp 0.86）自己收拢，实测 96 帧（1.6s）就位。
-       · thumpPower —— 显现落定瞬间从画布中心补一记 burst 径向冲量的力度，
-         单位是设备像素速度（引擎内部线性衰减到半径处归零）。1.4 → 峰值位移
-         约 3 设备 px；**0 = 关掉，当前就是 0** —— 用户反馈「图片出现之后还会
-         突然弹一下」，所以落定后不再补这一记。想恢复就调回 1.4。
-       · idleEffect —— 'float'（默认，逐粒子随机漂浮）或 'ripple'（水波荡漾）。
-         float 是非相干的：每颗粒子一套随机相位/振幅、各绕自己的初始位画圆，
-         单颗粒子只挪亚像素级，但整幅看上去是**像素点在闪**（作者最后选了这个）。
-           · floatAmp —— 振幅上界，CSS px（内部乘 dpr）。实测 0.4 → 峰值 0.4 CSS px；
-             每颗粒子实际取 0.55–1.0 倍的随机值。0 = 不漂。
-           · floatPeriod —— x 方向一个周期的墙钟毫秒数（按实测帧间隔换算成帧），
-             y 方向再慢 1.37 倍。
-         ripple 是相干位移场，前提是把梯度压住（下面三个键只在
-         idleEffect = 'ripple' 时生效）：
-           · rippleMode 'rise' —— 单向纵波：波前是水平线、**自下而上**
-             推过去，位移沿纵向（画面像被一波波抬起）。位移只随 y 变化，
-             相邻采样行的相对位移 ≈ amp·k·间距（λ=80 CSS px 时只有 0.5 设备 px，
-             远小于出血量 1.8）。
-           · rippleMode 'radial' —— 从画布中心一圈圈荡开，振幅沿半径衰减。
-           · rippleMode 'shear' —— 同一行整体左右平移（经典水中倒影）。
-             位移只随 y 变化且**只有横向分量** ⇒ 行距分毫不变 ⇒ 相对位移恒为 0，
-             结构上不可能裂缝。
-           振幅/波长写 CSS px（内部乘 dpr）；period 是墙钟毫秒，会按实测帧
-           间隔换算成帧数，60Hz / 120Hz 屏上一致。实测（2026-10-06 1:1 胶片条）：
-           径向 amp 4 css / λ 60 css 的轮廓起伏最像水面；压到**单向纵波
-           amp 2 / λ 80 / 7.5s** 后作者仍嫌偏「整幅在动」，遂回退到 float。
-           三个 ripple 键保留着 —— 想再看水波，把 idleEffect 改回 'ripple' 即可。
-         （float 与 ripple 的引擎侧都还在 wasm 里，两边都受 prefers-reduced-motion 管制。）
-       三者都受 prefers-reduced-motion 管制：命中时直接 settle 出成品，一帧不动。 */}}
+     真正决定「方块看起来多大」的是 blockPx 与 maxBlocks 一起算出的
+     blockCss；1440 屏 2px、1920 约 2.3px，2560 约 3.0px，4K 约 4.6px。*/}}
 {{- $cfg := dict
       "images" $urls
       "wasm" $wasm.RelPermalink
-      "pitchCss" 1.4
-      "maxParticles" 60000
-      "gapFree" true
-      "sizeRatio" 1
-      "fitW" 1
-      "fitH" 1
-      "dprCap" 2
-      "thumpPower" 0
-      "wipeDrop" 0
-      "wipeDuration" 2400
-      "wipeBand" 16
-      "idleEffect" "float"
-      "floatAmp" 0.4
-      "floatPeriod" 5200
-      "rippleMode" "rise"
-      "rippleAmp" 2
-      "rippleLength" 80
-      "ripplePeriod" 7500 -}}
+      "idleMs" 10000
+      "prewarmMs" 8000
+      "blockPx" 2
+      "maxBlocks" 400000
+      "maxPixels" 1500000
+      "maxParticles" 180000
+      "assembleMs" 1200
+      "sizeRatio" 0.55
+      "floatAmp" 0.6
+      "floatPeriod" 6000
+      "scatterRadius" 240
+      "scatterPower" 4.5 -}}
 <div class="page-bg" aria-hidden="true">
-    <div class="page-bg__box">
-        <img
-            class="page-bg__png"
-            src="{{ index $urls 0 }}"
-            alt=""
-            decoding="async"
-            fetchpriority="low"
-        />
-        <canvas class="page-bg__canvas"></canvas>
-    </div>
+    <canvas class="page-bg__canvas"></canvas>
+    <div class="page-bg__wake"></div>
 </div>
 <script id="pt-bg-config" type="application/json">
     {{- $cfg | jsonify | safeJS -}}
