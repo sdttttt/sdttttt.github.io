@@ -10,6 +10,12 @@
   changes. The user can still toggle manually and the choice persists in
   localStorage.
 
+  2026-10-21: the site-title text link became the identity block — 32px avatar
+  + `site.Params.name` (falling back to site.Title) — and the big site title
+  moved to the home page hero (list.html, `.home-title`). The avatar image is
+  decorative here (empty alt) because the adjacent name text already names the
+  link.
+
   The social-icon nav was removed entirely: upstream renders it from
   `$social_params` (baseof.html) and expects the matching SVGs under the
   theme's static/ — those were never vendored, and no social param is set in
@@ -21,11 +27,23 @@
   class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
 >
   <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
+    {{- $avatar_url := $.Scratch.Get "avatar_url" -}}
     <a
-      class="-translate-y-[1px] text-2xl font-medium"
+      class="-translate-y-[1px] flex items-center text-2xl font-medium"
       href="{{- `` | absURL -}}"
-      >{{ site.Title }}</a
     >
+      {{- with $avatar_url -}}
+      <img
+        class="mr-3 h-8 w-8 shrink-0 rounded-lg"
+        src="{{- . -}}"
+        alt=""
+        width="32"
+        height="32"
+        decoding="async"
+      />
+      {{- end -}}
+      <span>{{- site.Params.name | default site.Title -}}</span>
+    </a>
     <div
       class="btn-dark text-[0px] ltr:ml-4 rtl:mr-4 h-6 w-6 shrink-0 cursor-pointer [background:url(./theme.svg)_left_center/cover_no-repeat] dark:invert dark:[background-position:right]"
       role="button"

@@ -8,9 +8,10 @@
 - `content/changelog/` — Agent 维护日志（每天一个 `YYYY-MM-DD.md`；目录在 `99d262c` 由 `content/claudelog/` 改名而来）。
 - `themes/self/` — 唯一的主题（`hugo.toml` 里 `theme = "self"`）。以下文件是本仓库自己维护的；其余（`404.html` / `static/*`）仍来自上游 hugo-paper，改动前先去上游仓库看一眼是不是已经修过。**2026-10-07 删掉了一批死功能**（RSS 生成、`<meta name="description">`、评论 / KaTeX / mermaid / highlight.js / `collapse` shortcode、20 个用不上的 `i18n/*.yaml`、无资源的社交图标导航）—— 细节见 `themes/self/README.md` 的删除清单，别再照上游抄回来：
   - `theme.toml` — 主题元数据
-  - `layouts/_default/baseof.html` — baseof，调用 bg partial
+  - `layouts/_default/baseof.html` — baseof，调用 bg partial；`avatar_url` scratch 每页都解析（header 的 32px 头像要用，`head.html` 因此每页 preload 这 8.6KB）
   - `layouts/partials/bg.html` — **待机屏保**：全视口固定画布（不是整个滚动文档），10 秒无输入后把随机一张 `static/bg/*.avif` 按 contain 画到透明底上，按 2px 网格交给 WASM 粒子组装（人物画在透明底上，页面由 CSS 毛玻璃透出来）；`$cfg` 的 `idleMs` / `prewarmMs` / `blockPx` / `maxBlocks` / `maxPixels` / `maxParticles` / `assembleMs` / `sizeRatio` / `floatAmp` / `floatPeriod` / `scatterRadius` / `scatterPower` 是全部旋钮，详见下方「待机屏保」段。无 `<img>` 兜底：无 JS / wasm 失败时页面保持原样。
-  - `layouts/partials/header.html` — header 覆写，强制默认亮色
+  - `layouts/partials/header.html` — header 覆写，强制默认亮色；2026-10-21 起左上角是**身份块**（32px 圆角头像 + `site.Params.name`，回退 `site.Title`，整组链接回首页），站点标题挪到首页 hero
+  - `layouts/_default/list.html` — 列表页；首页第一页的 hero 是大号站点标题 `<h1 class="home-title">`（3rem，样式在 custom.css），原来的「头像 + 名字 + bio」块已并入 header
   - `layouts/partials/footer.html` — footer，去掉上游的 powered by 链接；右端挂一枚 powered by dsh 徽标（SVG 自托管在 `static/images/powered-by-dsh.svg`，样式是 `custom.css` 的 `.dsh-badge`；`opacity-60` 只留给版权行，否则徽标连 #555 / #4D6BFE 一起发灰）
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
   - `layouts/_default/archives.html` — `/archives/` 归档页（`content/archives.md` 的 `layout: archives` 指向它）：按年 → 月分组，每月一段 inline 流；口径是 `where site.RegularPages "Type" "in" site.Params.mainSections`（= 209 篇，自动排除 changelog 与 `build.list: never` 的私密文章）

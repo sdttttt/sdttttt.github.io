@@ -8,8 +8,8 @@
   Local diffs vs the original upstream file:
     1. the trailing `{{ partial "bg.html" . }}` call before </body> (the idle
        screensaver layer);
-    2. `avatar_url` is only resolved on the home page (see comment at the
-       avatar_url block);
+    2. `avatar_url` is resolved on every page (see comment at the avatar_url
+       block);
     3. the `social_list` scratch (and the social-icon nav in header.html) was
        removed — upstream expects `twitter.svg` / `github.svg` / … under the
        theme's static/, but they were never vendored here, so every icon
@@ -27,15 +27,13 @@
 {{- $.Scratch.Set "bg_color" (index $color_map (site.Params.color | default (print "linen"))) -}}<!---->
 {{- $bg_color := $.Scratch.Get "bg_color" -}}
 
-<!-- avatar_url — home page only.
+<!-- avatar_url — resolved on every page.
 
-     The only consumer of this scratch is list.html's avatar block, which is
-     itself guarded by `and $.IsHome (eq $paginator.PageNumber 1) (eq $index
-     0)`; head.html:49-53 then preloads `avatar_url` on *every* page that has
-     it set (8.6 KB that only the home page ever paints). Leaving the scratch
-     unset elsewhere is what turns that preload off for the rest of the
-     site. -->
-{{- if .IsHome -}}<!---->
+     Consumers: header.html renders it as the 32px identity chip (the header
+     is on every page), and head.html preloads it whenever it is set. The
+     home hero used to be the only consumer, which is why this block used to
+     be wrapped in `if .IsHome`; the avatar moved into the header on
+     2026-10-21, so the preload is now wanted site-wide too (8.6 KB). -->
 {{- if site.Params.avatar -}}<!---->
 {{- if in site.Params.avatar "http" -}}<!---->
 {{- $.Scratch.Set "avatar_url" site.Params.avatar -}}<!---->
@@ -47,7 +45,6 @@
 {{- $md5 := (md5 site.Params.avatar) -}}<!---->
 {{- $avatar_url := print $cdn $md5 "?s=160&d=identicon" -}}<!---->
 {{- $.Scratch.Set "avatar_url" $avatar_url -}}<!---->
-{{- end -}}<!---->
 {{- end -}}<!---->
 {{- end -}}
 
