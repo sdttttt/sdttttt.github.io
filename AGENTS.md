@@ -11,10 +11,10 @@
   - `layouts/_default/baseof.html` — baseof，调用 bg partial
   - `layouts/partials/bg.html` — **待机屏保**：全视口固定画布（不是整个滚动文档），10 秒无输入后把随机一张 `static/bg/*.avif` 按 contain 画到透明底上，按 2px 网格交给 WASM 粒子组装（人物画在透明底上，页面由 CSS 毛玻璃透出来）；`$cfg` 的 `idleMs` / `prewarmMs` / `blockPx` / `maxBlocks` / `maxPixels` / `maxParticles` / `assembleMs` / `sizeRatio` / `floatAmp` / `floatPeriod` / `scatterRadius` / `scatterPower` 是全部旋钮，详见下方「待机屏保」段。无 `<img>` 兜底：无 JS / wasm 失败时页面保持原样。
   - `layouts/partials/header.html` — header 覆写，强制默认亮色
-  - `layouts/partials/footer.html` — footer，去掉上游的 powered by 链接
+  - `layouts/partials/footer.html` — footer，去掉上游的 powered by 链接；右端挂一枚 powered by dsh 徽标（SVG 自托管在 `static/images/powered-by-dsh.svg`，样式是 `custom.css` 的 `.dsh-badge`；`opacity-60` 只留给版权行，否则徽标连 #555 / #4D6BFE 一起发灰）
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
   - `layouts/_default/archives.html` — `/archives/` 归档页（`content/archives.md` 的 `layout: archives` 指向它）：按年 → 月分组，每月一段 inline 流；口径是 `where site.RegularPages "Type" "in" site.Params.mainSections`（= 209 篇，自动排除 changelog 与 `build.list: never` 的私密文章）
-  - `assets/custom.css` — 自定义 CSS（待机屏保 + 粒子页 + 归档页样式）。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
+  - `assets/custom.css` — 自定义 CSS（待机屏保 + 粒子页 + 归档页 + 页脚徽标样式）。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行

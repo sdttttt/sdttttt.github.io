@@ -30,3 +30,5 @@ deno task format-markdown-check   # 检查 Markdown 格式
 `.github/workflows/` 只是壳，CI 实际跑的是 `bin/*.sh` —— 本地同一个脚本能跑出一样的结果，细节见 [`bin/`](bin/)。
 
 主题同步、WASM 粒子引擎、图片流水线、部署流程等细节都写在 [`AGENTS.md`](AGENTS.md) 里，README 就不重复了。
+
+[![](https://img.shields.io/badge/powered_by-dsh-4D6BFE?style=flat-square&logo=deepseek&logoColor=white)](https://github.com/deepseek-ai/deepseek-harness)

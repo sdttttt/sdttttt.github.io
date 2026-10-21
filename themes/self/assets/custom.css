@@ -464,3 +464,33 @@ html.dark .pt-stage {
 .dark .img-lost__note {
     color: rgba(255, 255, 255, 0.45);
 }
+
+/* ── 页脚：powered by dsh 徽标 ─────────────────────────────────────────
+   footer.html 里的 <a class="dsh-badge"> 指向 static/images/powered-by-dsh.svg
+   —— 官方 shields.io 的 121×20 渲染（flat-square、#555 + #4D6BFE、DeepSeek
+   标），只是挪到站内自托管，样式一个像素都不改。
+
+   尺寸必须写死：SVG 的 viewBox 是 121×20，但 preflight 的 `img { height: auto }`
+   会让它跟着 flex 行高走；width / height 带 !important 是被那股
+   `:not(#\#)` 特异性炸弹逼的（见文件顶部说明）。
+
+   默认 75% 透明度，和旁边 60% 的版权行同一个视觉层级；hover / 键盘聚焦时
+   回满，避免看起来像一张死图。 */
+.dsh-badge {
+    display: inline-flex;
+    flex-shrink: 0;
+    line-height: 0;
+    opacity: 0.75;
+    transition: opacity 0.2s ease;
+}
+
+.dsh-badge:hover,
+.dsh-badge:focus-visible {
+    opacity: 1;
+}
+
+.dsh-badge img {
+    display: block;
+    width: 121px !important;
+    height: 20px !important;
+}
