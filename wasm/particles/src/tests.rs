@@ -1335,7 +1335,7 @@ fn assemble_gate_releases_by_hash_and_keeps_tick_reporting_motion() {
 }
 
 #[test]
-fn pointer_set_fades_particles_to_transparent_and_clear_fades_them_back() {
+fn pointer_scatters_particles_outward_and_clear_springs_them_back() {
     let _g = setup();
     build_demo(1); // 40×40、step 4 → 100 颗，边长 4
     settle();
@@ -1348,39 +1348,57 @@ fn pointer_set_fades_particles_to_transparent_and_clear_fades_them_back() {
         .expect("应当有目标位在 (0,0) 的粒子");
 
     // 非法参数清掉指针
-    assert_eq!(pointer_set(f32::NAN, 20.0, 9.0), 0);
+    assert_eq!(pointer_set(f32::NAN, 20.0, 9.0, 1.0), 0);
     assert_eq!(engine().ptr_on, 0);
-    assert_eq!(pointer_set(20.0, 20.0, 0.0), 0);
-    assert_eq!(pointer_set(20.0, 20.0, f32::INFINITY), 0);
+    assert_eq!(pointer_set(20.0, 20.0, 0.0, 1.0), 0);
+    assert_eq!(pointer_set(20.0, 20.0, f32::INFINITY, 1.0), 0);
+    assert_eq!(pointer_set(20.0, 20.0, 9.0, f32::NAN), 0);
+    assert_eq!(pointer_set(20.0, 20.0, 9.0, -1.0), 0);
 
-    // 半径内淡出，半径外保持；12 帧 × 0.12 正好到 0
-    assert_eq!(pointer_set(20.0, 20.0, 9.0), 1);
+    // 半径内的粒子被推离指针；半径外保持原位
+    assert_eq!(pointer_set(20.0, 20.0, 9.0, 1.0), 1);
     assert_eq!(engine().ptr_on, 1);
-    for _ in 0..12 {
+    assert_eq!(engine().ptr_push, 1.0);
+    for _ in 0..60 {
         let _ = tick();
     }
     {
         let e = engine();
-        assert!(e.fade[inner] < 0.01, "inner fade = {}", e.fade[inner]);
-        assert_eq!(e.fade[outer], 1.0);
+        let dx = e.px[inner] - 20.0;
+        let dy = e.py[inner] - 20.0;
+        assert!(
+            (dx * dx + dy * dy).sqrt() > 5.0,
+            "inner 应当被推开：offset = ({dx}, {dy})"
+        );
+        assert_eq!(e.px[outer], 0.0);
+        assert_eq!(e.py[outer], 0.0);
     }
-    assert_eq!(alpha_at(20, 20), 0, "洞中心应当完全透明");
-    assert_eq!(alpha_at(0, 0), 255, "半径外应当保持不透明");
 
-    // 清空后淡回
+    // 散开过程中粒子始终不透明：alpha 只有 0（空像素）或 255（粒子）
+    let fb = unsafe { core::slice::from_raw_parts(fb_ptr(), fb_len() as usize) };
+    for px in fb.chunks_exact(4) {
+        assert!(
+            px[3] == 0 || px[3] == 255,
+            "散开场不应当产生半透明像素：alpha = {}",
+            px[3]
+        );
+    }
+
+    // 清空指针后弹簧把粒子送回目标位
     assert_eq!(pointer_clear(), 1);
-    for _ in 0..12 {
+    assert_eq!(engine().ptr_on, 0);
+    for _ in 0..240 {
         let _ = tick();
     }
     {
         let e = engine();
-        assert!(e.fade[inner] > 0.99, "inner fade = {}", e.fade[inner]);
+        let dx = e.px[inner] - e.tx[inner];
+        let dy = e.py[inner] - e.ty[inner];
+        assert!(
+            (dx * dx + dy * dy).sqrt() < 0.5,
+            "inner 应当回到目标位：offset = ({dx}, {dy})"
+        );
     }
-    assert_eq!(alpha_at(20, 20), 255, "移开后应当恢复");
-
-    // 重新 build 重置 alpha 表
-    build_demo(1);
-    assert_eq!(engine().fade.iter().filter(|&&a| a == 1.0).count(), 100);
 }
 
 #[test]
@@ -1405,7 +1423,7 @@ fn every_entry_point_is_safe_without_an_engine() {
     assert_eq!(wipe_off(), 0);
     assert_eq!(assemble_on(60.0), 0);
     assert_eq!(assemble_on(0.0), 0, "0 帧不合法");
-    assert_eq!(pointer_set(1.0, 1.0, 10.0), 0);
+    assert_eq!(pointer_set(1.0, 1.0, 10.0, 1.0), 0);
     assert_eq!(pointer_clear(), 0);
     assert_eq!(resize(64, 64, 4.0), -1);
     settle(); // 只是不能 panic

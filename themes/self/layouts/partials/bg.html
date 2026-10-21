@@ -5,9 +5,10 @@
   input the fixed .page-bg layer fades in as a frosted-glass sheet over the
   page, and a WASM particle engine assembles one of the images from static/bg/
   on a 2 px grid with 1 px particles and 1 px gaps. The particles keep floating
-  after the assembly; moving the pointer over them scatters them and fades
-  them to transparent, and moving the pointer away fades them back in. Only a
-  click (or a key) exits.
+  after the assembly; moving the pointer over them pushes them radially away,
+  so they visibly scatter around the cursor instead of fading out, and moving
+  the pointer away lets the spring pull them back. Only a click (or a key)
+  exits.
   The page itself is never modified, so the scroll position and DOM survive —
   the original content stays visible through the frost instead of being
   replaced by a larger blurred image.
@@ -92,9 +93,11 @@
                    所以画面会一直跑 30Hz，直到退出 / 切后台。
      · floatPeriod 漂浮周期（ms）。
      · scatterRadius / scatterPower
-                   鼠标透明场 / 径向冲量：半径（CSS px）与力度（速度）。
-                   半径内粒子先飞散、再淡到透明；指针移开 / 离开窗口后由
-                   pointer_clear() 淡回 1，不会真的删除粒子。
+                   鼠标散开场：半径（CSS px）与每帧径向冲量。半径内粒子
+                   被推离指针（中心最强、半径处归零），alpha 不变；每颗
+                   粒子再叠一点哈希抖动，散开边缘是蓬松的云而不是环。
+                   指针移开 / 离开窗口后由 pointer_clear() 让弹簧送回原位。
+                   位移约 0.55–1.45 × 12.5 × scatterPower 设备 px。
 
      真正决定「方块看起来多大」的是 blockPx 与 maxBlocks 一起算出的
      blockCss；1440 屏 2px、1920 约 2.3px，2560 约 3.0px，4K 约 4.6px。*/}}
@@ -112,7 +115,7 @@
       "floatAmp" 0.6
       "floatPeriod" 6000
       "scatterRadius" 240
-      "scatterPower" 4.5 -}}
+      "scatterPower" 7 -}}
 <div class="page-bg" aria-hidden="true">
     <canvas class="page-bg__canvas"></canvas>
     <div class="page-bg__wake"></div>

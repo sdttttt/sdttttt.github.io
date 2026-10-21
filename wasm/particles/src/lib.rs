@@ -164,16 +164,20 @@ struct Engine {
     asm_elapsed: f32,
     asm_frames: f32,
     asm_gate: u32,
-    // ---- 鼠标透明场（开关是 pointer_set / pointer_clear）----
+    // ---- 鼠标散开场（开关是 pointer_set / pointer_clear）----
     //
-    // 指针半径内的粒子淡出到透明，移开 / 清空后淡回 1。`fade` 是每颗粒子的
-    // 当前 alpha（0..1），rasterize 用它写 RGBA 的 alpha 字节；粒子不会真的
-    // 被删除，目标位和漂浮状态都还在，所以移开指针就能恢复。
+    // 指针半径内的粒子受到**向外的径向斥力**：力场按目标位到指针的距离
+    // 衰减（中心最强、半径处归零），每帧往 vx/vy 里加一份冲量。弹簧随后
+    // 把它们拉回，平衡点就是「目标位 + 径向偏移」—— 粒子仍然完全不透明，
+    // 只是从指针下方散开；移开 / 清空后弹簧把它们送回目标位。
+    //
+    // 用**目标位**而不是当前位置算距离：力场固定在空间里，指针停住时散开
+    // 形状稳定，不会出现「粒子被推出去 → 力变小 → 弹回来 → 再被推」的抖动。
     ptr_on: u8,
     ptr_x: f32,
     ptr_y: f32,
     ptr_r: f32,
-    fade: Vec<f32>,
+    ptr_push: f32,
 }
 
 static mut ENGINE: Option<Engine> = None;
@@ -393,7 +397,7 @@ fn make(
         ptr_x: 0.0,
         ptr_y: 0.0,
         ptr_r: 0.0,
-        fade: vec![1.0; n],
+        ptr_push: 0.0,
     }
 }
 
@@ -537,12 +541,8 @@ impl Engine {
             };
             let x0 = (self.px[i] + ox).round() as i32 - half;
             let y0 = (self.py[i] + oy).round() as i32 - half;
-            let a = (self.fade[i] * 255.0).round() as u8;
-            if a == 0 {
-                continue;
-            }
             let c = self.col[i].to_le_bytes();
-            let bytes = [c[0], c[1], c[2], a];
+            let bytes = [c[0], c[1], c[2], 255];
             for yy in y0..(y0 + s) {
                 if yy < 0 || yy >= h {
                     continue;
@@ -700,39 +700,12 @@ pub extern "C" fn tick() -> i32 {
     let (front, band) = (e.wipe_front, e.wipe_band);
     let (asm_elapsed, asm_frames) = (e.asm_elapsed, e.asm_frames);
 
-    // 鼠标透明场：目标 alpha 由「粒子目标位到指针的距离」决定 —— 半径内
-    // 60% 完全透明，向外到半径处线性回到不透明；每帧朝目标走 0.12。
-    // 用目标位而不是当前位置，保证指针停在图片上时是一个稳定的洞，
-    // 飞散的粒子不会把洞的形状带跑。
+    // 鼠标散开场：半径内的粒子每帧受到一份向外的径向冲量，力随目标位到
+    // 指针的距离衰减（中心最强、半径处为 0）。冲量只写 vx/vy，之后的
+    // 减速 / 回位全部交给下面的弹簧；alpha 始终是 255，粒子只是被推开。
     let ptr_on = e.ptr_on != 0;
-    let (ptr_x, ptr_y, ptr_r) = (e.ptr_x, e.ptr_y, e.ptr_r);
-    let mut fading = false;
-    for i in 0..e.n {
-        let target = if !ptr_on {
-            1.0
-        } else {
-            let dx = e.tx[i] - ptr_x;
-            let dy = e.ty[i] - ptr_y;
-            let d = (dx * dx + dy * dy).sqrt();
-            if d >= ptr_r {
-                1.0
-            } else if d <= ptr_r * 0.6 {
-                0.0
-            } else {
-                (d - ptr_r * 0.6) / (ptr_r * 0.4)
-            }
-        };
-        let a = e.fade[i];
-        let next = if a < target {
-            (a + 0.12).min(target)
-        } else {
-            (a - 0.12).max(target)
-        };
-        if (next - a).abs() > 1e-4 {
-            fading = true;
-        }
-        e.fade[i] = next;
-    }
+    let (ptr_x, ptr_y, ptr_r, ptr_push) = (e.ptr_x, e.ptr_y, e.ptr_r, e.ptr_push);
+    let ptr_r2 = ptr_r * ptr_r;
 
     {
         let (px, py, vx, vy, tx, ty) = (
@@ -755,6 +728,33 @@ pub extern "C" fn tick() -> i32 {
             let target_y = ty[i];
             let mut v_x = vx[i] + (target_x - px[i]) * spring;
             let mut v_y = vy[i] + (target_y - py[i]) * spring;
+            if ptr_on && ptr_push > 0.0 {
+                let mut dx = target_x - ptr_x;
+                let mut dy = target_y - ptr_y;
+                // 目标位正好落在指针上时没有径向：用索引哈希给一个稳定的
+                // 微小方向，避免 dx / d 变成 NaN 把粒子弄丢。
+                if dx * dx + dy * dy < 1e-6 {
+                    dx += (hash01(i) - 0.5) * 0.01;
+                    dy += (hash01(i + 1) - 0.5) * 0.01;
+                }
+                let d2 = dx * dx + dy * dy;
+                if d2 < ptr_r2 {
+                    let d = d2.sqrt().max(1e-3);
+                    let fall = 1.0 - d / ptr_r;
+                    // 每颗粒子的力度与方向都带一点哈希抖动：否则所有粒子会
+                    // 按同一套力场排成一个很规整的环，看起来还是像「洞」。
+                    // 抖动是索引哈希 ⇒ 逐帧稳定，粒子不会自己沸腾。
+                    let jitter = 0.55 + hash01(i) * 0.9;
+                    let twist = (hash01(i + 97) - 0.5) * 0.7;
+                    let push = ptr_push * fall * fall * jitter;
+                    let ux = dx / d;
+                    let uy = dy / d;
+                    let ct = fast_sin(twist + TAU * 0.25);
+                    let st = fast_sin(twist);
+                    v_x += (ux * ct - uy * st) * push;
+                    v_y += (ux * st + uy * ct) * push;
+                }
+            }
             v_x *= damp;
             v_y *= damp;
             vx[i] = v_x;
@@ -832,7 +832,7 @@ pub extern "C" fn tick() -> i32 {
     }
 
     e.rasterize();
-    if rising || assembling || max_v > 0.05 || floating || rippling || fading {
+    if rising || assembling || max_v > 0.05 || floating || rippling {
         1
     } else {
         0
@@ -902,30 +902,39 @@ pub extern "C" fn burst(x: f32, y: f32, radius: f32, power: f32) -> i32 {
     hit
 }
 
-/// 设置鼠标透明场：指针坐标 (x, y) 与半径都是**设备像素**（JS 侧按 backing
-/// 缩放换算）。半径内的粒子会在随后的 tick() 里淡到透明；指针移开 / 离开
-/// 窗口时调用 `pointer_clear()`，alpha 会淡回 1 —— 粒子本身从未被删除，
-/// 目标位、漂浮和散射速度都还在。
+/// 设置鼠标散开场：指针坐标 (x, y)、半径与力度都是**设备像素**（JS 侧按
+/// backing 缩放换算）。半径内的粒子会在随后的 tick() 里受到向外的径向斥力，
+/// 从指针下方散开（alpha 不变）；指针移开 / 离开窗口时调用 `pointer_clear()`，
+/// 弹簧会把它们送回目标位 —— 粒子本身从未被删除。
 ///
+/// `push` 是每帧加到速度上的冲量（中心处），最终位移约 `12.5 × push` 设备 px
+/// （弹簧 0.08 / 阻尼 0.86 的平衡点）；传 0 等于只记录位置、不推粒子。
 /// 返回 1；0 表示没有引擎 / 参数非法（此时指针被清掉）。
 #[no_mangle]
-pub extern "C" fn pointer_set(x: f32, y: f32, radius: f32) -> i32 {
+pub extern "C" fn pointer_set(x: f32, y: f32, radius: f32, push: f32) -> i32 {
     let e = match eng() {
         Some(e) => e,
         None => return 0,
     };
-    if !x.is_finite() || !y.is_finite() || !(radius > 0.0) || !radius.is_finite() {
+    if !x.is_finite()
+        || !y.is_finite()
+        || !(radius > 0.0)
+        || !radius.is_finite()
+        || !push.is_finite()
+        || push < 0.0
+    {
         e.ptr_on = 0;
         return 0;
     }
     e.ptr_x = x;
     e.ptr_y = y;
     e.ptr_r = radius;
+    e.ptr_push = push;
     e.ptr_on = 1;
     1
 }
 
-/// 清空鼠标透明场：所有粒子的 alpha 会在 tick() 里淡回 1。
+/// 清空鼠标散开场：指针移开后，弹簧会把散开的粒子送回目标位。
 #[no_mangle]
 pub extern "C" fn pointer_clear() -> i32 {
     match eng() {

@@ -10,9 +10,10 @@
  *       3. 引擎在 1.2 秒内按 hash01(i) 随机放行粒子，每颗从 build() 撒好的
  *          远处飞回目标位 —— 人物方块陆续出现、慢慢拼成图（约 3.5–4 秒）；
  *       4. 组装结束后 float_on() 让每颗粒子绕自己的目标位持续漂浮，画面
- *          一直是「活的」；鼠标经过时 pointer_set() 让半径内粒子淡到透明，
- *          burst() 同时把它们推开；指针移开 / 离开窗口后淡回原状。
- *   - **只有点击 / 按键才退出**：pointermove 只负责透明化粒子，不会关掉屏保；
+ *          一直是「活的」；鼠标经过时 pointer_set() 让半径内粒子受到向外的
+ *          径向斥力、从指针下方散开（alpha 不变），指针移开 / 离开窗口后
+ *          弹簧把它们送回原位。
+ *   - **只有点击 / 按键才退出**：pointermove 只负责推开粒子，不会关掉屏保；
  *     滚轮与触摸滚动被 wake 层吞掉。第一次点击会被吞掉，不会误点链接。
  *   - 每个页面加载只进入一次；退出后不会再被空闲重新拉起。
  *
@@ -71,9 +72,9 @@
   var FLOAT_AMP = cfg.floatAmp == null ? 0.6 : Math.max(0, cfg.floatAmp);
   var FLOAT_PERIOD = cfg.floatPeriod == null ? 6000 : Math.max(100, cfg.floatPeriod);
 
-  // 鼠标经过时的径向冲量：半径 CSS px，power 是速度（内部乘 backing 缩放）。
+  // 鼠标经过时的径向斥力：半径 CSS px，power 是每帧冲量（内部乘 backing 缩放）。
   var SCATTER_RADIUS = cfg.scatterRadius == null ? 240 : Math.max(1, cfg.scatterRadius);
-  var SCATTER_POWER = cfg.scatterPower == null ? 4.5 : Math.max(0, cfg.scatterPower);
+  var SCATTER_POWER = cfg.scatterPower == null ? 7 : Math.max(0, cfg.scatterPower);
 
   // 固定仿真步长：所有「帧」参数都按这个速率换算成墙钟时间。
   var STEP_MS = 1000 / 30;
@@ -104,7 +105,6 @@
   var swallowTimer = 0;
   var lastIndex = -1;
   var floatingOn = false;
-  var lastScatter = 0;
 
   var reduced = false;
   var saveData = false;
@@ -124,7 +124,7 @@
      waiting  还没开始预热
      prewarm  wasm / 图片加载中
      wasm     粒子引擎正在跑（组装阶段）
-     floating 组装完成，持续漂浮 / 可被鼠标透明化（正常待机态）
+     floating 组装完成，持续漂浮 / 可被鼠标推开（正常待机态）
      settled  float 不可用（旧 wasm）→ 静态粒子
      reduced  减少动态效果 → 静态图
      error    wasm / 图片 / 构建失败
@@ -529,9 +529,10 @@
 
   /* ------------------------------------------------------------ 输入 / 退出 */
 
-  /* 把指针位置换算到 backing px，交给引擎的透明场。半径内的粒子会在
-     随后的 tick 里淡到透明；指针离开（或下一次移动出界）时 clearPointer()。
-     坐标 / 半径都是 backing px，乘缩放后屏幕上的观感与 CSS px 一致。 */
+  /* 把指针位置换算到 backing px，交给引擎的斥力场。半径内的粒子会在
+     随后的 tick 里被推离指针；指针离开（或下一次移动出界）时
+     clearPointer()，弹簧再把它们送回去。坐标 / 半径都是 backing px，
+     乘缩放后屏幕上的观感与 CSS px 一致。 */
   function pointerAt(e) {
     if (!mod || typeof mod.pointer_set !== 'function') return null;
     var r = canvas.getBoundingClientRect();
@@ -549,36 +550,22 @@
     var s = (sx + sy) * 0.5;
     var x = (e.clientX - r.left) * sx;
     var y = (e.clientY - r.top) * sy;
-    mod.pointer_set(x, y, SCATTER_RADIUS * s);
+    mod.pointer_set(x, y, SCATTER_RADIUS * s, SCATTER_POWER * s);
     return { x: x, y: y, s: s };
-  }
-
-  /* 冲量只负责把粒子推开，透明度由引擎的 fade 表逐帧逼近；12 帧（约 0.3s）
-     到全透明，移开后再用同样速度淡回来。 */
-  function maybeBurst(p) {
-    if (!p || !mod || typeof mod.burst !== 'function') return;
-    var now = performance.now();
-    if (now - lastScatter < 40) return;
-    lastScatter = now;
-    mod.burst(p.x, p.y, SCATTER_RADIUS * p.s, SCATTER_POWER * p.s);
   }
 
   function clearPointer() {
     if (mod && typeof mod.pointer_clear === 'function') mod.pointer_clear();
   }
 
-  /* 鼠标移动只让粒子透明 + 飞散，不关闭屏保；只有 pointerdown / 按键退出。 */
+  /* 鼠标移动只把粒子推开，不关闭屏保；只有 pointerdown / 按键退出。 */
   function onPointerMove(e) {
     if (!active) {
       noteActivity();
       return;
     }
     var p = pointerAt(e);
-    if (!p) {
-      clearPointer();
-      return;
-    }
-    maybeBurst(p);
+    if (!p) clearPointer();
   }
 
   function onPointerDown() {
