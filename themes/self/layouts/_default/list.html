@@ -9,7 +9,11 @@
     1. the avatar image uses rounded-lg instead of rounded-full (circle);
     2. the home hero (avatar + name + bio) was replaced on 2026-10-21 by a
        single large site title (`.home-title`); the avatar and name now live
-       in header.html, so this file no longer reads the `avatar_url` scratch.
+       in header.html, so this file no longer reads the `avatar_url` scratch;
+    3. on 2026-10-22 the hero itself moved into partials/home-title.html:
+       the server-rendered text stays the source of truth, and a WASM
+       particle field (assets/js/home-title.js) cross-fades in over it and
+       floats like a wave. This file now only decides *where* it goes.
 */}}
 
 {{- define "main" -}}
@@ -30,9 +34,10 @@
 $paginator.Pages -}}<!---->
 
 <!-- Home title: the big site title that used to be the avatar + name block
-     (both moved into header.html on 2026-10-21). -->
+     (both moved into header.html on 2026-10-21). Since 2026-10-22 the markup,
+     config and scripts live in partials/home-title.html. -->
 {{- if and $.IsHome (eq $paginator.PageNumber 1) (eq $index 0) -}}
-<h1 class="home-title">{{- site.Title -}}</h1>
+{{- partial "home-title.html" . -}}
 {{- end -}}
 
 <section class="relative my-10 first-of-type:mt-0 last-of-type:mb-0">

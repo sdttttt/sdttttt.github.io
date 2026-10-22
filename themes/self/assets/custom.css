@@ -499,19 +499,77 @@ html.dark .pt-stage {
    原来这里是「大头像 + 名字」，2026-10-21 换成了放大版的站点标题；
    头像和名字挪进了 header（32px 小头像 + site.Params.name）。
 
+   2026-10-22：标题改用 WASM 粒子渲染（partials/home-title.html +
+   assets/js/home-title.js）。DOM 里的文字保留（SEO / 屏幕阅读器 / 无 JS
+   兜底），粒子就绪后加 .is-particle：文字淡出、canvas 淡入。宋体栈只在
+   这里定义一次，JS 从 computed style 读同一套字体 / 颜色 / 字号去画字形
+   蒙版，所以不存在第二份配色。
+
    margin / font-size 都带 !important：.prose 的 h1 规则（2.25em、margin-bottom
    0.8889em）带多层 :not(#\#) 特异性炸弹，普通 class 打不过（见文件顶部说明）。
-   字号：桌面 3rem，窄屏 2.25rem —— 320px 屏上「海边」一行仍然放得下。 */
+   字号：桌面 6rem、窄屏 4.5rem（2026-10-22 应用户要求从 3 / 2.25rem 放大一倍，
+   字更大、粒子更多，起伏更像海面）——320px 屏上「海边」约 144px 宽，仍放得下。
+
+   canvas 上下各外扩 0.6rem（远大于波浪竖向振幅 2.2px），否则字形边缘的
+   粒子在起伏时会被画布裁掉。默认 opacity:0 而不是 display:none —— 隐藏
+   元素量不到 getBoundingClientRect()，JS 就没法按盒子尺寸建画布。 */
 .home-title {
+    position: relative;
     margin: -0.5rem 0 3rem !important;
-    font-size: 3rem !important;
+    font-size: 6rem !important;
     line-height: 1.1;
     letter-spacing: -0.01em;
+    font-family: "Songti SC", "STSong", "SimSun", "宋体", "Noto Serif CJK SC",
+        "Source Han Serif SC", serif;
+}
+
+.home-title__text {
+    display: inline-block;
+    transition: opacity 0.3s ease;
+}
+
+.home-title__canvas {
+    position: absolute;
+    top: -0.6rem;
+    left: 0;
+    /* canvas 是 replaced element：绝对定位下 left/right + width:auto 不会把它
+       撑开（会退回 300×150 的固有尺寸）。必须显式给宽高。 */
+    width: 100%;
+    height: calc(100% + 1.2rem);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.35s ease;
+}
+
+.home-title.is-particle .home-title__text {
+    opacity: 0;
+}
+
+.home-title.is-particle .home-title__canvas {
+    opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .home-title__text,
+    .home-title__canvas {
+        transition: none;
+    }
+}
+
+/* 打印时回到真实文字：粒子方块印在纸上只会糊成一团。 */
+@media print {
+    .home-title__canvas {
+        display: none !important;
+    }
+
+    .home-title.is-particle .home-title__text {
+        opacity: 1 !important;
+    }
 }
 
 @media (max-width: 640px) {
     .home-title {
         margin-bottom: 2.25rem !important;
-        font-size: 2.25rem !important;
+        font-size: 4.5rem !important;
     }
 }

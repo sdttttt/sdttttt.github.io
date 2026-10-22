@@ -11,22 +11,23 @@
   - `layouts/_default/baseof.html` — baseof，调用 bg partial；`avatar_url` scratch 每页都解析（header 的 32px 头像要用，`head.html` 因此每页 preload 这 8.6KB）
   - `layouts/partials/bg.html` — **待机屏保**：全视口固定画布（不是整个滚动文档），10 秒无输入后把随机一张 `static/bg/*.avif` 按 contain 画到透明底上，按 2px 网格交给 WASM 粒子组装（人物画在透明底上，页面由 CSS 毛玻璃透出来）；`$cfg` 的 `idleMs` / `prewarmMs` / `blockPx` / `maxBlocks` / `maxPixels` / `maxParticles` / `assembleMs` / `sizeRatio` / `floatAmp` / `floatPeriod` / `scatterRadius` / `scatterPower` 是全部旋钮，详见下方「待机屏保」段。无 `<img>` 兜底：无 JS / wasm 失败时页面保持原样。
   - `layouts/partials/header.html` — header 覆写，强制默认亮色；2026-10-21 起左上角是**身份块**（32px 圆角头像 + `site.Params.name`，回退 `site.Title`，整组链接回首页），站点标题挪到首页 hero
-  - `layouts/_default/list.html` — 列表页；首页第一页的 hero 是大号站点标题 `<h1 class="home-title">`（3rem，样式在 custom.css），原来的「头像 + 名字 + bio」块已并入 header
+  - `layouts/_default/list.html` — 列表页；首页第一页的 hero 交给 `partials/home-title.html`，原来的「头像 + 名字 + bio」块已并入 header
+  - `layouts/partials/home-title.html` — **首页 hero 标题**：`<h1 class="home-title">` 里保留真实文字（SEO / 屏幕阅读器 / 无 JS 兜底）+ 一个 `aria-hidden` 的粒子 canvas，外加 `#pt-title-config` 与两个 `defer` 脚本；只在 list.html 的首页第一页分支调用。文字就绪后 `assets/js/home-title.js` 用系统宋体栈把字形画成蒙版，交给 WASM 按 1.5 CSS px 网格（dpr 2 下 step 3 / 边长 2）撒成粒子，再用 `jitter_on()` 给目标位叠加一次 1.0 CSS px 的确定性抖动（±2 设备 px）、`size_jitter_on()` 把统一 2px 方块变成 1–3px 的混合，点阵因此不再整齐；`settle()` 直接落位后交叉淡入（0.35s，布局零位移），再以 30Hz 跑 `ripple_on(..., mode 2)` 的向右行波（±0.8 / ±2.2 CSS px，4.2s 一个周期）并叠加 `wobble_on()` 的逐粒子独立微动（±0.6 / ±0.9 CSS px，3s 一循环）。字号 6rem / 4.5rem（2026-10-22 应用户要求从 3 / 2.25rem 放大一倍，桌面 96px、窄屏 72px）；若将来把标题改到 40px 以下且 dpr 2 会把网格算成 3 设备 px，JS 会自动退到 2px 无缝网格（step 2 / 边长 2）——3px 采样会把宋体细画碎成噪点（当前字号都保留缝隙）
   - `layouts/partials/footer.html` — footer，去掉上游的 powered by 链接；右端挂一枚 powered by dsh 徽标（SVG 自托管在 `static/images/powered-by-dsh.svg`，样式是 `custom.css` 的 `.dsh-badge`；`opacity-60` 只留给版权行，否则徽标连 #555 / #4D6BFE 一起发灰）
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
   - `layouts/_default/archives.html` — `/archives/` 归档页（`content/archives.md` 的 `layout: archives` 指向它）：按年 → 月分组，每月一段 inline 流；口径是 `where site.RegularPages "Type" "in" site.Params.mainSections`（= 209 篇，自动排除 changelog 与 `build.list: never` 的私密文章）
-  - `assets/custom.css` — 自定义 CSS（待机屏保 + 粒子页 + 归档页 + 页脚徽标样式）。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
+  - `assets/custom.css` — 自定义 CSS（待机屏保 + 首页 hero 粒子 + 粒子页 + 归档页 + 页脚徽标样式）。`.home-title` 的宋体栈与 `.home-title__text` / `.home-title__canvas` 的交叉淡入也在这里。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
-  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器）/ `page-bg.js`（待机屏保：10s 空闲、8s 预热、30Hz 组装、持续漂浮、指针散开场、wake 层）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
+  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器：只缓存编译好的 Module，每个消费方各自实例化，内存互不干扰）/ `home-title.js`（首页 hero：宋体字形 → 粒子、交叉淡入、30Hz 行波；缩放 / 深色切换重建，隐藏 / 离屏 / 屏保时暂停）/ `page-bg.js`（待机屏保：10s 空闲、8s 预热、30Hz 组装、持续漂浮、指针散开场、wake 层）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
   - `assets/app.css` + `assets/main.css` + `package.json` + `bun.lock` + `postcss.config.mjs` — **Tailwind v4 管线**（2026-10-07 恢复）：`app.css` 是源（`@import 'tailwindcss'` + `@plugin '@tailwindcss/typography'` + `@custom-variant dark` + `@theme` + `@utility dark-bg`），`main.css` 是提交进仓库的编译产物（Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。改样式 / 类名后跑 `deno task build-css`（= `bin/build-css.sh`：`bun install --frozen-lockfile` → `postcss assets/app.css -o assets/main.css` → 更新 `assets/main.css.sha256`），**别手改 `main.css`**。`bun.lock` 原样 vendor 自上游（连用不上的 prettier devDeps 也留着）：产物对 `postcss-preset-env` 的传递依赖（`@csstools/*`）版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份 `app.css` 编出不同字节（实测 `#0000` 变成 `rgba(0,0,0,0)`）
   - ⚠️ **Tailwind v4 的扫描根就是主题目录（编译时的 cwd）**，所以 `layouts/**` 之外的 `README.md`、`i18n/*.yaml`、**上一版 `main.css` 自己**都在扫描范围内：上一版产物里的类会被重新发射（死类化石自我延续 —— 上游删掉的 `exampleSite/` 就是这么留下社交图标的类），README 的散文也可能造出规则（`collapse` 就是这么进来的）。因此改 README 也会让指纹失配，重跑一次 `build-css` 即可（幂等）。但**别在散文里写真实类名**：实测把字面量 `dark-bg`（`app.css` 里 `@utility` 的名字）写进 `themes/self/README.md`，会让 `.dark-bg:where(.dark,.dark *)` 多背一层 `:not(#\#)` 特异性 bumpers（产物 57,943 → 58,801 字节）；把那个词换掉就逐字节复原
 
   （上述路径相对于 `themes/self/`，完整路径如 `themes/self/layouts/partials/bg.html`。）
 
-- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/self/assets/wasm/particles.wasm`（当前 32,062 字节）；单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，约 37 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
+- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/self/assets/wasm/particles.wasm`（当前 37,327 字节）；`ripple_on` 的 `mode`：0 = 横向剪切、1 = 径向涟漪、2 = 沿 x 的**向右行波**（首页标题：横 sin / 纵 cos 的椭圆轨道，相位取 `kx − phase`，别写成 `+phase`）；标题专用的一次性/叠加接口：`jitter_on(amp)` 目标位抖动（`hash01` 确定性、重复调用不叠加，build 后 settle 前调用）、`size_jitter_on(amp)` 随机边长（1–64，0 恢复统一大小）、`wobble_on(ax, ay)` 逐粒子独立微动（可与行波同时开，3s 循环）。三者屏保 / 粒子页都不调用。单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，48 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `bin/` — **CI 与本地共用的 shell 脚本层**（bash 3.2 兼容，macOS 自带 bash 也能跑）。`.github/workflows/*.yml` 只声明「触发条件 + 权限 + 第三方 action + 工具链安装」，实际跑什么全在 `bin/*.sh` 里 —— 所以本地能跑出和 CI 一样的结果，也不用读 YAML 才知道 CI 干了什么：
@@ -139,6 +140,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 
 - 复杂任务：先给出分步计划再动手。
 - 适合脚本的任务（多步并行、需要在脚本里过滤 / 聚合 / 截断、根据上一步结果决定下一步）：优先使用 `codemode`（JavaScript 沙箱内 `Promise.allSettled` 并行调用工具），而不是串行调用一个一个工具。
+- **禁止图片分析**：模型不得读取、查看或分析任何图片内容（截图、设计稿、照片、GIF 等），包括调用 `read_image`、视觉模型、OCR 或任何图像理解能力；**除非用户在当前请求里明确要求看图**。界面验收改用可复现的文本证据：`getBoundingClientRect()` / computed style / 布局数值、CDP `Runtime.evaluate`、`--dump-dom`、单元测试、构建日志与哈希。截图可以生成交给用户看，但模型不得打开截图并据此下判断。
 - 完成后：输出一段工作摘要（做了什么、遇到的问题、遗留事项）。
 - 临时文件：任务结束时清理。
 

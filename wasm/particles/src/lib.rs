@@ -96,6 +96,8 @@ struct Engine {
     fb_w: u32,
     fb_h: u32,
     size: i32,
+    // 逐粒子边长（只有 size_jitter_on 会填；空 = 全部用 size）
+    psize: Vec<u8>,
     // 源图备份：resize 时按新画布重新布局
     src: Vec<u8>,
     src_w: u32,
@@ -108,6 +110,8 @@ struct Engine {
     fit_w: f32,
     fit_h: f32,
     step: u32,
+    // 目标位抖动是否已经应用过（jitter_on 一次性，见该函数）。build() 重置。
+    jittered: bool,
     // ---- 常驻漂浮（逐粒子独立相位，开关是 float_on）----
     //
     // 关键设计：漂浮偏移量与目标位置**分开存储**。弹簧只把 px/py 收到 tx/ty，
@@ -139,6 +143,11 @@ struct Engine {
     w_w: f32,
     w_mode: u32,
     w_phase: f32,
+    // 逐粒子独立相位的微动（wobble_on）：x/y 两套哈希相位叠加在行波之上，
+    // 让每颗点自己轻轻抖，而不是整幅只有一道相干浪。
+    wob_amp_x: f32,
+    wob_amp_y: f32,
+    wob_phase: f32,
     // ---- 首次入场的「自上而下一层层显现」（开关是 wipe_on）----
     //
     // 为什么必须有这道**显式闸门**：弹簧 `v = (v + (t-p)·0.08)·0.86` 的收敛
@@ -354,6 +363,7 @@ fn make(
         fb_w: cw,
         fb_h: ch,
         size,
+        psize: Vec::new(),
         src: src.to_vec(),
         src_w: sw,
         src_h: sh,
@@ -363,6 +373,7 @@ fn make(
         fit_w,
         fit_h,
         step,
+        jittered: false,
         // 漂浮默认关闭：build() 之后由 float_on() 打开。
         // 顺带一个好处：飞入 / 落地这些**相干**动作期间漂浮是关着的，
         // 引擎不用在 tick() 里同时维护两套物理。
@@ -381,6 +392,9 @@ fn make(
         w_w: 0.0,
         w_mode: 0,
         w_phase: 0.0,
+        wob_amp_x: 0.0,
+        wob_amp_y: 0.0,
+        wob_phase: 0.0,
         // 显现闸门同样默认关闭：build() 之后由 wipe_on() 打开，而且只有
         // 「首次揭示」那一次会开。build() 依旧把粒子撒在画布外（随机散布
         // 飞入），wipe_on() 负责把它们重新摆到目标位上 —— 两条入场路径
@@ -514,10 +528,12 @@ impl Engine {
         self.fb.fill(0);
         let w = self.fb_w as i32;
         let h = self.fb_h as i32;
-        let s = self.size;
-        let half = s / 2;
         // 没有位移时走原路径，省掉每帧 n 次加法
-        let floating = (self.f_amp > 0.0 || self.w_amp_x != 0.0 || self.w_amp_y != 0.0)
+        let floating = (self.f_amp > 0.0
+            || self.w_amp_x != 0.0
+            || self.w_amp_y != 0.0
+            || self.wob_amp_x != 0.0
+            || self.wob_amp_y != 0.0)
             && self.fx.len() == self.n;
         // 显现闸门：还没轮到的粒子**根本不画**。这是「逐行渲染」与「整幅已经
         // 在那儿、只是被挪了位置」的分水岭 —— 画布一开始是全空的。
@@ -539,6 +555,17 @@ impl Engine {
             } else {
                 (0.0, 0.0)
             };
+            // 逐粒子边长（size_jitter_on 填的）；空数组 = 所有粒子一样大，
+            // 屏保 / 粒子页走的就是这条原路径。
+            let s = if self.psize.is_empty() {
+                self.size
+            } else {
+                self.psize[i] as i32
+            };
+            if s <= 0 {
+                continue;
+            }
+            let half = s / 2;
             let x0 = (self.px[i] + ox).round() as i32 - half;
             let y0 = (self.py[i] + oy).round() as i32 - half;
             let c = self.col[i].to_le_bytes();
@@ -805,6 +832,30 @@ pub extern "C" fn tick() -> i32 {
                     fy[i] = ay * s;
                 }
             }
+            // 行波（首页标题用）：相位只由粒子的**目标位 x** 决定，横向取
+            // sin、纵向取 cos（差 π/2）—— 每颗粒子沿一个很扁的椭圆轨道转圈，
+            // 整体就是一道从左向右滚过去的浪。第二个不可通约的波（0.61k）
+            // 让浪峰疏密不齐，不会周期性「复位」。
+            //
+            // 相位取 `kx − phase`（**减**）：phase 随时间增大，波峰满足
+            // kx − phase = const ⇒ x 随时间增大，浪才是向右推的。写成
+            // `kx + phase` 会得到一道向左跑的浪（单测
+            // `ripple_wave_mode_travels_to_the_right` 守着方向）。
+            //
+            // 为什么这里敢给相干位移：标题是**稀疏的点阵**（桌面 3px 网格上
+            // 留缝的 2px 方块，窄屏更细），相邻方块本来就各走各的，位移梯度
+            // 不会撕出白线；用 tx 而不是 px，粒子被弹簧拉动时相位也不会跟着漂。
+            2 => {
+                let (tx, fx, fy) = (&e.tx, &mut e.fx, &mut e.fy);
+                for i in 0..e.n {
+                    let t = tx[i] * k - phase;
+                    let s = fast_sin(t) + 0.45 * fast_sin(t * 0.61 + 1.3);
+                    let c =
+                        fast_sin(t + TAU * 0.25) + 0.45 * fast_sin(t * 0.61 + 1.3 + TAU * 0.25);
+                    fx[i] = ax * s;
+                    fy[i] = ay * c;
+                }
+            }
             // 径向涟漪（石头落水）：沿半径方向向外推，越靠外越弱。
             // 这里靠的是**低梯度**：波长（几十个设备 px）远大于采样间距
             // （3.2px），相邻粒子的相对位移 ≈ amp·k·spacing，实测振幅
@@ -831,8 +882,34 @@ pub extern "C" fn tick() -> i32 {
         }
     }
 
+    // 逐粒子微动：在相干行波之上再叠一层**独立相位**的轻抖。频率只用
+    // wob_phase 的 1× / 2×（整数倍在相位绕回 TAU 时仍连续，不会每圈瞬移），
+    // 相位由 hash01(i) 打散 —— 于是每颗点各抖各的，整幅不再只有一道浪。
+    let wobbling = (e.wob_amp_x != 0.0 || e.wob_amp_y != 0.0) && e.fx.len() == e.n;
+    if wobbling {
+        e.wob_phase += TAU / 90.0; // 30Hz 下 3s 一个循环，比 4.2s 的浪快一点
+        if e.wob_phase > TAU {
+            e.wob_phase -= TAU;
+        }
+        let (ax, ay, phase) = (e.wob_amp_x, e.wob_amp_y, e.wob_phase);
+        let (fx, fy) = (&mut e.fx, &mut e.fy);
+        if !rippling && e.f_amp == 0.0 {
+            // 只有微动、没有别的位移层时，先把上一帧的残留清掉
+            fx.fill(0.0);
+            fy.fill(0.0);
+        }
+        for i in 0..e.n {
+            let x1 = phase + hash01(i) * TAU;
+            let x2 = phase * 2.0 + hash01(i + 7_919) * TAU;
+            let y1 = phase + hash01(i + 104_729) * TAU;
+            let y2 = phase * 2.0 + hash01(i + 15_485_863) * TAU;
+            fx[i] += ax * (0.6 * fast_sin(x1) + 0.4 * fast_sin(x2));
+            fy[i] += ay * (0.6 * fast_sin(y1) + 0.4 * fast_sin(y2));
+        }
+    }
+
     e.rasterize();
-    if rising || assembling || max_v > 0.05 || floating || rippling {
+    if rising || assembling || max_v > 0.05 || floating || rippling || wobbling {
         1
     } else {
         0
@@ -860,6 +937,110 @@ pub extern "C" fn settle() {
     e.asm_elapsed = 0.0;
     e.asm_frames = 0.0;
     e.rasterize();
+}
+
+/// 给每颗粒子的**目标位**叠加确定性的随机偏移，让点阵不再严格对齐网格。
+///
+/// 为什么在引擎里做而不是 JS：目标位 tx/ty 是私有的，JS 拿不到；而且抖动必须
+/// 发生在 `settle()` / 行波之前（行波相位就取 tx）。用 `hash01(i)` 而不是
+/// `rnd()`：同一索引每次重建都得到同一条偏移，resize / 深色切换不会「洗牌」。
+///
+/// `amp` 是设备像素的**单轴最大偏移**（调用方自己乘 dpr）。偏移会夹在画布内，
+/// 边缘粒子不会被推出可视区。只应在 `build()` 之后、`settle()` 之前调用一次；
+/// 重复调用直接返回 1、不再叠加（`jittered` 由 build 重置）。
+///
+/// 这个开关是首页标题专用的：待机屏保和 `/particles/` 不调用，点阵保持原样。
+#[no_mangle]
+pub extern "C" fn jitter_on(amp: f32) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !amp.is_finite() || amp <= 0.0 {
+        return 0;
+    }
+    if e.jittered {
+        return 1;
+    }
+    let amp = amp.min(8.0);
+    let max_x = (e.fb_w as f32 - 1.0).max(0.0);
+    let max_y = (e.fb_h as f32 - 1.0).max(0.0);
+    for i in 0..e.n {
+        // 两条独立序列：奇数倍散列容易出短周期，所以 y 换个质数偏移。
+        let jx = (hash01(i) * 2.0 - 1.0) * amp;
+        let jy = (hash01(i + 104_729) * 2.0 - 1.0) * amp;
+        e.tx[i] = (e.tx[i] + jx).clamp(0.0, max_x);
+        e.ty[i] = (e.ty[i] + jy).clamp(0.0, max_y);
+    }
+    e.jittered = true;
+    1
+}
+
+/// 随机化每颗粒子的边长（首页标题专用）：`amp` 是设备像素的**半幅**，
+/// 基准边长 ±amp 取整后夹到 [1, 64]。空数组 = 所有粒子一样大（屏保 / 粒子页）。
+///
+/// 和 `jitter_on` 一样只应在 build 之后、settle 之前调用；重复调用按同一套
+/// `hash01` 重算，不会越叠越乱。`amp = 0` 清掉逐粒子边长、回到统一大小。
+#[no_mangle]
+pub extern "C" fn size_jitter_on(amp: f32) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !amp.is_finite() || amp < 0.0 {
+        return 0;
+    }
+    if amp == 0.0 {
+        e.psize.clear();
+        return 1;
+    }
+    let n = e.n;
+    let base = e.size as f32;
+    let amp = amp.min(8.0);
+    let sizes: Vec<u8> = (0..n)
+        .map(|i| {
+            let delta = (hash01(i + 31_337) * 2.0 - 1.0) * amp;
+            (base + delta).round().clamp(1.0, 64.0) as u8
+        })
+        .collect();
+    e.psize = sizes;
+    1
+}
+
+/// 打开**逐粒子微动**（首页标题专用）：在行波之上给每颗粒子加一层独立相位的
+/// 轻抖，x/y 各两条不可通约的整数倍频（1× / 2×，绕回 TAU 时保持连续）。
+///
+/// `amp_x`/`amp_y` 是设备像素的单轴最大位移（0 = 该轴不动）。它和 `ripple_on`
+/// **可以同时开**：tick 先算相干浪、再把这层加进去，所以点的整体起伏仍是
+/// 从左向右的浪，但每颗点会各自轻轻呼吸。只开微动、不开浪时 tick 也会报「在动」。
+///
+/// 与 `float_on` 不同：不积分、不占额外数组，相位直接由 `wob_phase` 与
+/// `hash01(i)` 算出，30Hz 下 3s 一循环。屏保 / 粒子页不调用。
+#[no_mangle]
+pub extern "C" fn wobble_on(amp_x: f32, amp_y: f32) -> i32 {
+    let e = match eng() {
+        Some(e) => e,
+        None => return 0,
+    };
+    if !amp_x.is_finite() || !amp_y.is_finite() {
+        return 0;
+    }
+    let ax = amp_x.clamp(0.0, 16.0);
+    let ay = amp_y.clamp(0.0, 16.0);
+    if ax == 0.0 && ay == 0.0 {
+        e.wob_amp_x = 0.0;
+        e.wob_amp_y = 0.0;
+        return 1;
+    }
+    if e.fx.len() != e.n {
+        // 没有水波 / 漂浮时也要有地方放这一层位移
+        e.fx = vec![0.0; e.n];
+        e.fy = vec![0.0; e.n];
+    }
+    e.wob_amp_x = ax;
+    e.wob_amp_y = ay;
+    e.wob_phase = 0.0;
+    1
 }
 
 // ============================================================== 交互力（徽标动效）
@@ -1061,17 +1242,21 @@ pub extern "C" fn float_on(amp: f32, period: f32) -> i32 {
 /// 相位）整体荡漾，像水面一样。
 ///
 /// `amp_x`/`amp_y` 是设备像素振幅（上界），`wavelength` 是**设备像素**波长，
-/// `period` 是周期（**帧**），`mode`：0 = 横向剪切、1 = 径向涟漪。
+/// `period` 是周期（**帧**），`mode`：0 = 横向剪切、1 = 径向涟漪、
+/// 2 = 沿 x 的行波（首页标题：横 sin / 纵 cos 的椭圆轨道）。
 ///
 /// 相干位移在「已经拼满」的格子上本来是雷区：相邻粒子的相对位移一旦超过
 /// 方块之间的出血量，缝隙就会被撕开、屏幕上冒出一层白纹 —— 这正是当年把
 /// 行波和缩放统统否掉的原因（那时的出血量只有 0.2 设备 px，可用区间近乎为 0）。
-/// 现在有两种安全用法：
+/// 现在有三种安全用法：
 ///   · mode 0 把位移**限制成只随 y 变化的水平平移**：同一行整体平移，行距
 ///     分毫不变，相对位移恒等于 0，结构上不可能裂缝，振幅想给多大都行。
 ///   · mode 1 靠**低梯度**：波长远大于采样间距，相邻粒子的相对位移
 ///     ≈ amp·k·spacing；λ = 120 设备 px、spacing = 3.2 时只有 0.05·amp，
 ///     振幅 10 设备 px 也才 0.5px，仍小于出血量 1.8px。
+///   · mode 2 用于**稀疏点阵**（文字粒子）：粒子本就是独立方块、不是拼满的
+///     格子，没有「拼满的格子」可撕，相位只随 x 变化，整体是一道**向右**
+///     滚动的浪。
 ///
 /// 返回 1 表示已开启；0 表示没有引擎 / 参数非法。
 #[no_mangle]

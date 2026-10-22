@@ -1,0 +1,95 @@
+{{/*
+  Home hero title — the site title rendered as a WASM particle field.
+
+  Called from list.html only for the home page's **first** paginator page, so
+  the two script tags below never ship on any other page.
+
+  DOM contract (assets/js/home-title.js):
+    .home-title           the h1 box: real text + absolutely positioned canvas
+    .home-title__text     the real text — SEO, screen readers, no-JS fallback
+    .home-title__canvas   particle output; aria-hidden, pointer-events: none
+
+  The JSON config is the whole tuning surface. `custom.css` owns the Song font
+  stack and the cross-fade, and JS reads the computed font / colour from the
+  text span, so the look has a single source of truth (CSS) and the title text
+  has a single source of truth (this h1).
+
+  `defer` guarantees pt-wasm.js runs before home-title.js. bg.html loads the
+  same loader again further down the page for the screensaver: the loader is
+  idempotent, and the compiled module is shared through window.ptWasm's cache,
+  so the wasm is fetched / compiled once per page.
+
+  Config knobs:
+    · pitchCss      particle grid pitch in CSS px. 1.5 → at dpr 2: step 3,
+                   blocks floor(3 × sizeRatio) = 2 → 44% ink, the "particle
+                   dots" look (chosen 2026-10-22 over a seamless 100% variant,
+                   which read as a pixel font at rest). Exception: if the title
+                   is ever under 40 CSS px (the current 6rem / 4.5rem are 96 /
+                   72px, so this does not apply) and dpr 2 makes that a
+                   3-device-px grid, the JS falls back to a 2px seamless grid —
+                   Songti strokes that thin do not survive 3px sampling, and
+                   1px dots on a 2px grid are too faint. Denser screens keep gaps.
+    · sizeRatio     block size / pitch; 0.8 with size_mode 0 leaves a 1px gap.
+    · maxParticles  engine safety valve (the title only needs a few thousand).
+    · dprCap       backing-store cap; 2 keeps the mask sharp on retina without
+                   quadrupling the framebuffer.
+    · ink          extra stroke half-width in CSS px. Songti's horizontal
+                   strokes are thin, and the engine samples every PITCH-th
+                   device pixel (alpha > 128), so a hair of stroke keeps them
+                   from falling between samples.
+    · waveAmpX/Y   wave radii in CSS px (x sin, y cos → a flat elliptical
+                   orbit); the plan's "subtle swell" is 0.8 / 2.2.
+    · wavelength   drive wavelength in CSS px; 140 is under two title widths so
+                   the wave visibly travels across the two glyphs.
+    · wavePeriod   wall-clock period in ms (converted to 30Hz frames in JS).
+    · jitter       one-shot target jitter in CSS px, applied once after build()
+                   (device px = max(1, jitter × dpr)). Breaks the rigid sampling
+                   grid into an organic point cloud; 0 keeps the exact grid.
+                   1.0 ≈ ±2 device px at dpr 2 — visibly scatters the grid.
+    · sizeJitter   per-particle block-size half-range in CSS px, also applied
+                   once after build(). 0.45 turns the uniform 2px squares into
+                   a 1–3px mix; 0 keeps every block the same size.
+    · wobbleAmpX/Y independent per-particle micro-motion in CSS px, added on
+                   top of the coherent wave (3s cycle, random phase per dot).
+                   The wave still rolls right; each dot also breathes on its
+                   own. 0 on both axes disables it.
+*/}}
+{{- $wasm := resources.Get "wasm/particles.wasm" | fingerprint -}}
+{{- $loader := resources.Get "js/pt-wasm.js" | minify | fingerprint -}}
+{{- $script := resources.Get "js/home-title.js" | minify | fingerprint -}}
+{{- $cfg := dict
+      "wasm" $wasm.RelPermalink
+      "pitchCss" 1.5
+      "sizeRatio" 0.8
+      "maxParticles" 60000
+      "dprCap" 2
+      "ink" 0.6
+      "waveAmpX" 0.8
+      "waveAmpY" 2.2
+      "wavelength" 140
+      "jitter" 1.0
+      "sizeJitter" 0.45
+      "wobbleAmpX" 0.6
+      "wobbleAmpY" 0.9
+      "wavePeriod" 4200 -}}
+
+<h1 class="home-title">
+  <span class="home-title__text">{{- site.Title -}}</span>
+  <canvas class="home-title__canvas" aria-hidden="true"></canvas>
+</h1>
+
+<script id="pt-title-config" type="application/json">
+  {{- $cfg | jsonify | safeJS -}}
+</script>
+<script
+  defer
+  src="{{ $loader.RelPermalink }}"
+  integrity="{{ $loader.Data.Integrity }}"
+  crossorigin="anonymous"
+></script>
+<script
+  defer
+  src="{{ $script.RelPermalink }}"
+  integrity="{{ $script.Data.Integrity }}"
+  crossorigin="anonymous"
+></script>

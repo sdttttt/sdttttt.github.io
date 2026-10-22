@@ -476,6 +476,142 @@ fn settle_puts_everything_on_target_and_renders() {
 }
 
 #[test]
+fn jitter_offsets_targets_deterministically_within_bounds() {
+    let _g = setup();
+    build_demo(2);
+    let base = {
+        let e = engine();
+        (e.tx.clone(), e.ty.clone(), e.n)
+    };
+    // 非法 / 零振幅不算开启，也不改状态
+    assert_eq!(jitter_on(0.0), 0);
+    assert_eq!(jitter_on(f32::NAN), 0);
+    assert!(!engine().jittered);
+    assert_eq!((engine().tx.clone(), engine().ty.clone()), (base.0.clone(), base.1.clone()));
+
+    let amp = 1.5;
+    assert_eq!(jitter_on(amp), 1);
+    let after = {
+        let e = engine();
+        assert!(e.jittered);
+        assert_eq!(e.n, base.2, "抖动不能增删粒子");
+        let mut moved = 0;
+        for i in 0..e.n {
+            let dx = (e.tx[i] - base.0[i]).abs();
+            let dy = (e.ty[i] - base.1[i]).abs();
+            assert!(dx <= amp + 1e-4, "x 偏移超界：{dx}");
+            assert!(dy <= amp + 1e-4, "y 偏移超界：{dy}");
+            assert!(
+                (0.0..=e.fb_w as f32 - 1.0).contains(&e.tx[i]),
+                "目标 x 被推出画布：{}",
+                e.tx[i]
+            );
+            assert!(
+                (0.0..=e.fb_h as f32 - 1.0).contains(&e.ty[i]),
+                "目标 y 被推出画布：{}",
+                e.ty[i]
+            );
+            if dx > 0.0 || dy > 0.0 {
+                moved += 1;
+            }
+        }
+        assert!(moved >= e.n * 9 / 10, "绝大多数粒子都该动起来，实际 {moved}");
+        (e.tx.clone(), e.ty.clone())
+    };
+
+    // 幂等：第二次调用不叠加
+    assert_eq!(jitter_on(amp), 1);
+    assert_eq!((engine().tx.clone(), engine().ty.clone()), after);
+
+    // 抖动后的目标位仍可以被 settle() 精确落位
+    settle();
+    assert_eq!(max_offset(), 0.0);
+
+    // 同样的 build 输入 → 同样的抖动（重建不会洗牌）
+    build_demo(2);
+    assert_eq!(jitter_on(amp), 1);
+    assert_eq!((engine().tx.clone(), engine().ty.clone()), after);
+}
+
+#[test]
+fn wobble_adds_independent_motion_on_top_of_a_settled_frame() {
+    let _g = setup();
+    build_demo(2);
+    settle();
+    assert_eq!(wobble_on(2.0, 3.0), 1);
+    assert_eq!(tick(), 1, "只有微动时 tick 也要报“在动”");
+    let first = {
+        let e = engine();
+        assert!(e.fx.iter().any(|v| *v != 0.0), "微动应当产生位移");
+        assert!(
+            e.fx.windows(2).any(|w| (w[0] - w[1]).abs() > 1e-6),
+            "不同粒子应当有不同相位，而不是整幅平移"
+        );
+        assert!(e.fx.iter().all(|v| v.abs() <= 2.0 + 1e-4));
+        assert!(e.fy.iter().all(|v| v.abs() <= 3.0 + 1e-4));
+        (e.fx.clone(), e.fy.clone())
+    };
+    assert_eq!(tick(), 1);
+    assert_ne!(
+        (first.0, first.1),
+        (engine().fx.clone(), engine().fy.clone()),
+        "下一帧应当继续变"
+    );
+    // 关掉微动：静止帧回到 0
+    assert_eq!(wobble_on(0.0, 0.0), 1);
+    assert_eq!(tick(), 0);
+}
+
+#[test]
+fn wobble_stacks_on_the_wave_and_stays_bounded() {
+    let _g = setup();
+    build_demo(2);
+    settle();
+    assert_eq!(ripple_on(2.0, 3.0, 80.0, 240.0, 2), 1);
+    assert_eq!(tick(), 1);
+    let wave = engine().fx.clone();
+    // 相位回零，再叠上微动：与纯浪的差异就是微动
+    assert_eq!(ripple_on(2.0, 3.0, 80.0, 240.0, 2), 1);
+    assert_eq!(wobble_on(1.0, 1.0), 1);
+    assert_eq!(tick(), 1);
+    let e = engine();
+    assert!(
+        e.fx.iter().zip(wave.iter()).any(|(a, b)| (a - b).abs() > 1e-4),
+        "微动应当叠加在行波之上，而不是被覆盖"
+    );
+    assert!(e.fx.iter().all(|v| v.abs() <= 2.0 * 1.45 + 1.0 + 1e-3));
+    assert!(e.fy.iter().all(|v| v.abs() <= 3.0 * 1.45 + 1.0 + 1e-3));
+}
+
+#[test]
+fn size_jitter_varies_particle_sizes_within_the_requested_span() {
+    let _g = setup();
+    build_demo(2);
+    assert_eq!(size_jitter_on(f32::NAN), 0);
+    assert_eq!(size_jitter_on(1.0), 1);
+    let sizes = {
+        let e = engine();
+        assert_eq!(e.psize.len(), e.n);
+        // build_demo(2) 是 size_mode 2（无缝）：基准边长 = ceil(4) + round(1) = 5
+        assert!(e.psize.iter().any(|s| *s < 5), "应当有大一点的粒子");
+        assert!(e.psize.iter().any(|s| *s > 5), "也应当有小一点的粒子");
+        assert!(e.psize.iter().all(|s| (4..=6).contains(s)));
+        e.psize.clone()
+    };
+    // 逐粒子边长也能正常光栅化；没开位移时静止帧仍报 0
+    settle();
+    assert!(engine().fb.iter().any(|b| *b != 0));
+    assert_eq!(tick(), 0);
+    // 0 清掉逐粒子边长，回到统一大小
+    assert_eq!(size_jitter_on(0.0), 1);
+    assert!(engine().psize.is_empty());
+    // 重建后同一套哈希给出同样的大小分布
+    build_demo(2);
+    assert_eq!(size_jitter_on(1.0), 1);
+    assert_eq!(engine().psize, sizes);
+}
+
+#[test]
 fn spring_converges_and_tick_reports_the_still_frame() {
     let _g = setup();
     build_demo(2);
@@ -882,6 +1018,131 @@ fn ripple_radial_mode_pushes_outwards_and_survives_a_zero_radius() {
         assert!(e.fx[i].abs() <= 6.0 * 1.45 + 1e-3);
         assert!(e.fy[i].abs() <= 6.0 * 1.45 + 1e-3);
     }
+}
+
+#[test]
+fn ripple_wave_mode_is_coherent_along_x() {
+    let _g = setup();
+    build_demo(2);
+    settle();
+    assert_eq!(ripple_on(3.0, 4.0, 80.0, 240.0, 2), 1);
+    assert_eq!(engine().w_mode, 2);
+    assert_eq!(tick(), 1, "行波让 tick() 恒报“还在动”");
+    let e = engine();
+    let mut pairs = 0;
+    for i in 0..e.n {
+        for j in (i + 1)..e.n {
+            if e.tx[i] == e.tx[j] {
+                // 相位只由目标位 x 决定 ⇒ 同一列（不同 y）的位移必须逐位一致。
+                // 这条把 mode 2（随 x）与 mode 0（随 y 的剪切）从行为上分开。
+                assert_eq!(e.fx[i], e.fx[j], "同列粒子 {i} / {j} 的横向位移必须一致");
+                assert_eq!(e.fy[i], e.fy[j], "同列粒子 {i} / {j} 的纵向位移必须一致");
+                pairs += 1;
+            }
+        }
+    }
+    assert!(pairs > 0, "至少要有一对同列粒子");
+    assert!(e.fx.iter().any(|v| *v != 0.0), "横向应当真的动了");
+    assert!(e.fy.iter().any(|v| *v != 0.0), "纵向应当真的动了");
+}
+
+#[test]
+fn ripple_wave_mode_is_bounded_and_advances_the_phase() {
+    let _g = setup();
+    build_demo(2);
+    settle();
+    assert_eq!(ripple_on(3.0, 4.0, 140.0, 240.0, 2), 1);
+    assert_eq!(tick(), 1);
+    let first = {
+        let e = engine();
+        for i in 0..e.n {
+            assert!(
+                e.fx[i].is_finite() && e.fy[i].is_finite(),
+                "粒子 {i} 出 NaN 了"
+            );
+            // 两个不可通约的正弦项叠加，上界按 1.45 预算，留一点近似误差
+            assert!(e.fx[i].abs() <= 3.0 * 1.5, "|fx| 超界：{}", e.fx[i]);
+            assert!(e.fy[i].abs() <= 4.0 * 1.5, "|fy| 超界：{}", e.fy[i]);
+        }
+        (e.fx.clone(), e.fy.clone())
+    };
+    assert_eq!(tick(), 1);
+    let e = engine();
+    assert!(
+        (0.0..TAU).contains(&e.w_phase),
+        "相位应当留在 [0, TAU)：{}",
+        e.w_phase
+    );
+    assert!(
+        (first.0, first.1) != (e.fx.clone(), e.fy.clone()),
+        "相位前进后位移必须变化"
+    );
+}
+
+#[test]
+fn ripple_wave_mode_travels_to_the_right() {
+    let _g = setup();
+    build_demo(2);
+    settle();
+    assert_eq!(ripple_on(3.0, 5.0, 140.0, 240.0, 2), 1);
+
+    // 同一 x 的粒子位移相同（上一条用例守的），所以每列取一个代表就够。
+    fn column_offsets() -> Vec<(f32, f32)> {
+        let e = engine();
+        let mut v: Vec<(f32, f32)> = e.tx.iter().copied().zip(e.fy.iter().copied()).collect();
+        v.sort_by(|a, b| a.0.partial_cmp(&b.0).unwrap());
+        v.dedup_by(|a, b| a.0 == b.0);
+        v
+    }
+
+    // 波向右跑的定义：t 时刻位于 x+dx 的粒子，等于相位回退 k·dx 后位于 x 的粒子。
+    // 代码是 sin(kx − phase)，phase 随时间增大 ⇒ 成立；写成 sin(kx + phase)
+    // （向左跑）时这里会失败。
+    let k = TAU / 140.0;
+    let dx = 4.0; // build_demo 的采样列间距
+    let at_p0 = {
+        engine().w_phase = 0.4;
+        assert_eq!(tick(), 1);
+        column_offsets()
+    };
+    let at_earlier = {
+        engine().w_phase = 0.4 - k * dx;
+        assert_eq!(tick(), 1);
+        column_offsets()
+    };
+
+    let mut checked = 0;
+    for &(x, shifted) in &at_earlier {
+        if let Some(&(_, later)) = at_p0
+            .iter()
+            .find(|(xx, _)| (xx - (x + dx)).abs() < 0.01)
+        {
+            assert!(
+                (later - shifted).abs() < 1e-4,
+                "x = {x}：向右的波要求 fy(x+dx, p) == fy(x, p−k·dx)，\
+                 实得 {later} vs {shifted}（写成 +phase 会向左跑）"
+            );
+            checked += 1;
+        }
+    }
+    assert!(checked >= 3, "至少要比对三对相邻列，实际 {checked}");
+    assert!(
+        at_p0.iter().any(|(_, v)| v.abs() > 0.1),
+        "振幅非零时位移应当真的非零"
+    );
+}
+
+#[test]
+fn ripple_wave_mode_with_zero_amplitude_stays_still() {
+    let _g = setup();
+    build_demo(2);
+    settle();
+    // 振幅 0 依然算“开启成功”（参数合法），但没有位移 ⇒ 静止时 tick() 报 0
+    assert_eq!(ripple_on(0.0, 0.0, 140.0, 240.0, 2), 1);
+    assert_eq!(tick(), 0);
+    let e = engine();
+    assert!(e.fx.iter().all(|v| *v == 0.0));
+    assert!(e.fy.iter().all(|v| *v == 0.0));
 }
 
 #[test]
