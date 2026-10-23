@@ -694,9 +694,6 @@ button:not(#\#):not(#\#), input:where([type="button"], [type="reset"], [type="su
 .mr-3:not(#\#):not(#\#):not(#\#):not(#\#) {
   margin-right: calc(var(--spacing) * 3);
 }
-.mr-auto:not(#\#):not(#\#):not(#\#):not(#\#) {
-  margin-right: auto;
-}
 .mb-1:not(#\#):not(#\#):not(#\#):not(#\#) {
   margin-bottom: calc(var(--spacing) * 1);
 }

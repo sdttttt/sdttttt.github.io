@@ -8,36 +8,19 @@
   Local diffs vs the original upstream file:
     1. the two trailing right-side <a> tags ("powered by hugo" and "hugo-paper"
        links) were removed;
-    2. a "powered by dsh" badge sits at the right end of the row. The SVG is
-       vendored in static/images/ (the official 121×20 shields.io render) so a
-       page view does not depend on a third-party host staying up;
-    3. `opacity-60` moved from <footer> onto the copyright <div>: a child
-       cannot undo a parent's opacity, and at 60% the badge's #555 / #4D6BFE
-       chip just reads as muddy grey.
+    2. a "powered by dsh" badge sat at the right end of the row until
+       2026-10-23; it was dropped because Anthropic ships no equivalent
+       "powered by Claude" mark (claude.com/partners/powered-by-claude is a
+       partner directory, not a badge resource).
 */}}
 
 <footer
   class="mx-auto flex h-[4.5rem] max-w-(--w) items-center px-8 text-xs tracking-wider uppercase"
 >
-  <div class="mr-auto opacity-60">
+  <div class="opacity-60">
     {{- if site.Copyright -}} {{- site.Copyright -}} {{- else -}} &copy; {{-
     now.Year }}
     <a class="link" href="{{- `` | absURL -}}">{{- site.Title -}}</a>
     {{- end -}}
   </div>
-  <a
-    class="dsh-badge"
-    href="https://github.com/deepseek-ai/deepseek-harness"
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    <img
-      src="{{- "images/powered-by-dsh.svg" | relURL -}}"
-      alt="powered by dsh"
-      width="121"
-      height="20"
-      loading="lazy"
-      decoding="async"
-    />
-  </a>
 </footer>
