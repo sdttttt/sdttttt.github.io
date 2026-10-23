@@ -28,6 +28,7 @@
 //! 不是理想收敛；真要位置对齐得显式 `settle()`。
 
 use super::*;
+use std::collections::BTreeMap;
 use std::sync::{Mutex, MutexGuard};
 
 /// 全局串行锁（见模块头注释）
@@ -615,26 +616,33 @@ fn size_jitter_varies_particle_sizes_within_the_requested_span() {
 // ---------------------------------------------------------- 播种（首页标题）
 
 #[test]
-fn seed_zero_falls_back_to_the_unseeded_hash() {
+fn coordinate_hash_is_stable_per_cell_and_separated_by_salt() {
     let _g = setup();
-    for i in [0usize, 1, 7, 999, 104_729, 15_485_863] {
-        assert_eq!(
-            hash01s(0, i),
-            hash01(i),
-            "种子 0 是「不播种」，应当退回无种子的序列"
-        );
-    }
-}
-
-#[test]
-fn different_seeds_give_different_sequences_and_the_same_seed_is_stable() {
-    let _g = setup();
-    let a: Vec<f32> = (0..64).map(|i| hash01s(1, i)).collect();
-    let b: Vec<f32> = (0..64).map(|i| hash01s(2, i)).collect();
-    assert_ne!(a, b, "换种子必须换一套随机数");
-    let a2: Vec<f32> = (0..64).map(|i| hash01s(1, i)).collect();
-    assert_eq!(a, a2, "同一种子必须自洽");
+    let key = key_of(12, 40);
+    let a: Vec<f32> = (0..64)
+        .map(|i| hash01k(7, key_of(i * 3, i * 5), SALT_JITTER_X))
+        .collect();
     assert!(a.iter().all(|v| (0.0..1.0).contains(v)), "取值仍在 [0, 1)");
+    assert_eq!(
+        hash01k(7, key, SALT_JITTER_X),
+        hash01k(7, key, SALT_JITTER_X),
+        "同一个格子 + 同一把种子必须自洽"
+    );
+    assert_ne!(
+        hash01k(7, key, SALT_JITTER_X),
+        hash01k(7, key, SALT_JITTER_Y),
+        "同一格子的不同通道（盐）必须解耦"
+    );
+    assert_ne!(
+        hash01k(7, key, SALT_JITTER_X),
+        hash01k(8, key, SALT_JITTER_X),
+        "换种子必须换一套随机数"
+    );
+    assert_ne!(
+        key_of(12, 40),
+        key_of(40, 12),
+        "打包后 x / y 不能串位"
+    );
 }
 
 #[test]
@@ -670,6 +678,116 @@ fn the_same_seed_reproduces_the_same_layout_across_rebuilds() {
         engine().tx.clone(),
         "同一种子重建后落点应当一致"
     );
+}
+
+// ------------------------------------------------- 坐标寻址（深色切换不洗牌）
+//
+// 背景：抖动 / 随机边长 / 微动相位原本按**粒子索引**取哈希。深色切换会重画
+// 字形蒙版（白色文字的 gamma 校正抗锯齿让几个格子的 alpha 翻到阈值另一侧），
+// 于是索引整体平移，同一把种子给出的偏移落到了别的格子上 —— 点阵轻微重洗。
+// 这三条测试把「格子坐标才是身份」钉死：同样的采样格，即便索引不同，也必须
+// 拿到同一套随机数。
+
+/// 40×40、每 8 行 8 列各一个采样格（step 4 下正好命中）：25 颗。
+fn opaque_grid8(x: u32, y: u32) -> bool {
+    x % 8 == 0 && y % 8 == 0
+}
+
+/// 同上，外加一格 (4,4)：它在扫描序里排在 (0,0) 之后、其余格子之前，
+/// 于是把后面所有粒子的索引整体推后一位（模拟深色蒙版多出来的格子）。
+fn opaque_grid8_plus_one(x: u32, y: u32) -> bool {
+    opaque_grid8(x, y) || (x == 4 && y == 4)
+}
+
+/// 用给定的不透明规则建一张 40×40 源图（画布同尺寸、fit 1.0、pitch 4 → step 4）
+fn build_mask(opaque: fn(u32, u32) -> bool, size_mode: u32) {
+    let src = src_img(40, 40, opaque);
+    assert_eq!(
+        build(
+            src.as_ptr(),
+            40,
+            40,
+            40,
+            40,
+            4.0,
+            1.0,
+            1.0,
+            1.0,
+            200_000,
+            size_mode
+        ),
+        0
+    );
+}
+
+#[test]
+fn jitter_is_addressed_by_cell_not_by_index() {
+    let _g = setup();
+    fn offsets(opaque: fn(u32, u32) -> bool) -> BTreeMap<u32, (f32, f32)> {
+        assert_eq!(seed_on(0x1234_5678), 1);
+        build_mask(opaque, 2);
+        let (grid_x, grid_y, keys) = {
+            let e = engine();
+            (e.tx.clone(), e.ty.clone(), e.key.clone())
+        };
+        assert_eq!(jitter_on(1.5), 1);
+        let e = engine();
+        (0..e.n)
+            .map(|i| (keys[i], (e.tx[i] - grid_x[i], e.ty[i] - grid_y[i])))
+            .collect()
+    }
+
+    let base = offsets(opaque_grid8);
+    let shifted = offsets(opaque_grid8_plus_one);
+    assert_eq!(base.len(), 25, "40×40 上每 8px 一格 = 5×5");
+    assert_eq!(shifted.len(), base.len() + 1, "后一张图多一颗");
+
+    let mut compared = 0;
+    for (key, offset) in &base {
+        if key == &key_of(0, 0) {
+            continue; // 第一颗在两套索引里都是 0，证明不了什么
+        }
+        assert_eq!(
+            offset,
+            shifted.get(key).expect("共用格子应当两张图都有"),
+            "格子 {key:#x} 在索引平移后仍必须拿到同一个抖动"
+        );
+        compared += 1;
+    }
+    assert!(compared >= 24, "应当比对掉全部共用格子，实际 {compared}");
+}
+
+#[test]
+fn size_and_wobble_hashes_follow_the_cell_too() {
+    let _g = setup();
+    fn probe(opaque: fn(u32, u32) -> bool) -> BTreeMap<u32, (u8, f32, f32)> {
+        assert_eq!(seed_on(0x51ed_270b), 1);
+        build_mask(opaque, 2);
+        assert_eq!(size_jitter_on(1.5), 1);
+        settle();
+        assert_eq!(wobble_on(2.0, 2.0), 1);
+        assert_eq!(tick(), 1);
+        let e = engine();
+        (0..e.n)
+            .map(|i| (e.key[i], (e.psize[i], e.fx[i], e.fy[i])))
+            .collect()
+    }
+
+    let base = probe(opaque_grid8);
+    let shifted = probe(opaque_grid8_plus_one);
+    let mut compared = 0;
+    for (key, state) in &base {
+        if key == &key_of(0, 0) {
+            continue;
+        }
+        assert_eq!(
+            state,
+            shifted.get(key).expect("共用格子应当两张图都有"),
+            "格子 {key:#x} 的边长 / 微动相位必须跟着格子走，而不是索引"
+        );
+        compared += 1;
+    }
+    assert!(compared >= 24, "应当比对掉全部共用格子，实际 {compared}");
 }
 
 #[test]
