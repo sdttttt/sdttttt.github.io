@@ -18,10 +18,11 @@ use core::ptr;
 
 static mut SEED: u32 = 0x9e37_79b9;
 
-/// 「按索引取哈希」这条序列的种子。0 = 不播种（退回 `hash01` 的老行为）。
+/// 按坐标取哈希（`hash01k`）这条序列的种子。0 = 不播种（此时 0 就是一个普通
+/// 种子，序列依然确定）。
 ///
 /// 和上面的 xorshift 状态是两回事：`SEED` 每次调用 `rnd()` 都往前走，
-/// 适合「一次性撒点」；这里要的性质相反 —— **同一个索引每次都要给同一个值**
+/// 适合「一次性撒点」；这里要的性质相反 —— **同一个格子每次都要给同一个值**
 /// （否则画面每帧都在沸腾），但**换一把种子就整体换一套**。
 static mut HASH_SEED: u32 = 0;
 
@@ -65,27 +66,44 @@ fn hash01(i: usize) -> f32 {
     ((h >> 8) & 0xffff) as f32 / 65536.0
 }
 
-/// 由粒子索引 **+ 种子** 得到一个稳定的 [0, 1) 伪随机数。
+/// 由**采样格坐标**（源图上的整数像素，见 `key_of`）**+ 种子**得到稳定的
+/// [0, 1) 伪随机数。
 ///
-/// `hash01` 只看索引，所以同一块点阵**每次打开都落在同一个位置** —— 首页标题
-/// 因此是「每次刷新位置都一样」。带种子的版本让每次页面加载换一把种子，点阵
-/// 就随机了；而同一页面内的重建（缩放 / 深色切换）复用同一把种子，所以不会
-/// 自己洗牌。
+/// 为什么不用粒子索引：索引是**扫描顺序的副产品**。同一张蒙版稍有不同 —— 哪怕
+/// 只是换了文字颜色，gamma 校正的抗锯齿就会让几个格子的 alpha 落到底色那一侧
+/// —— 后面所有粒子的索引便整体平移，同一把种子算出的偏移于是落到别的格子上，
+/// 表现为「换深色主题时点阵轻微重洗」。坐标才是格子的身份：同一个格子无论
+/// 排第几，都拿到同一个值。
 ///
-/// 种子 0 表示不播种，直接退回 `hash01`（老行为，也省一次混合）。
-fn hash01s(seed: u32, i: usize) -> f32 {
-    if seed == 0 {
-        return hash01(i);
-    }
-    // 乘奇数散列 + 异或种子，再 avalanche 两轮，避免低位相关。
-    let mut h = (i as u32)
+/// `salt` 把同一个格子的几条通道（抖动 x / 抖动 y / 边长 / 微动相位）分开。
+/// 种子 0 在这里只是一个普通种子（老的无种子序列是「按索引」的，没法照搬）。
+fn hash01k(seed: u32, key: u32, salt: u32) -> f32 {
+    // 乘奇数散列 + 异或盐与种子，再 avalanche 两轮，避免低位相关。
+    let mut h = key
         .wrapping_mul(2_654_435_761)
+        .wrapping_add(salt.wrapping_mul(0x27d4_eb2d))
         .wrapping_add(seed.wrapping_mul(0x85eb_ca6b));
     h ^= h >> 15;
     h = h.wrapping_mul(0x2c1b_3c6d);
     h ^= h >> 13;
     ((h >> 8) & 0xffff) as f32 / 65536.0
 }
+
+/// 把源图采样坐标打包成「格子身份」（低 16 位 x、高 16 位 y）。
+/// 源图边长上限 65535 设备像素，任何画布都够。
+fn key_of(x: u32, y: u32) -> u32 {
+    (x & 0xffff) | ((y & 0xffff) << 16)
+}
+
+// hash01k 的通道盐：取互不相同的质数即可，只要求同一条链路上稳定。
+const SALT_JITTER_X: u32 = 0;
+const SALT_JITTER_Y: u32 = 104_729;
+const SALT_SIZE: u32 = 31_337;
+const SALT_WOBBLE_X1: u32 = 7_919;
+const SALT_WOBBLE_X2: u32 = 15_485_863;
+const SALT_WOBBLE_Y1: u32 = 32_452_843;
+const SALT_WOBBLE_Y2: u32 = 49_979_687;
+
 
 // ============================================================== 引擎
 
@@ -120,6 +138,10 @@ struct Engine {
     ty: Vec<f32>,
     // 颜色，打包成 u32（小端内存布局 = [r, g, b, a]）
     col: Vec<u32>,
+    // 每颗粒子的**格子身份**：源图采样坐标打包（见 `key_of`）。抖动的落点、
+    // 随机边长、微动相位都从它取哈希 —— 用坐标而不是索引，换蒙版（深色切换）
+    // 导致索引平移时，同一个格子仍然拿到同一套随机数。
+    key: Vec<u32>,
     // 帧缓冲（设备像素，RGBA）
     fb: Vec<u8>,
     fb_w: u32,
@@ -141,7 +163,7 @@ struct Engine {
     step: u32,
     // 目标位抖动是否已经应用过（jitter_on 一次性，见该函数）。build() 重置。
     jittered: bool,
-    // 「按索引取哈希」的种子（seed_on 设置）。0 = 不播种。
+    // 「按坐标取哈希」的种子（seed_on 设置，见 hash01k）。
     hash_seed: u32,
     // ---- 常驻漂浮（逐粒子独立相位，开关是 float_on）----
     //
@@ -353,6 +375,7 @@ fn make(
     let mut tx = Vec::new();
     let mut ty = Vec::new();
     let mut col = Vec::new();
+    let mut key = Vec::new();
 
     let mut y = 0u32;
     while y < sh {
@@ -374,6 +397,8 @@ fn make(
                         | (src[i + 2] as u32) << 16
                         | 0xff00_0000,
                 );
+                // 格子的身份：坐标而不是索引（见 hash01k）
+                key.push(key_of(x, y));
             }
             x += step;
         }
@@ -390,6 +415,7 @@ fn make(
         tx,
         ty,
         col,
+        key,
         fb: vec![0u8; (cw as usize) * (ch as usize) * 4],
         fb_w: cw,
         fb_h: ch,
@@ -926,17 +952,19 @@ pub extern "C" fn tick() -> i32 {
         }
         let (ax, ay, phase) = (e.wob_amp_x, e.wob_amp_y, e.wob_phase);
         let seed = e.hash_seed;
-        let (fx, fy) = (&mut e.fx, &mut e.fy);
+        let (keys, fx, fy) = (&e.key, &mut e.fx, &mut e.fy);
         if !rippling && e.f_amp == 0.0 {
             // 只有微动、没有别的位移层时，先把上一帧的残留清掉
             fx.fill(0.0);
             fy.fill(0.0);
         }
         for i in 0..e.n {
-            let x1 = phase + hash01s(seed, i) * TAU;
-            let x2 = phase * 2.0 + hash01s(seed, i + 7_919) * TAU;
-            let y1 = phase + hash01s(seed, i + 104_729) * TAU;
-            let y2 = phase * 2.0 + hash01s(seed, i + 15_485_863) * TAU;
+            // 相位按**格子坐标**打散：换深色主题后索引平移，同一格子的呼吸节奏不变。
+            let key = keys[i];
+            let x1 = phase + hash01k(seed, key, SALT_WOBBLE_X1) * TAU;
+            let x2 = phase * 2.0 + hash01k(seed, key, SALT_WOBBLE_X2) * TAU;
+            let y1 = phase + hash01k(seed, key, SALT_WOBBLE_Y1) * TAU;
+            let y2 = phase * 2.0 + hash01k(seed, key, SALT_WOBBLE_Y2) * TAU;
             fx[i] += ax * (0.6 * fast_sin(x1) + 0.4 * fast_sin(x2));
             fy[i] += ay * (0.6 * fast_sin(y1) + 0.4 * fast_sin(y2));
         }
@@ -973,14 +1001,15 @@ pub extern "C" fn settle() {
     e.rasterize();
 }
 
-/// 播种「按索引取哈希」的序列（首页标题专用）。
+/// 播种「按坐标取哈希」的序列（首页标题专用，见 `hash01k`）。
 ///
 /// 抖动、随机边长、微动相位全都取自这条序列，所以**换一把种子 = 换一套落点**。
-/// 这是「每次打开标题的点阵都不一样」的开关：不播种时点阵是死的（同一索引
+/// 这是「每次打开标题的点阵都不一样」的开关：不播种时点阵是死的（同一个格子
 /// 永远同一个值），每次刷新都长得一模一样。
 ///
-/// 同一页面里只调一次，并把种子留着：缩放 / 深色切换触发的重建会用同一把
-/// 种子，点阵不会被洗掉。`seed == 0` 表示不播种（退回无种子的确定性序列）。
+/// 序列以**采样格坐标**为索引：同一页面里的重建（缩放 / 深色切换）会用同一把
+/// 种子，而且即便像深色切换那样蒙版变了、粒子索引整体平移，同一个格子仍拿到
+/// 同一套随机数 —— 点阵不会被洗掉。`seed == 0` 只是一把普通种子。
 #[no_mangle]
 pub extern "C" fn seed_on(seed: u32) -> i32 {
     unsafe { HASH_SEED = seed; }
@@ -994,7 +1023,7 @@ pub extern "C" fn seed_on(seed: u32) -> i32 {
 ///
 /// 为什么在引擎里做而不是 JS：目标位 tx/ty 是私有的，JS 拿不到；而且抖动必须
 /// 发生在 `settle()` / 行波之前（行波相位就取 tx）。用哈希而不是 `rnd()`：
-/// 同一个索引每次重建都得到同一条偏移，resize / 深色切换不会「洗牌」——
+/// 同一个格子每次重建都得到同一条偏移，resize / 深色切换不会「洗牌」——
 /// 而换一把 `seed_on` 种子则是「重新开一次牌」。
 ///
 /// `amp` 是设备像素的**单轴最大偏移**（调用方自己乘 dpr）。偏移会夹在画布内，
@@ -1019,9 +1048,9 @@ pub extern "C" fn jitter_on(amp: f32) -> i32 {
     let max_x = (e.fb_w as f32 - 1.0).max(0.0);
     let max_y = (e.fb_h as f32 - 1.0).max(0.0);
     for i in 0..e.n {
-        // 两条独立序列：奇数倍散列容易出短周期，所以 y 换个质数偏移。
-        let jx = (hash01s(seed, i) * 2.0 - 1.0) * amp;
-        let jy = (hash01s(seed, i + 104_729) * 2.0 - 1.0) * amp;
+        // 两条独立序列：同一个格子分到两条通道上（盐不同），互不相关。
+        let jx = (hash01k(seed, e.key[i], SALT_JITTER_X) * 2.0 - 1.0) * amp;
+        let jy = (hash01k(seed, e.key[i], SALT_JITTER_Y) * 2.0 - 1.0) * amp;
         e.tx[i] = (e.tx[i] + jx).clamp(0.0, max_x);
         e.ty[i] = (e.ty[i] + jy).clamp(0.0, max_y);
     }
@@ -1051,9 +1080,10 @@ pub extern "C" fn size_jitter_on(amp: f32) -> i32 {
     let base = e.size as f32;
     let amp = amp.min(8.0);
     let seed = e.hash_seed;
+    let keys = &e.key;
     let sizes: Vec<u8> = (0..n)
         .map(|i| {
-            let delta = (hash01s(seed, i + 31_337) * 2.0 - 1.0) * amp;
+            let delta = (hash01k(seed, keys[i], SALT_SIZE) * 2.0 - 1.0) * amp;
             (base + delta).round().clamp(1.0, 64.0) as u8
         })
         .collect();
