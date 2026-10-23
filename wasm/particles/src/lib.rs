@@ -18,6 +18,13 @@ use core::ptr;
 
 static mut SEED: u32 = 0x9e37_79b9;
 
+/// 「按索引取哈希」这条序列的种子。0 = 不播种（退回 `hash01` 的老行为）。
+///
+/// 和上面的 xorshift 状态是两回事：`SEED` 每次调用 `rnd()` 都往前走，
+/// 适合「一次性撒点」；这里要的性质相反 —— **同一个索引每次都要给同一个值**
+/// （否则画面每帧都在沸腾），但**换一把种子就整体换一套**。
+static mut HASH_SEED: u32 = 0;
+
 /// xorshift32 —— 不引入 rand crate，省依赖也省体积
 fn rnd() -> f32 {
     unsafe {
@@ -55,6 +62,28 @@ fn unit_circle() -> (f32, f32) {
 fn hash01(i: usize) -> f32 {
     // 2654435761 = (√5 − 1) / 2 × 2³²，经典的整数散列乘数
     let h = (i as u32).wrapping_mul(2_654_435_761);
+    ((h >> 8) & 0xffff) as f32 / 65536.0
+}
+
+/// 由粒子索引 **+ 种子** 得到一个稳定的 [0, 1) 伪随机数。
+///
+/// `hash01` 只看索引，所以同一块点阵**每次打开都落在同一个位置** —— 首页标题
+/// 因此是「每次刷新位置都一样」。带种子的版本让每次页面加载换一把种子，点阵
+/// 就随机了；而同一页面内的重建（缩放 / 深色切换）复用同一把种子，所以不会
+/// 自己洗牌。
+///
+/// 种子 0 表示不播种，直接退回 `hash01`（老行为，也省一次混合）。
+fn hash01s(seed: u32, i: usize) -> f32 {
+    if seed == 0 {
+        return hash01(i);
+    }
+    // 乘奇数散列 + 异或种子，再 avalanche 两轮，避免低位相关。
+    let mut h = (i as u32)
+        .wrapping_mul(2_654_435_761)
+        .wrapping_add(seed.wrapping_mul(0x85eb_ca6b));
+    h ^= h >> 15;
+    h = h.wrapping_mul(0x2c1b_3c6d);
+    h ^= h >> 13;
     ((h >> 8) & 0xffff) as f32 / 65536.0
 }
 
@@ -112,6 +141,8 @@ struct Engine {
     step: u32,
     // 目标位抖动是否已经应用过（jitter_on 一次性，见该函数）。build() 重置。
     jittered: bool,
+    // 「按索引取哈希」的种子（seed_on 设置）。0 = 不播种。
+    hash_seed: u32,
     // ---- 常驻漂浮（逐粒子独立相位，开关是 float_on）----
     //
     // 关键设计：漂浮偏移量与目标位置**分开存储**。弹簧只把 px/py 收到 tx/ty，
@@ -374,6 +405,7 @@ fn make(
         fit_h,
         step,
         jittered: false,
+        hash_seed: unsafe { HASH_SEED },
         // 漂浮默认关闭：build() 之后由 float_on() 打开。
         // 顺带一个好处：飞入 / 落地这些**相干**动作期间漂浮是关着的，
         // 引擎不用在 tick() 里同时维护两套物理。
@@ -884,7 +916,8 @@ pub extern "C" fn tick() -> i32 {
 
     // 逐粒子微动：在相干行波之上再叠一层**独立相位**的轻抖。频率只用
     // wob_phase 的 1× / 2×（整数倍在相位绕回 TAU 时仍连续，不会每圈瞬移），
-    // 相位由 hash01(i) 打散 —— 于是每颗点各抖各的，整幅不再只有一道浪。
+    // 相位由哈希打散 —— 于是每颗点各抖各的，整幅不再只有一道浪。
+    // 哈希带种子（seed_on），所以换一把种子 = 换一套微动相位。
     let wobbling = (e.wob_amp_x != 0.0 || e.wob_amp_y != 0.0) && e.fx.len() == e.n;
     if wobbling {
         e.wob_phase += TAU / 90.0; // 30Hz 下 3s 一个循环，比 4.2s 的浪快一点
@@ -892,6 +925,7 @@ pub extern "C" fn tick() -> i32 {
             e.wob_phase -= TAU;
         }
         let (ax, ay, phase) = (e.wob_amp_x, e.wob_amp_y, e.wob_phase);
+        let seed = e.hash_seed;
         let (fx, fy) = (&mut e.fx, &mut e.fy);
         if !rippling && e.f_amp == 0.0 {
             // 只有微动、没有别的位移层时，先把上一帧的残留清掉
@@ -899,10 +933,10 @@ pub extern "C" fn tick() -> i32 {
             fy.fill(0.0);
         }
         for i in 0..e.n {
-            let x1 = phase + hash01(i) * TAU;
-            let x2 = phase * 2.0 + hash01(i + 7_919) * TAU;
-            let y1 = phase + hash01(i + 104_729) * TAU;
-            let y2 = phase * 2.0 + hash01(i + 15_485_863) * TAU;
+            let x1 = phase + hash01s(seed, i) * TAU;
+            let x2 = phase * 2.0 + hash01s(seed, i + 7_919) * TAU;
+            let y1 = phase + hash01s(seed, i + 104_729) * TAU;
+            let y2 = phase * 2.0 + hash01s(seed, i + 15_485_863) * TAU;
             fx[i] += ax * (0.6 * fast_sin(x1) + 0.4 * fast_sin(x2));
             fy[i] += ay * (0.6 * fast_sin(y1) + 0.4 * fast_sin(y2));
         }
@@ -939,11 +973,29 @@ pub extern "C" fn settle() {
     e.rasterize();
 }
 
+/// 播种「按索引取哈希」的序列（首页标题专用）。
+///
+/// 抖动、随机边长、微动相位全都取自这条序列，所以**换一把种子 = 换一套落点**。
+/// 这是「每次打开标题的点阵都不一样」的开关：不播种时点阵是死的（同一索引
+/// 永远同一个值），每次刷新都长得一模一样。
+///
+/// 同一页面里只调一次，并把种子留着：缩放 / 深色切换触发的重建会用同一把
+/// 种子，点阵不会被洗掉。`seed == 0` 表示不播种（退回无种子的确定性序列）。
+#[no_mangle]
+pub extern "C" fn seed_on(seed: u32) -> i32 {
+    unsafe { HASH_SEED = seed; }
+    if let Some(e) = eng() {
+        e.hash_seed = seed;
+    }
+    1
+}
+
 /// 给每颗粒子的**目标位**叠加确定性的随机偏移，让点阵不再严格对齐网格。
 ///
 /// 为什么在引擎里做而不是 JS：目标位 tx/ty 是私有的，JS 拿不到；而且抖动必须
-/// 发生在 `settle()` / 行波之前（行波相位就取 tx）。用 `hash01(i)` 而不是
-/// `rnd()`：同一索引每次重建都得到同一条偏移，resize / 深色切换不会「洗牌」。
+/// 发生在 `settle()` / 行波之前（行波相位就取 tx）。用哈希而不是 `rnd()`：
+/// 同一个索引每次重建都得到同一条偏移，resize / 深色切换不会「洗牌」——
+/// 而换一把 `seed_on` 种子则是「重新开一次牌」。
 ///
 /// `amp` 是设备像素的**单轴最大偏移**（调用方自己乘 dpr）。偏移会夹在画布内，
 /// 边缘粒子不会被推出可视区。只应在 `build()` 之后、`settle()` 之前调用一次；
@@ -963,12 +1015,13 @@ pub extern "C" fn jitter_on(amp: f32) -> i32 {
         return 1;
     }
     let amp = amp.min(8.0);
+    let seed = e.hash_seed;
     let max_x = (e.fb_w as f32 - 1.0).max(0.0);
     let max_y = (e.fb_h as f32 - 1.0).max(0.0);
     for i in 0..e.n {
         // 两条独立序列：奇数倍散列容易出短周期，所以 y 换个质数偏移。
-        let jx = (hash01(i) * 2.0 - 1.0) * amp;
-        let jy = (hash01(i + 104_729) * 2.0 - 1.0) * amp;
+        let jx = (hash01s(seed, i) * 2.0 - 1.0) * amp;
+        let jy = (hash01s(seed, i + 104_729) * 2.0 - 1.0) * amp;
         e.tx[i] = (e.tx[i] + jx).clamp(0.0, max_x);
         e.ty[i] = (e.ty[i] + jy).clamp(0.0, max_y);
     }
@@ -980,7 +1033,7 @@ pub extern "C" fn jitter_on(amp: f32) -> i32 {
 /// 基准边长 ±amp 取整后夹到 [1, 64]。空数组 = 所有粒子一样大（屏保 / 粒子页）。
 ///
 /// 和 `jitter_on` 一样只应在 build 之后、settle 之前调用；重复调用按同一套
-/// `hash01` 重算，不会越叠越乱。`amp = 0` 清掉逐粒子边长、回到统一大小。
+/// 哈希重算，不会越叠越乱。`amp = 0` 清掉逐粒子边长、回到统一大小。
 #[no_mangle]
 pub extern "C" fn size_jitter_on(amp: f32) -> i32 {
     let e = match eng() {
@@ -997,9 +1050,10 @@ pub extern "C" fn size_jitter_on(amp: f32) -> i32 {
     let n = e.n;
     let base = e.size as f32;
     let amp = amp.min(8.0);
+    let seed = e.hash_seed;
     let sizes: Vec<u8> = (0..n)
         .map(|i| {
-            let delta = (hash01(i + 31_337) * 2.0 - 1.0) * amp;
+            let delta = (hash01s(seed, i + 31_337) * 2.0 - 1.0) * amp;
             (base + delta).round().clamp(1.0, 64.0) as u8
         })
         .collect();
@@ -1015,7 +1069,7 @@ pub extern "C" fn size_jitter_on(amp: f32) -> i32 {
 /// 从左向右的浪，但每颗点会各自轻轻呼吸。只开微动、不开浪时 tick 也会报「在动」。
 ///
 /// 与 `float_on` 不同：不积分、不占额外数组，相位直接由 `wob_phase` 与
-/// `hash01(i)` 算出，30Hz 下 3s 一循环。屏保 / 粒子页不调用。
+/// 带种子的哈希算出，30Hz 下 3s 一循环。屏保 / 粒子页不调用。
 #[no_mangle]
 pub extern "C" fn wobble_on(amp_x: f32, amp_y: f32) -> i32 {
     let e = match eng() {

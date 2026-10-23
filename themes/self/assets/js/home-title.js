@@ -80,6 +80,30 @@
   var WOBBLE_X = cfg.wobbleAmpX >= 0 ? cfg.wobbleAmpX : 0.6;
   var WOBBLE_Y = cfg.wobbleAmpY >= 0 ? cfg.wobbleAmpY : 0.9;
 
+  /* 每次打开换一把随机种子。
+     引擎里点阵的落点、边长、微动相位都取自「按索引取哈希」这条序列 ——
+     不播种时同一个索引永远给同一个值，于是每次刷新标题都长得一模一样。
+     种子一换就是另一套随机排布。
+     同一页面里只生成一次：缩放 / 深色切换触发的重建复用它，点阵不会被洗掉。 */
+  function randomSeed() {
+    var s = 0;
+    try {
+      if (window.crypto && window.crypto.getRandomValues) {
+        var buf = new Uint32Array(1);
+        window.crypto.getRandomValues(buf);
+        s = buf[0] >>> 0;
+      }
+    } catch (e) {
+      s = 0;
+    }
+    if (!s && typeof Math.random === 'function') {
+      s = (Math.random() * 0xffffffff) >>> 0;
+    }
+    return s || 1; // 0 是「不播种」的保留值
+  }
+  var SEED = randomSeed();
+  root.dataset.ptTitleSeed = String(SEED);
+
   // 固定仿真步长：波浪周期与暂停恢复都按这个速率换算 / 对齐。
   var STEP_MS = 1000 / 30;
 
@@ -235,6 +259,10 @@
       st.size < 40 && g.dpr >= 2 && Math.round(PITCH_CSS * g.dpr) <= 3;
     var pitchDev = dense ? 2 : PITCH_CSS * g.dpr;
     var ratio = dense ? 1 : RATIO;
+    // 播种：把「按索引取哈希」的序列换成这一页的随机种子，落点 / 边长 /
+    // 微动相位随之换一套。引擎没有这个导出时（老 wasm）只是退回「每次
+    // 打开位置相同」的老行为，不影响其余功能。
+    if (typeof mod.seed_on === 'function') mod.seed_on(SEED);
     var rc = mod.build(
       p,
       g.w,
@@ -251,8 +279,10 @@
     mod.dealloc(p, rgba.length);
     if (rc !== 0) return false;
 
-    // 打散严格网格：给每颗粒子的目标位加一次确定性抖动（build 后、settle 前）。
-    // 设备像素下限 1，dpr 1 的屏幕上也能看出参差；0 则保持原来的整齐点阵。
+    // 打散严格网格：给每颗粒子的目标位加一次抖动（build 后、settle 前）。
+    // 偏移取自带种子的哈希，所以每次打开落点都不同；同一页面内重建时
+    // 种子不变，点阵保持原样。设备像素下限 1，dpr 1 的屏幕上也能看出参差；
+    // 0 则保持原来的整齐点阵。
     if (JITTER > 0 && typeof mod.jitter_on === 'function') {
       var jitterDev = Math.max(1, JITTER * g.dpr);
       if (mod.jitter_on(jitterDev) === 1) {
@@ -284,7 +314,8 @@
   }
 
   /* 落位 + 开波 + 画第一帧。rebuild（缩放 / 换主题）也走这里：
-     重建后粒子位置是随机的，settle() 直接摆到目标位，不重播飞入。 */
+     重建后粒子位置与首次一致（同一种子），settle() 直接摆到目标位，
+     不重播飞入。 */
   function arm(g) {
     if (!frame || !mod) return false;
     mod.settle();

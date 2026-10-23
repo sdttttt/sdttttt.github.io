@@ -40,6 +40,7 @@ fn setup() -> MutexGuard<'static, ()> {
     unsafe {
         ENGINE = None;
         SEED = 0x9e37_79b9;
+        HASH_SEED = 0;
     }
     g
 }
@@ -609,6 +610,84 @@ fn size_jitter_varies_particle_sizes_within_the_requested_span() {
     build_demo(2);
     assert_eq!(size_jitter_on(1.0), 1);
     assert_eq!(engine().psize, sizes);
+}
+
+// ---------------------------------------------------------- 播种（首页标题）
+
+#[test]
+fn seed_zero_falls_back_to_the_unseeded_hash() {
+    let _g = setup();
+    for i in [0usize, 1, 7, 999, 104_729, 15_485_863] {
+        assert_eq!(
+            hash01s(0, i),
+            hash01(i),
+            "种子 0 是「不播种」，应当退回无种子的序列"
+        );
+    }
+}
+
+#[test]
+fn different_seeds_give_different_sequences_and_the_same_seed_is_stable() {
+    let _g = setup();
+    let a: Vec<f32> = (0..64).map(|i| hash01s(1, i)).collect();
+    let b: Vec<f32> = (0..64).map(|i| hash01s(2, i)).collect();
+    assert_ne!(a, b, "换种子必须换一套随机数");
+    let a2: Vec<f32> = (0..64).map(|i| hash01s(1, i)).collect();
+    assert_eq!(a, a2, "同一种子必须自洽");
+    assert!(a.iter().all(|v| (0.0..1.0).contains(v)), "取值仍在 [0, 1)");
+}
+
+#[test]
+fn seeding_changes_the_jittered_layout() {
+    let _g = setup();
+    build_demo(2);
+    let grid = engine().tx.clone();
+    assert_eq!(seed_on(0x1234_5678), 1);
+    assert_eq!(jitter_on(1.5), 1);
+    let a = engine().tx.clone();
+    assert_ne!(a, grid, "抖动后总该离开原来的网格");
+
+    // 换一把种子重做一遍 → 落点应当不同（这就是「每次打开都不一样」）
+    build_demo(2);
+    assert_eq!(seed_on(0x9abc_def0), 1);
+    assert_eq!(jitter_on(1.5), 1);
+    assert_ne!(a, engine().tx.clone(), "换种子后点阵落点应当不同");
+}
+
+#[test]
+fn the_same_seed_reproduces_the_same_layout_across_rebuilds() {
+    let _g = setup();
+    assert_eq!(seed_on(0x1234_5678), 1);
+    build_demo(2);
+    assert_eq!(jitter_on(1.5), 1);
+    let a = engine().tx.clone();
+
+    // 同一页面里的重建（缩放 / 深色切换）：种子不变 ⇒ 落点不变，不能自己洗牌
+    build_demo(2);
+    assert_eq!(jitter_on(1.5), 1);
+    assert_eq!(
+        a,
+        engine().tx.clone(),
+        "同一种子重建后落点应当一致"
+    );
+}
+
+#[test]
+fn seeding_changes_the_wobble_phases() {
+    let _g = setup();
+    assert_eq!(seed_on(11), 1);
+    build_demo(2);
+    settle();
+    assert_eq!(wobble_on(2.0, 2.0), 1);
+    assert_eq!(tick(), 1);
+    let a = engine().fx.clone();
+
+    assert_eq!(seed_on(22), 1);
+    build_demo(2);
+    settle();
+    assert_eq!(wobble_on(2.0, 2.0), 1);
+    assert_eq!(tick(), 1);
+    assert_ne!(a, engine().fx.clone(), "换种子后微动相位应当不同");
 }
 
 #[test]
