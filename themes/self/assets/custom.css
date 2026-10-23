@@ -160,16 +160,16 @@ html.dark .pt-stage {
    dimmed layers use `--dim` (black/white at 60%, declared once for this page
    and the search page in the "Shared" block below), so both themes come out
    right.
-   The Tailwind utilities that would normally do this job (`text-sm`,
-   `tabular-nums`, `grid` …) are NOT in the compiled main.css, hence plain
-   CSS here.
+   The utility classes that would normally do this job (`text-sm`,
+   `tabular-nums`, `grid` …) are not compiled in — UnoCSS only emits what
+   `layouts/**` actually uses — hence plain CSS here.
 
-   ⚠️ Any font-size set on a heading below needs `!important`: Tailwind v4
-   compiles `h1…h6 { font-size: inherit }` (preflight) and main.css's own
-   `h1, h2, h3 { @apply font-semibold }` with `:not(#\#)` specificity
-   bumpers — (2,0,1) and (5,0,1), see assets/main.css lines 74 / 1382 — and `:not(#\#)` counts as an ID selector, so no plain
-   class-based rule can ever win. Font-weight is deliberately not declared:
-   the theme's semibold (600) is what every other heading on the site uses.
+   ⚠️ Heading `font-size` below keeps `!important` from the Tailwind era: its
+   preflight's `h1…h6 { font-size: inherit }` was shipped with `:not(#\#)`
+   specificity bumpers, so no class rule could win. UnoCSS's reset has the same
+   `inherit` rule without the bumpers, so the `!important` is now
+   belt-and-braces rather than required. Font-weight is deliberately not
+   declared: the theme's semibold (600) is what every other heading uses.
 
    ⚠️ The same bumpers sit on the preflight resets, so `margin`, `padding`,
    `border`, `border-radius` and (on form controls) `background` below all
@@ -431,8 +431,9 @@ html.dark .pt-stage {
 }
 
 /* markdown 占位图：render-image.html 给 /images/image-lost.svg 包了一层 <figure>。
-   margin 必须 !important —— Tailwind v4 preflight 的 *:not(#\#):not(#\#) 会把
-   class 规则里的 margin / padding / border 静默压成 0（见文件顶部说明）。 */
+   margin 必须 !important —— reset 里的 `*,::before,::after{margin:0;padding:0;border:0}`
+   会把 class 规则里的 margin / padding / border 压成 0（UnoCSS 的 reset 与 Tailwind
+   preflight 同款，见文件顶部说明）。 */
 /* 占位图（原图丢失时统一指向 /images/image-lost.svg）。
    钩子输出的是 span 包住 img + span 小字，而不是 figure/figcaption —— 渲染钩子里的
    .IsBlock 在本站 Hugo 版本恒为 false，图片又多嵌在 <p> / <li> 里，块级元素非法。

@@ -24,7 +24,7 @@
 */}}
 
 <header
-  class="mx-auto flex h-[4.5rem] max-w-(--w) px-8 whitespace-nowrap lg:justify-center"
+  class="mx-auto flex h-[4.5rem] max-w-[--w] px-8 whitespace-nowrap lg:justify-center"
 >
   <div class="relative z-50 flex items-center ltr:mr-auto rtl:ml-auto">
     {{- $avatar_url := $.Scratch.Get "avatar_url" -}}
@@ -99,7 +99,7 @@
   </script>
 
   <div
-    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-(--bg) pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
+    class="nav-wrapper fixed inset-x-0 top-full z-40 flex h-full flex-col justify-center bg-[--bg] pb-16 duration-200 select-none lg:static lg:h-auto lg:flex-row lg:bg-transparent! lg:pb-0 lg:transition-none"
   >
     {{- $url := .RelPermalink -}}<!---->
     {{- with site.Menus.main -}}

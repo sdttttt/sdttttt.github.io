@@ -7,7 +7,7 @@
 #   ./bin/artifacts.sh check --rebuild    额外重编译一次并逐字节比对（最严，需要几秒；
 #                                         cargo 编 wasm，有 bun + node_modules 时也重编 CSS）
 #   ./bin/artifacts.sh stamp-wasm         重新记录 wasm 指纹（bin/build-wasm.sh 会调它）
-#   ./bin/artifacts.sh stamp-css          重新记录 Tailwind 指纹（bin/build-css.sh 会调它）
+#   ./bin/artifacts.sh stamp-css          重新记录 CSS 指纹（bin/build-css.sh 会调它）
 #   ./bin/artifacts.sh stamp              等价于 stamp-wasm（旧名，保留）
 #
 # 检查四件事：
@@ -19,7 +19,7 @@
 #      所以「改了 lib.rs 却没重建产物」在 CI 里本来是完全不可见的 ——
 #      靠 particles.sha256 这份指纹文件（源文件 + 产物各自的 sha256）把它变得可见。
 #      有 Rust 工具链时可用 --rebuild 做最强校验（真编译出来逐字节比）。
-#   4. Tailwind 产物与它扫描的源码一致。`themes/self/assets/main.css` 是编译产物
+#   4. CSS 产物与它扫描的源码一致。`themes/self/assets/main.css` 是编译产物
 #      （Hugo 只做 concat + minify，见 themes/self/layouts/partials/head.html），
 #      而 CI 不装 bun —— 同样靠 main.css.sha256 把「改了 app.css / 模板却没重编译」变可见。
 #      扫描输入是整个 themes/self/ 目录（含产物自身，见 css_sources 的注释）。
@@ -91,14 +91,17 @@ check_images() {
   return "$bad"
 }
 
-# ── ④ Tailwind 产物 ────────────────────────────────────────────────
+# ── ④ CSS 产物 ────────────────────────────────────────────────
 # 参与指纹的文件 = 整个 themes/self/ 目录，除了：node_modules（依赖不参与编译）、
 # 打包产物 assets/main.css（它已经是记录里的第一行）、指纹文件自身（自引用）、
-# assets/wasm/*.wasm（二进制，Tailwind 的扫描器直接跳过 —— 列上它只会让每次
+# assets/wasm/*.wasm（二进制，UnoCSS 的扫描器本来就不看二进制 —— 列上它只会让每次
 # `build-wasm` 白搭一次 CSS 重编译）。
-# 为什么用「整个目录」而不是列几个文件：Tailwind v4 的扫描根就是 cwd（主题根），
-# 凡是那个目录里的文本文件都可能贡献 class（连 README.md 的散文都算 —— `collapse`
-# 就是这么进产物的），枚举必然漏；目录级 find 才关得住这个口子。
+# 为什么用「整个目录」而不是列几个文件：UnoCSS 的扫描范围（layouts/**）虽然窄，但
+# 产物还取决于 app.css / uno.config.ts / package.json / bun.lock 等一串文件 ——
+# 与其维护一份「哪些文件参与编译」的清单（漏一个就等于放行陈旧产物），不如把整个
+# 主题目录当输入：多算几个文件只是严格一点，不会漏。
+# 代价是 README 之类的非输入文件改动也会让指纹失配（重跑一次 build-css 即可，幂等），
+# 这是「宁可多报、不可漏报」的有意取舍。
 css_sources() {
   find "$CSS_THEME_DIR" -type f \
     -not -path '*/node_modules/*' \
@@ -119,21 +122,21 @@ write_css_manifest() {
 check_css() {
   local bad=0
   if [ ! -f "$REPO_ROOT/$CSS_ARTIFACT" ]; then
-    fail "缺少 Tailwind 产物：${CSS_ARTIFACT}（跑 deno task build-css）"
+    fail "缺少 CSS 产物：${CSS_ARTIFACT}（跑 deno task build-css）"
     return 1
   fi
   if [ ! -f "$REPO_ROOT/$CSS_MANIFEST" ]; then
-    fail "缺少 Tailwind 指纹：${CSS_MANIFEST}（跑 deno task build-css 生成）"
+    fail "缺少 CSS 指纹：${CSS_MANIFEST}（跑 deno task build-css 生成）"
     return 1
   fi
 
   write_css_manifest "$TMP_MANIFEST"
   if diff -u --label "记录（main.css.sha256）" --label "现在（工作区）" "$REPO_ROOT/$CSS_MANIFEST" "$TMP_MANIFEST" >"$TMP_DIFF"; then
-    ok "Tailwind 产物与源码一致（$(wc -c <"$REPO_ROOT/$CSS_ARTIFACT" | tr -d ' ') 字节）"
+    ok "CSS 产物与源码一致（$(wc -c <"$REPO_ROOT/$CSS_ARTIFACT" | tr -d ' ') 字节）"
   else
-    fail "Tailwind 产物与源码不一致（- 记录 / + 现在）："
+    fail "CSS 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
-    fail "  改了 themes/self/ 里被 Tailwind 扫描的内容（assets/app.css、layouts/**、README.md …）"
+    fail "  改了 themes/self/ 里影响 CSS 的内容（assets/app.css、layouts/**、uno.config.ts …）"
     fail "  就得跑 deno task build-css，把产物与指纹一起提交（CI 不装 bun，不会重编译）"
     bad=1
   fi
@@ -217,7 +220,7 @@ fi
 
 if [ "$CMD" = stamp-css ]; then
   write_css_manifest "$REPO_ROOT/$CSS_MANIFEST"
-  ok "Tailwind 指纹已更新：${CSS_MANIFEST}（$(wc -l <"$REPO_ROOT/$CSS_MANIFEST" | tr -d ' ') 条）"
+  ok "CSS 指纹已更新：${CSS_MANIFEST}（$(wc -l <"$REPO_ROOT/$CSS_MANIFEST" | tr -d ' ') 条）"
   exit 0
 fi
 
@@ -238,7 +241,7 @@ log "① 图片产物"
 if check_images; then ok "图片产物齐全"; else fail "图片产物不齐"; BAD=1; fi
 log "② wasm 产物"
 if check_wasm; then ok "wasm 产物新鲜"; else fail "wasm 产物不新鲜"; BAD=1; fi
-log "③ Tailwind 产物"
-if check_css; then ok "Tailwind 产物新鲜"; else fail "Tailwind 产物不新鲜"; BAD=1; fi
+log "③ CSS 产物"
+if check_css; then ok "CSS 产物新鲜"; else fail "CSS 产物不新鲜"; BAD=1; fi
 if [ "$BAD" -ne 0 ]; then exit 1; fi
 ok "构建产物检查通过"

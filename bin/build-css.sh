@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 #
-# 编译 Tailwind → 写回主题 → 更新指纹文件。
+# 编译 UnoCSS → 写回主题 → 更新指纹文件。
 #
 #   ./bin/build-css.sh        等价于 deno task build-css
 #
-# 为什么需要它：`themes/self/assets/main.css` 是 Tailwind v4 的编译产物，Hugo 只做
+# 为什么需要它：`themes/self/assets/main.css` 是编译产物（2026-10-23 从 Tailwind v4
+# 迁到 UnoCSS，源是 assets/app.css + uno.config.ts），Hugo 只做
 # concat + minify + fingerprint（themes/self/layouts/partials/head.html），不会重编译。
 # 合并主题时上游的 package.json / bun.lock / postcss.config.mjs 被一并删掉了，产物于是
 # 变成「只能手改」的化石 —— 2026-10-07 恢复：以后改样式只改 assets/app.css（或模板里的类），
