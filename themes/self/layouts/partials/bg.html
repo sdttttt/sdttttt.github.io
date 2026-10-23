@@ -69,8 +69,8 @@
 {{- $script := resources.Get "js/page-bg.js" | minify | fingerprint -}}
 {{/* 待机屏保参数。时间都是**墙钟毫秒**；内部按固定 30Hz 换算成帧。
 
-     · idleMs      10s 没有任何输入 → 进入待机（淡入 + 组装）。
-     · prewarmMs   8s 时先拉 wasm（约 34KB）并解码一张图，保证 10s 到点即可
+     · idleMs      24s 没有任何输入 → 进入待机（淡入 + 组装）。
+     · prewarmMs   22s 时先拉 wasm（约 34KB）并解码一张图，保证 24s 到点即可
                    开始；如果 prewarmMs ≥ idleMs，JS 会夹到 idleMs - 1s。
      · blockPx     2px 网格的目标边长（CSS px）。屏幕特别大（网格数超过
                    maxBlocks）时会自动放大，4K 约 4.6px —— 这是性能上限，
@@ -104,8 +104,8 @@
 {{- $cfg := dict
       "images" $urls
       "wasm" $wasm.RelPermalink
-      "idleMs" 10000
-      "prewarmMs" 8000
+      "idleMs" 24000
+      "prewarmMs" 22000
       "blockPx" 2
       "maxBlocks" 400000
       "maxPixels" 1500000

@@ -2,9 +2,9 @@
  * 待机屏保：毛玻璃背景上的 2px 粒子人物。
  *
  * 行为
- *   - 页面加载后 **10 秒没有任何输入** → 进入待机：
- *       1. 8 秒时先预热 wasm（约 34KB）并解码一张图；
- *       2. 10 秒时把图按 contain 画到**透明**画布上（只有人物是不透明的），
+ *   - 页面加载后 **24 秒没有任何输入** → 进入待机：
+ *       1. 22 秒时先预热 wasm（约 34KB）并解码一张图；
+ *       2. 24 秒时把图按 contain 画到**透明**画布上（只有人物是不透明的），
  *          按 2px 网格采样（粒子 1px、缝隙 1px），交给 WASM；页面本身由 CSS
  *          的 backdrop-filter 做成毛玻璃，原博客内容仍然透出来；
  *       3. 引擎在 1.2 秒内按 hash01(i) 随机放行粒子，每颗从 build() 撒好的
@@ -26,12 +26,12 @@
  *     才真正停下（不再有「落定后冻结」）。
  *
  * 降级
- *   - prefers-reduced-motion：不加载 wasm，10 秒后直接淡入静态合成图；
+ *   - prefers-reduced-motion：不加载 wasm，24 秒后直接淡入静态合成图；
  *   - saveData：不进入待机；
  *   - wasm / 图片失败：什么都不显示，页面完全不受影响；
  *   - 无 JS：partial 里的空层不会出现，页面照常。
  *
- * 调试：URL 加 `?pt-bg=now` 可跳过 10 秒等待，直接进入待机。
+ * 调试：URL 加 `?pt-bg=now` 可跳过 24 秒等待，直接进入待机。
  * ------------------------------------------------------------------------- */
 (function () {
   'use strict';
@@ -52,8 +52,8 @@
   var IMAGES = Object.prototype.toString.call(cfg.images) === '[object Array]' ? cfg.images : [];
   if (!IMAGES.length) return;
 
-  var IDLE_MS = cfg.idleMs == null ? 10000 : Math.max(0, cfg.idleMs);
-  var PREWARM_MS = cfg.prewarmMs == null ? 8000 : Math.max(0, cfg.prewarmMs);
+  var IDLE_MS = cfg.idleMs == null ? 24000 : Math.max(0, cfg.idleMs);
+  var PREWARM_MS = cfg.prewarmMs == null ? 22000 : Math.max(0, cfg.prewarmMs);
   // 预热必须留出一点余量，否则会和进入待机同一拍触发，等于没预热
   if (PREWARM_MS > IDLE_MS - 1000) PREWARM_MS = Math.max(0, IDLE_MS - 1000);
 
@@ -267,7 +267,7 @@
       });
   }
 
-  /* 8 秒预热：只拉 wasm + 解码一张图，不采样、不建帧。10 秒到点时这些
+  /* 22 秒预热：只拉 wasm + 解码一张图，不采样、不建帧。24 秒到点时这些
      都已经在内存里，组装可以立刻开始。失败就标记 error，页面不受影响。 */
   function prewarm() {
     if (prewarmed) return Promise.resolve(true);
@@ -659,7 +659,7 @@
       }
       return;
     }
-    // 回来重新计 10 秒，不搞「切回来突然出现」
+    // 回来重新计 24 秒，不搞「切回来突然出现」
     lastActivity = performance.now();
     if (active && !settled) startLoop();
     else if (!active && !done) scheduleIdle();
@@ -670,7 +670,7 @@
   mark('waiting');
   if (!document.hidden) scheduleIdle();
 
-  // 开发用：?pt-bg=now 直接进待机，省得每次等 10 秒
+  // 开发用：?pt-bg=now 直接进待机，省得每次等 24 秒
   if (DEBUG) {
     lastActivity = -1e9;
     setTimeout(enter, 50);
