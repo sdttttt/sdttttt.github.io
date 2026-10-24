@@ -28,13 +28,13 @@ WASM_SRC_DIR="wasm/particles"
 WASM_ARTIFACT="themes/self/assets/wasm/particles.wasm"
 WASM_MANIFEST="themes/self/assets/wasm/particles.sha256"
 
-# CSS：CSS_THEME_DIR 是编译时的 cwd（postcss 在这里找 uno.config.ts / node_modules），
+# CSS：CSS_THEME_DIR 是编译时的 cwd（unocss 在这里找 uno.config.ts / node_modules），
 # 扫描范围由 uno.config.ts 的 content.filesystem 决定（layouts/**）。
-# CSS_ARTIFACT 既是产物、又是下一次编译的扫描输入（化石自我延续，见 bin/build-css.sh）。
+# CSS_ARTIFACT 只是生成物（utilities + reset + typography），手写的 app.css / custom.css
+# 不参与指纹之外的生成，见 bin/build-css.sh。
 CSS_THEME_DIR="themes/self"
-CSS_APP="themes/self/assets/app.css"
-CSS_ARTIFACT="themes/self/assets/main.css"
-CSS_MANIFEST="themes/self/assets/main.css.sha256"
+CSS_ARTIFACT="themes/self/assets/uno.css"
+CSS_MANIFEST="themes/self/assets/uno.css.sha256"
 
 # ── 输出 ──
 log() { printf '==> %s\n' "$*"; }

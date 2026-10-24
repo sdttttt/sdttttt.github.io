@@ -19,10 +19,10 @@
 #      所以「改了 lib.rs 却没重建产物」在 CI 里本来是完全不可见的 ——
 #      靠 particles.sha256 这份指纹文件（源文件 + 产物各自的 sha256）把它变得可见。
 #      有 Rust 工具链时可用 --rebuild 做最强校验（真编译出来逐字节比）。
-#   4. CSS 产物与它扫描的源码一致。`themes/self/assets/main.css` 是编译产物
-#      （Hugo 只做 concat + minify，见 themes/self/layouts/partials/head.html），
-#      而 CI 不装 bun —— 同样靠 main.css.sha256 把「改了 app.css / 模板却没重编译」变可见。
-#      扫描输入是整个 themes/self/ 目录（含产物自身，见 css_sources 的注释）。
+#   4. CSS 产物与它扫描的源码一致。`themes/self/assets/uno.css` 是 `unocss` CLI 的
+#      生成物（Hugo 只做 concat + minify，见 themes/self/layouts/partials/head.html），
+#      而 CI 不装 bun —— 同样靠 uno.css.sha256 把「改了模板 / uno.config.ts 却没重新
+#      生成」变可见。扫描输入是整个 themes/self/ 目录（见 css_sources 的注释）。
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 BG_SRC_DIR="assets/src/bg"
@@ -92,13 +92,13 @@ check_images() {
 }
 
 # ── ④ CSS 产物 ────────────────────────────────────────────────
-# 参与指纹的文件 = 整个 themes/self/ 目录，除了：node_modules（依赖不参与编译）、
-# 打包产物 assets/main.css（它已经是记录里的第一行）、指纹文件自身（自引用）、
+# 参与指纹的文件 = 整个 themes/self/ 目录，除了：node_modules（依赖不参与生成）、
+# 产物 assets/uno.css（它已经是记录里的第一行）、指纹文件自身（自引用）、
 # assets/wasm/*.wasm（二进制，UnoCSS 的扫描器本来就不看二进制 —— 列上它只会让每次
-# `build-wasm` 白搭一次 CSS 重编译）。
+# `build-wasm` 白搭一次 CSS 重新生成）。
 # 为什么用「整个目录」而不是列几个文件：UnoCSS 的扫描范围（layouts/**）虽然窄，但
-# 产物还取决于 app.css / uno.config.ts / package.json / bun.lock 等一串文件 ——
-# 与其维护一份「哪些文件参与编译」的清单（漏一个就等于放行陈旧产物），不如把整个
+# 产物还取决于 uno.config.ts / package.json / bun.lock 等一串文件 ——
+# 与其维护一份「哪些文件参与生成」的清单（漏一个就等于放行陈旧产物），不如把整个
 # 主题目录当输入：多算几个文件只是严格一点，不会漏。
 # 代价是 README 之类的非输入文件改动也会让指纹失配（重跑一次 build-css 即可，幂等），
 # 这是「宁可多报、不可漏报」的有意取舍。
@@ -131,32 +131,32 @@ check_css() {
   fi
 
   write_css_manifest "$TMP_MANIFEST"
-  if diff -u --label "记录（main.css.sha256）" --label "现在（工作区）" "$REPO_ROOT/$CSS_MANIFEST" "$TMP_MANIFEST" >"$TMP_DIFF"; then
+  if diff -u --label "记录（uno.css.sha256）" --label "现在（工作区）" "$REPO_ROOT/$CSS_MANIFEST" "$TMP_MANIFEST" >"$TMP_DIFF"; then
     ok "CSS 产物与源码一致（$(wc -c <"$REPO_ROOT/$CSS_ARTIFACT" | tr -d ' ') 字节）"
   else
     fail "CSS 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
-    fail "  改了 themes/self/ 里影响 CSS 的内容（assets/app.css、layouts/**、uno.config.ts …）"
-    fail "  就得跑 deno task build-css，把产物与指纹一起提交（CI 不装 bun，不会重编译）"
+    fail "  改了 themes/self/ 里影响 CSS 的内容（layouts/**、app.css、uno.config.ts …）"
+    fail "  就得跑 deno task build-css，把产物与指纹一起提交（CI 不装 bun，不会重新生成）"
     bad=1
   fi
 
   if [ "$REBUILD" = 1 ]; then
     if ! have bun; then
-      warn "跳过 CSS 重编译校验（本机没有 bun）"
-    elif [ ! -x "$REPO_ROOT/$CSS_THEME_DIR/node_modules/.bin/postcss" ]; then
-      warn "跳过 CSS 重编译校验（themes/self/node_modules 不在；先跑 deno task build-css）"
+      warn "跳过 CSS 重新生成校验（本机没有 bun）"
+    elif [ ! -x "$REPO_ROOT/$CSS_THEME_DIR/node_modules/.bin/unocss" ]; then
+      warn "跳过 CSS 重新生成校验（themes/self/node_modules 不在；先跑 deno task build-css）"
     else
-      log "bun run build:css（校验用，输出到临时目录）"
-      if (cd "$REPO_ROOT/$CSS_THEME_DIR" && ./node_modules/.bin/postcss assets/app.css -o "$TMP_TARGET/main.css"); then
-        if cmp -s "$TMP_TARGET/main.css" "$REPO_ROOT/$CSS_ARTIFACT"; then
-          ok "重编译复现：产物逐字节一致"
+      log "unocss（校验用，输出到临时目录）"
+      if (cd "$REPO_ROOT/$CSS_THEME_DIR" && ./node_modules/.bin/unocss 'layouts/**/*.html' -o "$TMP_TARGET/uno.css"); then
+        if cmp -s "$TMP_TARGET/uno.css" "$REPO_ROOT/$CSS_ARTIFACT"; then
+          ok "重新生成复现：产物逐字节一致"
         else
-          fail "重编译产物与提交的 $CSS_ARTIFACT 不一致"
+          fail "重新生成的产物与提交的 $CSS_ARTIFACT 不一致"
           bad=1
         fi
       else
-        fail "重编译失败"
+        fail "重新生成失败"
         bad=1
       fi
     fi

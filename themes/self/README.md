@@ -49,19 +49,27 @@ Everything else — `layouts/404.html`, `layouts/_default/list.html` (outside th
 
 ### The CSS pipeline (UnoCSS)
 
-Migrated from Tailwind v4 on 2026-10-23. `assets/app.css` is the source (`@unocss all;`, the `--w` custom property, and the theme's own rules written with `@apply`); `uno.config.ts` holds the presets (`presetWind4` + `presetTypography`) and the scan scope; `assets/main.css` is the **compiled output, committed to the repo**. Hugo does not compile it — `layouts/partials/head.html` only concatenates it with `assets/custom.css`, minifies and fingerprints.
+Migrated from Tailwind v4 on 2026-10-23, then moved off PostCSS on 2026-10-24. Three files, one of them generated:
+
+- `assets/uno.css` — **generated, committed**: reset, theme variables, typography and every utility used by `layouts/**/*.html`. Produced by the `unocss` CLI; Hugo never generates styles.
+- `assets/app.css` — the theme's own rules, written as plain CSS (no `@apply`).
+- `assets/custom.css` — site-only rules (screensaver, archive / search pages, hero title).
+
+`layouts/partials/head.html` concatenates them in that order, then minifies and fingerprints the result.
 
 ```bash
-deno task build-css   # = bin/build-css.sh: bun install --frozen-lockfile, then postcss, then refresh the fingerprint
+deno task build-css   # = bin/build-css.sh: bun install --frozen-lockfile, then unocss, then refresh the fingerprint
 ```
 
 Details that are easy to lose:
 
-- **Never hand-edit `assets/main.css`** — edit `app.css` (or `custom.css` for site-only rules) and rebuild.
-- `bun.lock` must be installed with `--frozen-lockfile`: the output is sensitive to the resolved versions of `postcss-preset-env`'s transitive `@csstools/*` packages, so a fresh resolve can compile different bytes from the same source.
-- UnoCSS scans only what `uno.config.ts` lists (`layouts/**/*.html`). Unlike Tailwind v4, prose here does **not** feed the build, and the previous `main.css` is not re-scanned, so dead rules can no longer fossilise.
-- Tailwind syntax that did not survive the move: the `(--var)` shorthand (`max-w-(--w)` became `max-w-[--w]`), `@theme` / `@utility` / `@plugin` / `@custom-variant` (moved into `uno.config.ts` or plain CSS), typography's variables (`--tw-prose-*` became `--un-prose-*`), and the `before:` variant no longer implies `content: ''`. The generated `:not(#\#)` specificity bumpers are gone, so selectors that used to win by force may now need the `.prose` prefix (see the heading rule in `app.css`).
-- CI installs neither bun nor Rust, so `assets/main.css.sha256` records the artifact plus every file under the theme directory; `./bin/artifacts.sh check` fails when they disagree, and `./bin/artifacts.sh check --rebuild` recompiles and compares bytes locally (needs bun + `themes/self/node_modules`). The whole directory is fingerprinted on purpose — a superset that cannot miss an input — so editing this README still asks for a rebuild (which is idempotent).
+- **Never hand-edit `assets/uno.css`** — edit the templates, `app.css` or `custom.css` and rebuild.
+- **No `@apply`**: it is only resolved by a bundler plugin or `@unocss/postcss`, and this repo uses neither. Repeat the declarations instead.
+- **No `var(--…)` for theme tokens in `app.css`**: UnoCSS emits theme variables on demand, so a token no template utility uses (e.g. `--radius-md`) is absent from the output and the declaration silently fails. `app.css` therefore carries literal values that mirror the scale — spacing 0.25rem, `text-sm` 0.875rem, `text-lg` 1.125rem, radii 0.375 / 0.75rem, black `#000`, white `#fff`. The one exception is `--un-prose-pre-bg`, which the typography preset defines on `.prose`.
+- `bun.lock` must be installed with `--frozen-lockfile`: the output is sensitive to the resolved `unocss` versions, so a fresh resolve can produce different bytes from the same source.
+- UnoCSS scans only what `uno.config.ts` lists (`layouts/**/*.html`). Prose in `README.md`, `i18n/*.yaml` and the previous artifact do not feed the build, so dead rules can no longer fossilise.
+- Tailwind syntax that did not survive the move: `@theme` / `@utility` / `@plugin` / `@custom-variant` (moved into `uno.config.ts` or plain CSS), typography's variables (`--tw-prose-*` → `--un-prose-*`), and the `before:` variant no longer implies `content: ''`. The generated `:not(#\#)` specificity bumpers are gone, so selectors that used to win by force may now need the `.prose` prefix (see the heading rule in `app.css`).
+- CI installs neither bun nor Rust, so `assets/uno.css.sha256` records the artifact plus every file under the theme directory; `./bin/artifacts.sh check` fails when they disagree, and `./bin/artifacts.sh check --rebuild` regenerates and compares bytes locally (needs bun + `themes/self/node_modules`). The whole directory is fingerprinted on purpose — a superset that cannot miss an input — so editing this README still asks for a rebuild (which is idempotent).
 
 Deleted on 2026-10-07 — all of it dead code (no config key set, no content using it, or no asset ever vendored):
 
@@ -80,3 +88,4 @@ RSS is off site-wide: `hugo.toml`'s `[outputs]` pins `section` / `taxonomy` / `t
 - 2026-10-07 — that theme renamed `sdttttt-paper` → `self`; `hugo.toml` reduced to `theme = "self"`.
 - 2026-10-07 — dead-feature sweep: RSS generation turned off site-wide, `<meta name="description">` removed, comment systems / KaTeX / mermaid / highlight.js / the `collapse` shortcode deleted, `i18n/` trimmed to `zh.yaml`, social-icon nav dropped.
 - 2026-10-07 — the last dead CSS in `assets/main.css` (27 selectors left over from the deleted social-icon nav and upstream's `exampleSite/`) was removed by hand, then the whole file was reproduced by rebuilding Tailwind: `package.json` / `bun.lock` / `postcss.config.mjs` vendored back, `deno task build-css` added, artifact fingerprinted as `assets/main.css.sha256`. The `monoDarkIcon` flag and `theme.png` were dropped along the way.
+- 2026-10-24 — dropped PostCSS entirely: the `unocss` CLI now generates `assets/uno.css` directly, `app.css` became plain CSS (no `@apply`, literal token values), and `head.html` concatenates `uno.css` + `app.css` + `custom.css`. The PostCSS output had been leaking `@property` descriptors into rule bodies (13 broken blocks) and needed a hand-written sorting plugin to stay byte-reproducible; the CLI output is stable across runs and clean.

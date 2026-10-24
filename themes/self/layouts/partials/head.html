@@ -27,11 +27,15 @@
        twitter:description / itemprop=description），删这里不影响分享卡片。 -->
 
   <!-- css & js -->
-  {{- $main := resources.Get "main.css" -}}
+  <!-- uno.css 是 UnoCSS 生成的产物（reset + 主题变量 + typography + 工具类），
+       app.css / custom.css 是手写源。顺序不能变：手写规则必须排在工具类之后。 -->
+  {{- $uno := resources.Get "uno.css" -}}
+  <!---->
+  {{- $app := resources.Get "app.css" -}}
   <!---->
   {{- $custom := resources.Get "custom.css" -}}
   <!---->
-  {{- $css := slice $main $custom | resources.Concat "main.css" | minify | fingerprint -}}
+  {{- $css := slice $uno $app $custom | resources.Concat "main.css" | minify | fingerprint -}}
   <link rel="preload stylesheet" as="style" href="{{- $css.RelPermalink -}}" integrity="{{ $css.Data.Integrity }}" />
 
   <!-- dark icon -->

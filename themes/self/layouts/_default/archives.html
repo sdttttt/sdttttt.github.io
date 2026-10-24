@@ -14,10 +14,10 @@
   and would otherwise be mixed into the archive. Drafts / future-dated posts
   are dropped by Hugo before a template ever sees them.
 
-  Styling lives in assets/custom.css (`.arch*`) on purpose — assets/main.css
-  is a checked-in UnoCSS build (the site's CI only installs
-  Deno), so utilities that were never compiled into it (grid, text-sm,
-  tabular-nums, …) would silently do nothing here.
+  Styling lives in assets/custom.css (`.arch*`) on purpose — assets/uno.css
+  is a checked-in UnoCSS artifact generated from layouts/** (the site's CI
+  only installs Deno), so utilities that no template uses (grid, text-sm,
+  tabular-nums, …) are never generated and would silently do nothing here.
 
   Upstream nanxiaobei/hugo-paper has no archives.html, so this file has no
   counterpart and no sync burden.

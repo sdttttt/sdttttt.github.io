@@ -16,15 +16,16 @@
   - `layouts/partials/footer.html` — footer，去掉上游的 powered by 链接；右端的 powered by dsh 徽标已于 2026-10-23 删除（Anthropic 没有等价的「powered by Claude」徽章可换，`claude.com/partners/powered-by-claude` 只是合作方目录）
   - `layouts/_default/particles.html` — `/particles/` 粒子演示页（**`draft: true`，不对外发布**，本地用 `hugo server -D` 看）
   - `layouts/_default/archives.html` — `/archives/` 归档页（`content/archives.md` 的 `layout: archives` 指向它）：按年 → 月分组，每月一段 inline 流；口径是 `where site.RegularPages "Type" "in" site.Params.mainSections`（= 209 篇，自动排除 changelog 与 `build.list: never` 的私密文章）
-  - `assets/custom.css` — 自定义 CSS（待机屏保 + 首页 hero 粒子 + 粒子页 + 归档页）。`.home-title` 的宋体栈与 `.home-title__text` / `.home-title__canvas` 的交叉淡入也在这里。⚠️ **给 `h1`–`h6` 设 `font-size` 必须带 `!important`**：`assets/main.css:74` 的 `h1…h6 { font-size: inherit }` 与 `:1382` 的 `h1, h2, h3 { @apply font-semibold }` 都带 `:not(#\#)` 特异性炸弹（`:not(#\#)` 里的 `#\#` 是 ID 选择器 → (2,0,1) / (5,0,1)），普通类选择器永远打不过；字重不用写，继承主题的 600
+  - `assets/custom.css` — 自定义 CSS（待机屏保 + 首页 hero 粒子 + 粒子页 + 归档页）。`.home-title` 的宋体栈与 `.home-title__text` / `.home-title__canvas` 的交叉淡入也在这里。⚠️ **给 `h1`–`h6` 设 `font-size` 仍然建议带 `!important`**：UnoCSS 的 reset 里有 `h1…h6 { font-size: inherit }`，`app.css` 也把 `h1,h2,h3` 钉成 600。2026-10-23 起产物里**没有** Tailwind 的 `:not(#\#)` 特异性炸弹了，`!important` 从「必须」降级为「保险」；文件里那些仍写着「炸弹」的注释是迁移期的历史说明，别照抄成理由
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
   - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器：只缓存编译好的 Module，每个消费方各自实例化，内存互不干扰）/ `home-title.js`（首页 hero：宋体字形 → 粒子、交叉淡入、30Hz 行波；每次加载生成随机种子交给 `seed_on()`，所以点阵落点每次打开都不同；缩放 / 深色切换重建时复用同一把种子，隐藏 / 离屏 / 屏保时暂停）/ `page-bg.js`（待机屏保：24s 空闲、22s 预热、30Hz 组装、持续漂浮、指针散开场、wake 层）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
-  - `assets/app.css` + `uno.config.ts` + `assets/main.css` + `package.json` + `bun.lock` + `postcss.config.mjs` — **UnoCSS 管线**（2026-10-23 从 Tailwind v4 迁来）：`app.css` 是源（`@unocss all;` + `--w` 变量 + 主题自己的 `@apply` 规则），`uno.config.ts` 放预设（`presetWind4` + `presetTypography`）与扫描范围，`main.css` 是提交进仓库的编译产物（Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。改样式 / 类名后跑 `deno task build-css`（= `bin/build-css.sh`：`bun install --frozen-lockfile` → `postcss assets/app.css -o assets/main.css` → 更新 `assets/main.css.sha256`），**别手改 `main.css`**。`bun.lock` 必须一起 vendor 并用 `--frozen-lockfile`：产物对 `postcss-preset-env` 的传递依赖（`@csstools/*`）版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份源编出不同字节（实测 `#0000` 变成 `rgba(0,0,0,0)`）
-  - ⚠️ **UnoCSS 只扫 `uno.config.ts` 里列的 `layouts/**/*.html`**：`README.md`、`i18n/*.yaml`、上一版 `main.css` 都不再进产物，Tailwind 时代「散文里的类名会被发射」和「死类化石自我延续」这两类问题随之消失。代价是 `bin/artifacts.sh` 的指纹仍然覆盖整个主题目录（宁可多报），所以改 README 还是会让指纹失配，重跑一次 `build-css` 即可（幂等）
-  - 迁移中踩到的语法差异（改样式时注意）：`(--var)` 简写不认，要写 `max-w-[--w]` / `bg-[--bg]`；`@theme` / `@utility` / `@plugin` / `@custom-variant` 都没有，对应能力在 `uno.config.ts` 或普通 CSS 里；typography 的变量是 `--un-prose-*` 而不是 `--tw-prose-*`；`before:` 变体**不会**自动补 `content: ''`，伪元素要显式写；产物里没有 `:not(#\#)` 特异性炸弹，原本靠它压过 typography 的规则要自己补 `.prose` 前缀
+  - `uno.config.ts` + `assets/uno.css` + `assets/app.css` + `package.json` + `bun.lock` — **UnoCSS 管线**（2026-10-23 从 Tailwind v4 迁来，2026-10-24 去掉 PostCSS）：`uno.config.ts` 放预设（`presetWind4` + `presetTypography`）与扫描范围，`unocss` CLI 据此把 reset / 主题变量 / typography / 工具类生成到 `assets/uno.css`（**提交进仓库**；Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。`app.css` 是主题自己的规则（普通 CSS，**没有 `@apply`**），`custom.css` 是站点自有样式，两者由 head.html 跟在 `uno.css` 后面 concat。改样式 / 类名后跑 `deno task build-css`（= `bin/build-css.sh`：`bun install --frozen-lockfile` → `unocss 'layouts/**/*.html' -o assets/uno.css` → 更新 `assets/uno.css.sha256`），**别手改 `uno.css`**。`bun.lock` 必须一起 vendor 并用 `--frozen-lockfile`：产物对 unocss 与其传递依赖的版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份模板生成不同字节
+  - ⚠️ **`app.css` 里不要引用主题变量**：UnoCSS 的主题变量按需发射，模板没用过的 token（如 `--radius-md`、`--fontWeight-semibold`）压根不在产物里，`var()` 会静默失效（实测字重退回 400、圆角退回 0）。所以 `app.css` 写的是字面量，取值与 UnoCSS 尺度一一对应：spacing 0.25rem、`text-sm` 0.875rem、`text-lg` 1.125rem、radius 0.375 / 0.75rem、黑 `#000`、白 `#fff`；唯一例外是 `--un-prose-pre-bg`（typography 预设在 `.prose` 上定义）
+  - ⚠️ **UnoCSS 只扫 `uno.config.ts` 里列的 `layouts/**/*.html`**：`README.md`、`i18n/*.yaml`、`app.css` 都不进产物，Tailwind 时代「散文里的类名会被发射」和「死类化石自我延续」这两类问题随之消失。代价是 `bin/artifacts.sh` 的指纹仍然覆盖整个主题目录（宁可多报），所以改 README 还是会让指纹失配，重跑一次 `build-css` 即可（幂等）
+  - 迁移中踩到的语法差异（改样式时注意）：`(--var)` 简写不认，要写 `max-w-[--w]` / `bg-[--bg]`；`@theme` / `@utility` / `@plugin` / `@custom-variant` 都没有，对应能力在 `uno.config.ts` 或普通 CSS 里；**`@apply` 也没有**（只有 bundler 插件 / `@unocss/postcss` 能解析，本仓库两者都不用），要复用声明就直接写；typography 的变量是 `--un-prose-*` 而不是 `--tw-prose-*`；`before:` 变体**不会**自动补 `content: ''`，伪元素要显式写；产物里没有 `:not(#\#)` 特异性炸弹，原本靠它压过 typography 的规则要自己补 `.prose` 前缀
 
   （上述路径相对于 `themes/self/`，完整路径如 `themes/self/layouts/partials/bg.html`。）
 
@@ -52,7 +53,7 @@ hugo --minify                     # 生产构建到 public/
 deno task test                    # 跑 scripts/__tests__/ 下全部测试
 deno task test-wasm               # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
 deno task build-wasm              # 重建 wasm 产物 + 指纹（需 cargo；CI 不跑）
-deno task build-css               # 重建 CSS 产物 main.css + 指纹（需 bun；CI 不跑）
+deno task build-css               # 重建 CSS 产物 uno.css + 指纹（需 bun；CI 不跑）
 deno task validate-posts          # 校验 front matter
 deno task check-dead-links        # 检查外链死链（拆成「真死链 / 没能验证 / 已归档」三栏）
 deno task rename-posts-dry        # 预览文章改名
@@ -75,7 +76,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 ./bin/artifacts.sh check --rebuild   # 额外重编译逐字节比对：cargo 编 wasm；有 bun + node_modules 时也重编 CSS
 ./bin/test.sh                        # shell 语法检查 + deno 单测
 ./bin/build.sh                       # hugo --minify
-./bin/build-css.sh                   # UnoCSS：bun install --frozen-lockfile → postcss → main.css + 指纹（幂等）
+./bin/build-css.sh                   # UnoCSS：bun install --frozen-lockfile → unocss → uno.css + 指纹（幂等）
 ./bin/check-links.sh                 # 死链检查（CI 里失败只出 warning，不挡部署）
 #   死链只算「确实打不开」的；403/429/451 与反爬域名（baike.baidu.com）下的任何响应都归「没能验证」，
 #   正文里已注明失效的链接写进 scripts/check-dead-links.ts 的 ARCHIVED_URLS（连请求都不发，有测试守着）
@@ -84,7 +85,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度（图片 / wasm / CSS）。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
 - **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
 - 改了 `wasm/**` 后跑 `deno task build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
-- 改了 `themes/self/` 里影响 CSS 的内容（`assets/app.css`、模板里的类名、`uno.config.ts`）后跑 `deno task build-css`，**产物 `assets/main.css` 与指纹 `assets/main.css.sha256` 一起提交**。
+- 改了 `themes/self/` 里影响 CSS 的内容（模板里的类名、`uno.config.ts`）后跑 `deno task build-css`，**产物 `assets/uno.css` 与指纹 `assets/uno.css.sha256` 一起提交**（改 `app.css` / `custom.css` 不改变 `uno.css`，但指纹覆盖整个主题目录，仍要重跑一次让它重新 stamp）。
 - 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `build.sh` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
 ## 编码与命名规范
@@ -97,7 +98,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - 文章内联图片：外链图床（Gitee / imgkr / idanmu）会烂掉，**原图丢了就换成 `static/images/image-lost.svg` 占位**，markdown 写成 `![alt](/images/image-lost.svg "原托管方 + 暂缺原因")`（`title` 由 `render-image.html` 渲染成图下小字）；新图建议放 `static/images/posts/<slug>/` 并提交进仓库。
 - **碰过 `assets/src/**` 就必须重跑 `deno task optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。
 - **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；改完先 `deno task test-wasm` 过一遍单元测试（`src/tests.rs`，测试直接读写 `Engine` 私有字段，靠一把全局锁把并行的 `cargo test` 串起来）；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
-- **CSS 管线（UnoCSS）**：`themes/self/assets/main.css` 是编译产物（首行是 UnoCSS 的 layer 注释），不要手改；改样式 / 类名后跑 `deno task build-css` 并提交 `main.css` + `main.css.sha256`（幂等，可反复跑）。搜索建议：预设与扫描范围在 `themes/self/uno.config.ts`，主题自己的规则（含原来的 `dark-bg`）在 `themes/self/assets/app.css`，站点自有样式全在 `themes/self/assets/custom.css`（`main.css` 里的规则是 UnoCSS 生成的，改它会被下次编译覆盖）。
+- **CSS 管线（UnoCSS）**：`themes/self/assets/uno.css` 是 `unocss` CLI 的产物（reset + 主题变量 + typography + 工具类），不要手改；改模板类名 / `uno.config.ts` 后跑 `deno task build-css` 并提交 `uno.css` + `uno.css.sha256`（幂等，可反复跑）。搜索建议：预设与扫描范围在 `themes/self/uno.config.ts`，主题自己的规则在 `themes/self/assets/app.css`（普通 CSS，无 `@apply`），站点自有样式全在 `themes/self/assets/custom.css`。
 - **待机屏保（2026-10-20 重做）**：`assets/js/page-bg.js` 从页面加载起计时，**24 秒没有任何输入**就进入待机；22 秒时先预热 wasm（约 34KB）并解码一张图，24 秒到点再合成、`build()`、组装。
   - **范围**：固定定位的**视口层**（`position:fixed; inset:0; z-index:100`），不是整个滚动文档 —— 按文档高度铺 2px 网格会到几十万粒子 / 几十 MB framebuffer。`page-bg` 自身是半透明底色 + `backdrop-filter` 毛玻璃（暗色单独 tint），所以正文仍然透出来，粒子间隙看到的是原页面而不是第二张图。
   - **2px 网格的预算**：backing store 用 CSS px、**不乘 dpr**，总像素上限 1.5MP；1440×900 是 720×450 = 324,000 个格子，但图是透明底 cutout，只有人物覆盖的格子会变成粒子（实测 5.3–7.4 万颗 @1440×900，随图不同），5.2MB/帧、30fps ≈ 156MB/s（旧徽标 60fps 约 138MB/s，同一量级）。屏幕太大时 `blockCss = max(2, sqrt(视口面积 / 400000))` 自动放大，且 backing 缩放后 step 会取整（1920 约 2.3px，2560 约 3.0px，4K 约 4.6px）；`maxParticles` 180k 只是引擎安全阀。
@@ -123,7 +124,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `./bin/preflight.sh`（只读，等价于 CI 的检查；装了 `./bin/install-hooks.sh` 后 push 会自动跑）；不要提交 `public/` 或临时文件。
 - **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/self/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
-- **碰过 CSS 源就必须重编译**：改了 `themes/self/assets/app.css`、任何模板里的 class 或 `themes/self/uno.config.ts`，推送前跑 `deno task build-css`，把 `themes/self/assets/main.css` 与 `themes/self/assets/main.css.sha256` 一起提交。CI 不装 bun，`./bin/artifacts.sh check` 是唯一能逮住陈旧的关卡（本地有 bun 时用 `--rebuild` 做最强校验）。
+- **碰过 CSS 源就必须重新生成**：改了任何模板里的 class 或 `themes/self/uno.config.ts`，推送前跑 `deno task build-css`，把 `themes/self/assets/uno.css` 与 `themes/self/assets/uno.css.sha256` 一起提交。CI 不装 bun，`./bin/artifacts.sh check` 是唯一能逮住陈旧的关卡（本地有 bun 时用 `--rebuild` 做最强校验）。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认

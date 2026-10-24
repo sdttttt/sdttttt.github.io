@@ -5,33 +5,47 @@
  * Designed by 南小北 https://lee.so/
  */
 
-@unocss all;
+/*
+ * 主题自己的样式层 —— 普通 CSS，不使用 @apply。
+ *
+ * 工具类、reset、typography 与主题变量由 UnoCSS 在构建时生成到 assets/uno.css
+ * （bin/build-css.sh 调 unocss CLI）。head.html 按 uno.css → app.css → custom.css
+ * 的顺序 concat，所以这里的规则永远排在工具类之后，同特异性下按源序覆盖。
+ *
+ * 为什么没有 @apply：@apply 只有 bundler 插件和 @unocss/postcss 能解析，这个仓库
+ * 两者都不用（Hugo 只做 concat + minify + fingerprint）。
+ *
+ * 为什么值都是字面量：UnoCSS 的主题变量按需发射 —— 没有模板（layouts/**）用过
+ * `rounded-md` / `font-semibold`，产物里就不会有 --radius-md / --fontWeight-semibold，
+ * `var()` 于是失效（字重退回 400、圆角退回 0）。这里的取值与 UnoCSS 的尺度一一对应：
+ * spacing 0.25rem、text-sm 0.875rem、text-lg 1.125rem、radius 0.375 / 0.75rem、
+ * 黑 #000、白 #fff。唯一保留的变量是 --un-prose-pre-bg，它由 typography 预设在
+ * `.prose` 上定义，不参与按需发射。
+ */
 
-/* 原 Tailwind 的 `@theme { --w: ... }`：UnoCSS 没有 CSS-first 主题，这里就是普通变量 */
+/* 主栏宽度：原来 Tailwind 的 `@theme { --w }`，现在只是一个普通变量。 */
 :root {
   --w: calc(680px + 32px * 2);
 }
 
-/* 原 `@utility dark-bg { @apply dark:before:... }` 的展开。UnoCSS 的 shortcut 展开
-   不了「dark: + before:」这种变体链（实测零输出、@apply 也吃不到），所以直接把
-   整条工具链写进 @apply —— body 与 .nav-wrapper 共用这段。
-   注意 `dark:before:content-['']` 不能省：Tailwind 的 before: 变体会自动补
-   `content: var(--tw-content, "")`，UnoCSS 不会，少了它伪元素 content 是 none、整块
-   背景压根不渲染。 */
-body {
-  @apply dark:before:content-[''] dark:before:fixed dark:before:inset-0 dark:before:z-[-1] dark:before:bg-black/85;
+/* 暗色底：body::before 是铺满视口的黑纸，z-index: -1 垫在正文下方。
+   伪元素必须显式写 content，否则 display / position 都不成立。 */
+.dark body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-color: color-mix(in srgb, #000 85%, transparent);
 }
 
-/* 标题统一 600。Tailwind 时代这条靠 `@apply` 产物的 `:not(#\#)` 特异性炸弹压过
-   typography 预设（.prose h1 的 800 / h2 的 700）；UnoCSS 不再有那颗炸弹，所以这里
-   显式带上 `.prose` 前缀（(0,1,1)）把它压回去，保持原来的观感。 */
+/* 标题统一 600：typography 预设给 .prose h1 800 / h2 700，这里用 (0,1,1) 压回去。 */
 h1,
 h2,
 h3,
 .prose h1,
 .prose h2,
 .prose h3 {
-  @apply font-semibold;
+  font-weight: 600;
 }
 
 pre {
@@ -39,101 +53,160 @@ pre {
 }
 
 article {
-  @apply text-lg leading-[1.8] text-black dark:text-white;
+  font-size: 1.125rem;
+  line-height: 1.8;
+  color: #000;
+}
 
-  code {
-    @apply inline-block text-sm! leading-6!;
-  }
+.dark article {
+  color: #fff;
+}
 
-  .highlight {
-    @apply my-8;
+article code {
+  display: inline-block;
+  font-size: 0.875rem !important;
+  line-height: 1.5rem !important;
+}
 
-    pre {
-      @apply my-0;
-    }
+/* 代码块：Hugo highlight 把每一行渲染成 table 的一行，行号栏靠这里排。 */
+article .highlight {
+  margin: 2rem 0;
+}
 
-    > div {
-      /* UnoCSS 的 typography 预设用 --un-prose-* 而不是 Tailwind 的 --tw-prose-* */
-      @apply rounded-md bg-[--un-prose-pre-bg];
+article .highlight pre {
+  margin: 0;
+}
 
-      table {
-        @apply my-0 table-fixed;
+article .highlight > div {
+  border-radius: 0.375rem;
+  background-color: var(--un-prose-pre-bg);
+}
 
-        tr {
-          @apply flex;
+article .highlight > div table {
+  margin: 0;
+  table-layout: fixed;
+}
 
-          td {
-            @apply p-0;
+article .highlight > div table tr {
+  display: flex;
+}
 
-            pre {
-              @apply bg-transparent!;
-            }
-          }
+article .highlight > div table tr td {
+  padding: 0;
+}
 
-          &:first-of-type pre {
-            @apply pr-[4px];
+article .highlight > div table tr td pre {
+  background-color: transparent !important;
+}
 
-            code span {
-              @apply mr-0! block min-w-[18px] p-0! text-right text-white/40;
-            }
-          }
+article .highlight > div table tr:first-of-type pre {
+  padding-right: 4px;
+}
 
-          &:last-of-type {
-            @apply overflow-auto;
-          }
-        }
-      }
-    }
-  }
+article .highlight > div table tr:first-of-type pre code span {
+  display: block;
+  min-width: 18px;
+  margin-right: 0 !important;
+  padding: 0 !important;
+  text-align: right;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+article .highlight > div table tr:last-of-type {
+  overflow: auto;
 }
 
 .btn {
-  @apply rounded-xl bg-black px-5 py-3 text-[0.95em] text-white no-underline duration-100 active:scale-95 dark:bg-white dark:text-black;
+  padding: 0.75rem 1.25rem;
+  border-radius: 0.75rem;
+  font-size: 0.95em;
+  color: #fff;
+  text-decoration: none;
+  background-color: #000;
+  transition-duration: 100ms;
+}
+
+.btn:active {
+  scale: 95%;
+}
+
+.dark .btn {
+  color: #000;
+  background-color: #fff;
 }
 
 .link {
-  @apply duration-200 hover:text-black dark:hover:text-white;
+  transition-duration: 200ms;
+}
+
+.link:hover {
+  color: #000;
+}
+
+.dark .link:hover {
+  color: #fff;
 }
 
 .not-ready * {
-  @apply transition-none!;
+  transition: none !important;
 }
 
 .prose {
-  @apply break-words;
+  overflow-wrap: break-word;
+}
 
-  kbd:has(kbd) {
-    @apply shadow-none;
+.prose kbd:has(kbd) {
+  box-shadow: none;
+}
+
+/* 汉堡按钮：两条横线，展开态交叉成 ×。 */
+.btn-menu::before,
+.btn-menu::after {
+  content: "";
+  display: block;
+  width: 1.25rem;
+  height: 2px;
+  background-color: #000;
+  transition-duration: 200ms;
+}
+
+.dark .btn-menu::before,
+.dark .btn-menu::after {
+  filter: invert(100%);
+}
+
+.btn-menu:where(.open *)::before {
+  width: 1.5rem;
+  translate: 0 6px;
+  rotate: 45deg;
+}
+
+.btn-menu:where(.open *)::after {
+  width: 1.5rem;
+  translate: 0 -6px;
+  rotate: -45deg;
+}
+
+/* 暗色下导航栏自带一层黑底；lg 以上不画。
+   定位是 absolute（原工具链里 dark:before:absolute 排在 dark:before:fixed 之后）。 */
+.dark .nav-wrapper::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background-color: color-mix(in srgb, #000 85%, transparent);
+}
+
+@media (min-width: 64rem) {
+  .nav-wrapper::before {
+    display: none;
   }
 }
 
-.btn-menu {
-  &::before,
-  &::after {
-    @apply block h-[2px] w-5 bg-black duration-200 content-[''];
-  }
-
-  @apply dark:before:invert dark:after:invert;
-
-  &:where(.open *) {
-    &::before {
-      @apply w-6 translate-y-[6px] rotate-45;
-    }
-
-    &::after {
-      @apply w-6 -translate-y-[6px] -rotate-45;
-    }
-  }
-}
-
-.nav-wrapper {
-  @apply dark:before:content-[''] dark:before:fixed dark:before:inset-0 dark:before:z-[-1] dark:before:bg-black/85 lg:before:hidden dark:before:absolute;
-
-  &:where(.open *) {
-    @apply top-0;
-  }
+.nav-wrapper:where(.open *) {
+  top: 0;
 }
 
 .open {
-  @apply overflow-hidden;
+  overflow: hidden;
 }
