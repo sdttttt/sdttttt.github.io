@@ -12,6 +12,8 @@
        2026-10-23; it was dropped because Anthropic ships no equivalent
        "powered by Claude" mark (claude.com/partners/powered-by-claude is a
        partner directory, not a badge resource).
+    3. the right end now carries a "powered by" + Claude Code mark badge
+       (partials/claude-code-logo.html), linking to the product page.
 */}}
 
 <footer
@@ -23,4 +25,13 @@
     <a class="link" href="{{- `` | absURL -}}">{{- site.Title -}}</a>
     {{- end -}}
   </div>
+  <a
+    class="link ml-auto flex items-center"
+    href="https://claude.com/claude-code"
+    target="_blank"
+    rel="noopener noreferrer"
+  >
+    <span class="opacity-60">powered by</span>
+    {{- partial "claude-code-logo.html" . -}}
+  </a>
 </footer>

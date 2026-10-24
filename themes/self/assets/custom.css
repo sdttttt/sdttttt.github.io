@@ -468,6 +468,16 @@ html.dark .pt-stage {
     color: rgba(240, 238, 230, 0.45);
 }
 
+/* ── 页脚的 Claude Code 标（partials/claude-code-logo.html）─────────────
+   跟在 copyright 行右侧的 “powered by” 后面。1.25rem 与 12px 的版权行成比例，
+   填色 #D97757 与整站强调色一致；logo 保持全不透明，只有前面的文字是 60%。 */
+.footer-logo {
+    flex: none;
+    width: 1.25rem;
+    height: 1.25rem;
+    margin-left: 0.5rem;
+}
+
 /* ── 首页 hero：站点大标题 ─────────────────────────────────────────────
    原来这里是「大头像 + 名字」，2026-10-21 换成了放大版的站点标题；
    头像和名字挪进了 header（32px 小头像 + site.Params.name）。
