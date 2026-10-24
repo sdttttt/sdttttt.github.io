@@ -9,6 +9,8 @@ import {
   checkUrl,
   trimUrlTail,
   walkMarkdown,
+  resolveStrict,
+  buildSummary,
 } from '../check-dead-links.js';
 import { expect } from './expect.js';
 import { inTempDir } from './temp-dir.js';
@@ -285,5 +287,42 @@ describe('partitionByStatus', () => {
       'https://forbidden.example/',
       'https://legal.example/',
     ]);
+  });
+});
+
+describe('resolveStrict', () => {
+  test('本地默认严格', () => {
+    expect(resolveStrict({}, false)).toBe(true);
+  });
+
+  test('CI 默认宽松（外链会抖，不阻塞部署）', () => {
+    expect(resolveStrict({}, true)).toBe(false);
+  });
+
+  test('--strict 覆盖 CI 默认', () => {
+    expect(resolveStrict({ strict: true }, true)).toBe(true);
+  });
+
+  test('--soft 覆盖本地默认', () => {
+    expect(resolveStrict({ soft: true }, false)).toBe(false);
+  });
+});
+
+describe('buildSummary', () => {
+  test('既无死链也无拦截时不写 summary', () => {
+    expect(buildSummary(false, false, '报告')).toBeNull();
+  });
+
+  test('有死链时标警告并附上完整报告', () => {
+    const summary = buildSummary(true, true, '报告')!;
+    expect(summary).toContain('## ⚠️ 死链检查发现失效外链');
+    expect(summary).toContain('```\n报告\n```');
+  });
+
+  test('只有拦截时说明「未发现失效外链」，但仍把报告留痕', () => {
+    const summary = buildSummary(false, true, '报告')!;
+    expect(summary).toContain('未发现失效外链');
+    expect(summary).toContain('没能验证');
+    expect(summary).toContain('```\n报告\n```');
   });
 });

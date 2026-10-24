@@ -12,6 +12,7 @@
     "optimize-images-dry": "deno run --no-lock -A scripts/optimize-images.ts --dry-run",
     "build-wasm": "./bin/build-wasm.sh",
     "build-css": "./bin/build-css.sh",
+    "build": "hugo --minify",
     "test-wasm": "cd wasm/particles && cargo test",
     "lint": "deno lint scripts/"
   },

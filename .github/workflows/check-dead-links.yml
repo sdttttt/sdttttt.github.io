@@ -1,7 +1,7 @@
 name: Check Dead Links
 
-# 每周一次 + 内容变化时检查外链，跑什么与「失败怎么处理」都由 bin/check-links.sh 决定。
-# 死链不阻塞部署（外链会抖），但必须有可见痕迹：脚本会写 ::warning:: 与 job summary。
+# 每周一次 + 内容变化时检查外链，跑什么与「失败怎么处理」都由 scripts/check-dead-links.ts 决定。
+# 死链不阻塞部署（外链会抖），但必须有可见痕迹：CI 里脚本会写 ::warning:: 与 job summary。
 on:
   workflow_dispatch:
   schedule:
@@ -13,7 +13,7 @@ on:
     paths:
       - 'content/**'
       - 'scripts/check-dead-links.ts'
-      - 'bin/check-links.sh'
+      - 'deno.json'
       - '.github/workflows/check-dead-links.yml'
 
 jobs:
@@ -30,4 +30,4 @@ jobs:
           deno-version: '2.9.5'
 
       - name: Check dead links
-        run: ./bin/check-links.sh
+        run: deno task check-dead-links

@@ -51,7 +51,7 @@ jobs:
         run: ./bin/preflight.sh --fix
 
       - name: Build
-        run: ./bin/build.sh
+        run: deno task build
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

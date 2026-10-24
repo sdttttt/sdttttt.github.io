@@ -33,7 +33,8 @@
 - `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `bin/` — **CI 与本地共用的 shell 脚本层**（bash 3.2 兼容，macOS 自带 bash 也能跑）。`.github/workflows/*.yml` 只声明「触发条件 + 权限 + 第三方 action + 工具链安装」，实际跑什么全在 `bin/*.sh` 里 —— 所以本地能跑出和 CI 一样的结果，也不用读 YAML 才知道 CI 干了什么：
-  - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`validate-posts.sh`、`test.sh`、`build.sh`、`build-wasm.sh`、`build-css.sh`、`artifacts.sh`、`check-links.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
+  - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`test.sh`、`build-wasm.sh`、`build-css.sh`、`artifacts.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
+  - 2026-10-24 删掉三支没有自己逻辑的壳（`validate-posts.sh`、`build.sh`、`check-links.sh`）：前两支是纯 `exec`，第三支的 GitHub 注解 / 退出码逻辑并进了 `scripts/check-dead-links.ts`。CI 因此直接调 `deno task validate-posts` / `deno task build` / `deno task check-dead-links` —— **以后这类零逻辑入口不要再写 shell 壳**
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
 - `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）；`deno.json` — Deno 任务定义（含 `build-wasm` / `build-css`）。
@@ -52,6 +53,7 @@ hugo --minify                     # 生产构建到 public/
 
 deno task test                    # 跑 scripts/__tests__/ 下全部测试
 deno task test-wasm               # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
+deno task build                   # hugo --minify（部署用；本地预览用 hugo server -D）
 deno task build-wasm              # 重建 wasm 产物 + 指纹（需 cargo；CI 不跑）
 deno task build-css               # 重建 CSS 产物 uno.css + 指纹（需 bun；CI 不跑）
 deno task validate-posts          # 校验 front matter
@@ -66,7 +68,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 
 ## CI 与本地检查（`bin/`）
 
-**设计原则：YAML 只做 YAML 该做的事** —— 触发条件、`permissions`、`environment`、第三方 action、工具链安装、`concurrency`；所有逻辑都写进 `bin/*.sh`。改 CI 行为 = 改 shell 脚本，而本地跑同一个脚本就能复现 CI 的结果。
+**设计原则：YAML 只做 YAML 该做的事** —— 触发条件、`permissions`、`environment`、第三方 action、工具链安装、`concurrency`；所有逻辑都写进 `bin/*.sh` 或 `scripts/*.ts`。改 CI 行为 = 改脚本，而本地跑同一条命令（`./bin/x.sh` 或 `deno task x`）就能复现 CI 的结果。
 
 ```bash
 ./bin/preflight.sh                   # 只读：CI 会跑的那五道检查，本地跑一遍就知道 CI 会不会绿
@@ -75,9 +77,9 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 ./bin/artifacts.sh check             # 图片 / wasm / CSS 产物是否齐全且新鲜
 ./bin/artifacts.sh check --rebuild   # 额外重编译逐字节比对：cargo 编 wasm；有 bun + node_modules 时也重编 CSS
 ./bin/test.sh                        # shell 语法检查 + deno 单测
-./bin/build.sh                       # hugo --minify
+deno task build                      # hugo --minify
 ./bin/build-css.sh                   # UnoCSS：bun install --frozen-lockfile → unocss → uno.css + 指纹（幂等）
-./bin/check-links.sh                 # 死链检查（CI 里失败只出 warning，不挡部署）
+deno task check-dead-links           # 死链检查（本地默认严格、CI 只出 warning 不挡部署；--soft / --strict 可覆盖）
 #   死链只算「确实打不开」的；403/429/451 与反爬域名（baike.baidu.com）下的任何响应都归「没能验证」，
 #   正文里已注明失效的链接写进 scripts/check-dead-links.ts 的 ARCHIVED_URLS（连请求都不发，有测试守着）
 ```
@@ -86,7 +88,7 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 - **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
 - 改了 `wasm/**` 后跑 `deno task build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
 - 改了 `themes/self/` 里影响 CSS 的内容（模板里的类名、`uno.config.ts`）后跑 `deno task build-css`，**产物 `assets/uno.css` 与指纹 `assets/uno.css.sha256` 一起提交**（改 `app.css` / `custom.css` 不改变 `uno.css`，但指纹覆盖整个主题目录，仍要重跑一次让它重新 stamp）。
-- 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `build.sh` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
+- 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `deno task build` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
 ## 编码与命名规范
 

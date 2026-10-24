@@ -5,15 +5,21 @@
  * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
  *
  * 用法：
- *   deno task check-dead-links
+ *   deno task check-dead-links            本地：有死链时退出码 1
+ *   deno task check-dead-links --soft     退出码恒 0，只报告
+ *   deno task check-dead-links --strict   强制退出码 1（即使在 CI 里）
  *   deno run -A scripts/check-dead-links.ts --timeout 10000
  *
- * 退出码：0 = 没有死链（被服务器拦下的不算，见 BLOCKED_STATUSES）；1 = 有死链。
+ * 退出码：0 = 通过（或 --soft）；1 = 有死链且处于严格模式；2 = 参数错。
+ *
+ * CI（GITHUB_ACTIONS 非空）默认软失败：外链会抖、反爬会乱报，死链不该阻塞部署。
+ * 但不能像以前那样 `|| true` 一吞了事 —— 那样 2026-10-05 发现的 9 张失效外链图
+ * 在日志里毫无痕迹。所以这里会写 ::warning:: 注解 + job summary，留痕但不失败。
  */
 
-import { readdir, readFile } from 'node:fs/promises';
+import { appendFile, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseArgs, getNumber, getBoolean } from './lib/args.js';
+import { parseArgs, getNumber, getBoolean, type ParsedArgs } from './lib/args.js';
 import { CONTENT_DIR } from './lib/paths.js';
 
 const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;
@@ -111,6 +117,38 @@ export const ARCHIVED_URLS = new Set(['https://github.com/Awesome-Windows/Awesom
 /** 该链接是不是「已归档的已知死链」 */
 export function isArchived(url: string): boolean {
   return ARCHIVED_URLS.has(url);
+}
+
+/**
+ * 有死链时是否以失败退出。
+ *
+ * 本地默认严格（方便马上看见并修）；CI 默认宽松（外链会抖、反爬会乱报，
+ * 死链不该阻塞部署）。`--strict` / `--soft` 可覆盖任一默认值。
+ */
+export function resolveStrict(args: ParsedArgs, isCI: boolean): boolean {
+  if (getBoolean(args, 'strict')) return true;
+  if (getBoolean(args, 'soft')) return false;
+  return !isCI;
+}
+
+/**
+ * 需要追加到 GitHub job summary 的内容；没有死链、也没有「没能验证」的链接时返回 null。
+ *
+ * 「没能验证」也要写：否则 `✓ 未发现死链` 会被误读成「全都验证过了」，
+ * 而这批链接其实一次都没验证成功。
+ */
+export function buildSummary(
+  hasDead: boolean,
+  hasBlocked: boolean,
+  report: string,
+): string | null {
+  if (hasDead) {
+    return `## ⚠️ 死链检查发现失效外链\n\n不阻塞部署（外链会抖），但需要人工看一眼：\n\n\`\`\`\n${report}\n\`\`\`\n`;
+  }
+  if (hasBlocked) {
+    return `## ℹ️ 死链检查：未发现失效外链\n\n这些链接被服务器拦住了（403/429/451 等），没能验证，不算死链：\n\n\`\`\`\n${report}\n\`\`\`\n`;
+  }
+  return null;
 }
 
 /**
@@ -258,7 +296,52 @@ async function checkAll(urls: string[], statuses: Map<string, LinkStatus>): Prom
   await Promise.all(Array.from({ length: Math.min(CONCURRENCY, urls.length) }, worker));
 }
 
+const USAGE = `死链检查：扫描 content/ 下的 Markdown，探测其中的外链。
+
+用法：
+  deno task check-dead-links             本地：有死链时退出码 1
+  deno task check-dead-links --soft      退出码恒 0，只报告
+  deno task check-dead-links --strict    强制退出码 1（即使在 CI 里）
+  deno task check-dead-links --dry-run   只列出要检查的链接，不发请求
+  deno task check-dead-links --timeout=10000
+
+退出码：0 = 通过；1 = 有死链且处于严格模式；2 = 参数错。`;
+
+const KNOWN_ARGS = new Set([
+  'timeout',
+  'dry-run',
+  'dryRun',
+  'soft',
+  'strict',
+  'help',
+]);
+
 async function main(): Promise<void> {
+  if (getBoolean(args, 'help') || process.argv.includes('-h')) {
+    console.log(USAGE);
+    return;
+  }
+
+  const unknown = Object.keys(args).filter((key) => !KNOWN_ARGS.has(key));
+  if (unknown.length > 0) {
+    console.error(
+      `未知参数：${unknown.map((key) => `--${key}`).join(' ')}（--help 看用法）`,
+    );
+    Deno.exitCode = 2;
+    return;
+  }
+
+  // 报告既打到控制台，也整份留底 —— job summary 贴的就是它
+  const report: string[] = [];
+  const say = (line: string): void => {
+    console.log(line);
+    report.push(line);
+  };
+  const complain = (line: string): void => {
+    console.error(line);
+    report.push(line);
+  };
+
   // 先把「文件 → 链接」收齐再并发探测：死链清单最后一次性打印
   //（旧版边扫边打 `✗ …`、末尾又整列一遍，同一条日志出现两次）
   const references: { file: string; url: string }[] = [];
@@ -280,44 +363,63 @@ async function main(): Promise<void> {
 
   if (dryRun) {
     for (const url of urls) {
-      console.log(`[dry-run] 将检查: ${url}`);
+      say(`[dry-run] 将检查: ${url}`);
     }
-    console.log(`[dry-run] 共 ${urls.size} 个唯一外链，未发起请求`);
+    say(`[dry-run] 共 ${urls.size} 个唯一外链，未发起请求`);
     return;
   }
 
   const statuses = new Map<string, LinkStatus>();
-  console.log(`检查 ${urls.size} 个唯一外链（并发 ${CONCURRENCY}）…`);
+  say(`检查 ${urls.size} 个唯一外链（并发 ${CONCURRENCY}）…`);
   await checkAll([...urls], statuses);
 
   const { dead, blocked } = partitionByStatus(references, statuses);
 
   if (dead.length > 0) {
-    console.error(`\n发现 ${dead.length} 个死链:\n`);
+    complain(`\n发现 ${dead.length} 个死链:\n`);
     for (const { file, url, status } of dead) {
-      console.error(`  ${file}: ${url} (${status})`);
+      complain(`  ${file}: ${url} (${status})`);
     }
   } else {
-    console.log('✓ 未发现死链');
+    say('✓ 未发现死链');
   }
 
   // 被拦住的单独列出（不算死链）：不列的话，「✓ 未发现死链」会被误读成
   // 「全都验证过了」，而这批链接其实一次都没验证成功。
   if (blocked.length > 0) {
-    console.log(`\n${blocked.length} 个链接没能验证（服务器拦住 / 反爬域名乱报，不算死链）:\n`);
+    say(`\n${blocked.length} 个链接没能验证（服务器拦住 / 反爬域名乱报，不算死链）:\n`);
     for (const { file, url, status } of blocked) {
-      console.log(`  ${file}: ${url} (${status})`);
+      say(`  ${file}: ${url} (${status})`);
     }
   }
 
   if (archived.length > 0) {
-    console.log(`\n${archived.length} 个链接已归档（正文里注明已失效、故意保留，不做探测）:\n`);
+    say(`\n${archived.length} 个链接已归档（正文里注明已失效、故意保留，不做探测）:\n`);
     for (const { file, url } of archived) {
-      console.log(`  ${file}: ${url}`);
+      say(`  ${file}: ${url}`);
     }
   }
 
-  process.exit(dead.length > 0 ? 1 : 0);
+  // CI 留痕：::warning:: 注解进日志，完整报告进 job summary。本地不发注解。
+  const isCI = Boolean(Deno.env.get('GITHUB_ACTIONS'));
+  const summary = buildSummary(dead.length > 0, blocked.length > 0, report.join('\n'));
+  if (summary !== null) {
+    const summaryPath = Deno.env.get('GITHUB_STEP_SUMMARY');
+    if (summaryPath) {
+      try {
+        await appendFile(summaryPath, summary);
+      } catch (err) {
+        complain(`写 job summary 失败：${(err as Error).message}`);
+      }
+    }
+    if (isCI && dead.length > 0) {
+      console.log(
+        '::warning title=死链检查::发现失效外链（不阻塞部署），详见上方日志与 job summary',
+      );
+    }
+  }
+
+  Deno.exitCode = dead.length > 0 && resolveStrict(args, isCI) ? 1 : 0;
 }
 
 if (import.meta.main) {

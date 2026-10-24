@@ -12,7 +12,7 @@
 
 type ArgValue = string | boolean;
 
-type ParsedArgs = Record<string, ArgValue>;
+export type ParsedArgs = Record<string, ArgValue>;
 
 export function parseArgs(argv: string[]): ParsedArgs {
   const raw = argv.slice(2);
