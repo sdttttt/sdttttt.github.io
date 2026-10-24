@@ -1,6 +1,6 @@
 # 仓库贡献指南（Repository Guidelines）
 
-基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`self` 主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)；2026-10-07 起上游同步已停止，原 `themes/hugo-paper/` 合并进 `themes/self/`，现在它是仓库里唯一的主题，`hugo.toml` 只写 `theme = "self"`）。默认正文语言为简体中文。脚本与测试运行在 **Deno** 上（不是 Node.js）。站点：<https://sdttttt.online/>。
+基于 Hugo 的个人博客仓库（`sdttttt/sdttttt.github.io`），使用 **`self` 主题**（fork 自 [nanxiaobei/hugo-paper](https://github.com/nanxiaobei/hugo-paper)；2026-10-07 起上游同步已停止，原 `themes/hugo-paper/` 合并进 `themes/self/`，现在它是仓库里唯一的主题，`hugo.toml` 只写 `theme = "self"`）。默认正文语言为简体中文。脚本与测试运行在 **Bun** 上（TypeScript 直跑，不是 Node.js）。站点：<https://sdttttt.online/>。
 
 ## 项目结构
 
@@ -22,22 +22,23 @@
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
   - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器：只缓存编译好的 Module，每个消费方各自实例化，内存互不干扰）/ `home-title.js`（首页 hero：宋体字形 → 粒子、交叉淡入、30Hz 行波；每次加载生成随机种子交给 `seed_on()`，所以点阵落点每次打开都不同；缩放 / 深色切换重建时复用同一把种子，隐藏 / 离屏 / 屏保时暂停）/ `page-bg.js`（待机屏保：24s 空闲、22s 预热、30Hz 组装、持续漂浮、指针散开场、wake 层）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
-  - `uno.config.ts` + `assets/uno.css` + `assets/app.css` + `package.json` + `bun.lock` — **UnoCSS 管线**（2026-10-23 从 Tailwind v4 迁来，2026-10-24 去掉 PostCSS）：`uno.config.ts` 放预设（`presetWind4` + `presetTypography`）与扫描范围，`unocss` CLI 据此把 reset / 主题变量 / typography / 工具类生成到 `assets/uno.css`（**提交进仓库**；Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。`app.css` 是主题自己的规则（普通 CSS，**没有 `@apply`**），`custom.css` 是站点自有样式，两者由 head.html 跟在 `uno.css` 后面 concat。改样式 / 类名后跑 `deno task build-css`（= `bin/build-css.sh`：`bun install --frozen-lockfile` → `unocss 'layouts/**/*.html' -o assets/uno.css` → 更新 `assets/uno.css.sha256`），**别手改 `uno.css`**。`bun.lock` 必须一起 vendor 并用 `--frozen-lockfile`：产物对 unocss 与其传递依赖的版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份模板生成不同字节
+  - `uno.config.ts` + `assets/uno.css` + `assets/app.css` + `package.json` + `bun.lock` — **UnoCSS 管线**（2026-10-23 从 Tailwind v4 迁来，2026-10-24 去掉 PostCSS）：`uno.config.ts` 放预设（`presetWind4` + `presetTypography`）与扫描范围，`unocss` CLI 据此把 reset / 主题变量 / typography / 工具类生成到 `assets/uno.css`（**提交进仓库**；Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。`app.css` 是主题自己的规则（普通 CSS，**没有 `@apply`**），`custom.css` 是站点自有样式，两者由 head.html 跟在 `uno.css` 后面 concat。改样式 / 类名后跑 `bun run build-css`（= `bin/build-css.sh`：`bun install --frozen-lockfile` → `unocss 'layouts/**/*.html' -o assets/uno.css` → 更新 `assets/uno.css.sha256`），**别手改 `uno.css`**。`bun.lock` 必须一起 vendor 并用 `--frozen-lockfile`：产物对 unocss 与其传递依赖的版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份模板生成不同字节
   - ⚠️ **`app.css` 里不要引用主题变量**：UnoCSS 的主题变量按需发射，模板没用过的 token（如 `--radius-md`、`--fontWeight-semibold`）压根不在产物里，`var()` 会静默失效（实测字重退回 400、圆角退回 0）。所以 `app.css` 写的是字面量，取值与 UnoCSS 尺度一一对应：spacing 0.25rem、`text-sm` 0.875rem、`text-lg` 1.125rem、radius 0.375 / 0.75rem、黑 `#000`、白 `#fff`；唯一例外是 `--un-prose-pre-bg`（typography 预设在 `.prose` 上定义）
   - ⚠️ **UnoCSS 只扫 `uno.config.ts` 里列的 `layouts/**/*.html`**：`README.md`、`i18n/*.yaml`、`app.css` 都不进产物，Tailwind 时代「散文里的类名会被发射」和「死类化石自我延续」这两类问题随之消失。代价是 `bin/artifacts.sh` 的指纹仍然覆盖整个主题目录（宁可多报），所以改 README 还是会让指纹失配，重跑一次 `build-css` 即可（幂等）
   - 迁移中踩到的语法差异（改样式时注意）：`(--var)` 简写不认，要写 `max-w-[--w]` / `bg-[--bg]`；`@theme` / `@utility` / `@plugin` / `@custom-variant` 都没有，对应能力在 `uno.config.ts` 或普通 CSS 里；**`@apply` 也没有**（只有 bundler 插件 / `@unocss/postcss` 能解析，本仓库两者都不用），要复用声明就直接写；typography 的变量是 `--un-prose-*` 而不是 `--tw-prose-*`；`before:` 变体**不会**自动补 `content: ''`，伪元素要显式写；产物里没有 `:not(#\#)` 特异性炸弹，原本靠它压过 typography 的规则要自己补 `.prose` 前缀
 
   （上述路径相对于 `themes/self/`，完整路径如 `themes/self/layouts/partials/bg.html`。）
 
-- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `deno task build-wasm`（需 `cargo`），产物拷到 `themes/self/assets/wasm/particles.wasm`（当前 38,134 字节）；`ripple_on` 的 `mode`：0 = 横向剪切、1 = 径向涟漪、2 = 沿 x 的**向右行波**（首页标题：横 sin / 纵 cos 的椭圆轨道，相位取 `kx − phase`，别写成 `+phase`）；标题专用的一次性/叠加接口：`seed_on(seed)` 播种「按采样格坐标取哈希」的序列（`hash01k(seed, key, salt)`，key = 源图采样坐标打包；换一把种子 = 换一套点阵落点，首页标题每次加载随机一把，同页重建复用同一把）、`jitter_on(amp)` 目标位抖动（按坐标取哈希、重复调用不叠加，build 后 settle 前调用）、`size_jitter_on(amp)` 随机边长（1–64，0 恢复统一大小）、`wobble_on(ax, ay)` 逐粒子独立微动（可与行波同时开，3s 循环）。四者屏保 / 粒子页都不调用。单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，54 个，`deno task test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
-- `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `deno task optimize-images`，产物写进 `static/`
+- `wasm/particles/` — **Rust 裸导出的 WASM 引擎源码**（采样 + 物理 + 软件光栅化）；改完跑 `bun run build-wasm`（需 `cargo`），产物拷到 `themes/self/assets/wasm/particles.wasm`（当前 38,134 字节）；`ripple_on` 的 `mode`：0 = 横向剪切、1 = 径向涟漪、2 = 沿 x 的**向右行波**（首页标题：横 sin / 纵 cos 的椭圆轨道，相位取 `kx − phase`，别写成 `+phase`）；标题专用的一次性/叠加接口：`seed_on(seed)` 播种「按采样格坐标取哈希」的序列（`hash01k(seed, key, salt)`，key = 源图采样坐标打包；换一把种子 = 换一套点阵落点，首页标题每次加载随机一把，同页重建复用同一把）、`jitter_on(amp)` 目标位抖动（按坐标取哈希、重复调用不叠加，build 后 settle 前调用）、`size_jitter_on(amp)` 随机边长（1–64，0 恢复统一大小）、`wobble_on(ax, ay)` 逐粒子独立微动（可与行波同时开，3s 循环）。四者屏保 / 粒子页都不调用。单元测试在 `src/tests.rs`（`#[cfg(test)] mod tests;`，54 个，`bun run test-wasm` 跑，**只在宿主上编译、不进 wasm 产物**；引擎 100% 行覆盖，见文件头注释里的复现命令）
+- `assets/src/` — **图片原图**（`bg/*.png` 背景 cutouts、`avatar/avatar.jpg`）；Hugo **不**发布该目录下未被 Pipes 引用的文件，所以原图只占仓库、不占部署体积。改完跑 `bun run optimize-images`，产物写进 `static/`
 - `static/` — 原样拷贝的静态资源（apple-touch-icon / favicon / safari）；`static/bg/*.avif` 与 `static/avatar.webp` 是 `optimize-images` 生成的发布图。
 - `bin/` — **CI 与本地共用的 shell 脚本层**（bash 3.2 兼容，macOS 自带 bash 也能跑）。`.github/workflows/*.yml` 只声明「触发条件 + 权限 + 第三方 action + 工具链安装」，实际跑什么全在 `bin/*.sh` 里 —— 所以本地能跑出和 CI 一样的结果，也不用读 YAML 才知道 CI 干了什么：
-  - `lib.sh`（被 source 的底座：定位仓库根、把 vendored 的 `.tools/deno/bin` 前置进 PATH、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`test.sh`、`build-wasm.sh`、`build-css.sh`、`artifacts.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
-  - 2026-10-24 删掉三支没有自己逻辑的壳（`validate-posts.sh`、`build.sh`、`check-links.sh`）：前两支是纯 `exec`，第三支的 GitHub 注解 / 退出码逻辑并进了 `scripts/check-dead-links.ts`。CI 因此直接调 `deno task validate-posts` / `deno task build` / `deno task check-dead-links` —— **以后这类零逻辑入口不要再写 shell 壳**
+  - `lib.sh`（被 source 的底座：定位仓库根、日志、以及「失败不中断、最后汇总」的 `run_step`/`report`）、`preflight.sh`（`--check` 只读 / `--fix` 就地修 / `--re-stage` 修完重新入 index）、`test.sh`、`build-wasm.sh`、`build-css.sh`、`artifacts.sh`、`publish-autofix.sh`（CI 专用，本地会拒绝执行）
+  - 2026-10-24 删掉三支没有自己逻辑的壳（`validate-posts.sh`、`build.sh`、`check-links.sh`）：前两支是纯 `exec`，第三支的 GitHub 注解 / 退出码逻辑并进了 `scripts/check-dead-links.ts`。CI 因此直接调 `bun run validate-posts` / `bun run build` / `bun run check-dead-links` —— **以后这类零逻辑入口不要再写 shell 壳**
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
-- `scripts/` — Deno + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
-- `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）；`deno.json` — Deno 任务定义（含 `build-wasm` / `build-css`）。
+- `scripts/` — Bun + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。
+- `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）。
+- `package.json` + `bun.lock` — **根任务入口**（2026-10-24 从 `deno.json` 迁来）：`scripts` 里是全部 `bun run x` 任务（与 `bin/*.sh`、CI 共用同一份定义），`devDependencies` 只有钉死版本的 `prettier`（3.9.6）。CI 用 `oven-sh/setup-bun` 装 **bun 1.4.4**，与本地一致；`bun.lock` 必须 vendor 并 `--frozen-lockfile` 安装。
 
 首次克隆不需要 submodule：`git clone`。
 
@@ -51,24 +52,23 @@
 hugo server -D                    # 本地预览（含草稿）
 hugo --minify                     # 生产构建到 public/
 
-deno task test                    # 跑 scripts/__tests__/ 下全部测试
-deno task test-wasm               # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
-deno task build                   # hugo --minify（部署用；本地预览用 hugo server -D）
-deno task build-wasm              # 重建 wasm 产物 + 指纹（需 cargo；CI 不跑）
-deno task build-css               # 重建 CSS 产物 uno.css + 指纹（需 bun；CI 不跑）
-deno task validate-posts          # 校验 front matter
-deno task check-dead-links        # 检查外链死链（拆成「真死链 / 没能验证 / 已归档」三栏）
-deno task rename-posts-dry        # 预览文章改名
-deno task optimize-images-dry     # 预览图片转换（不写盘、不装 sharp）
-deno task optimize-images         # 把 assets/src/ 的原图转成 static/ 的发布图
-deno task format-markdown-check   # 检查 Markdown 格式（不写入）
-deno task format-markdown         # 写入式格式化（CI 推送后自动跑）
-deno task lint                    # deno lint scripts/（已 exclude no-sloppy-imports）
+bun run test                      # 跑 scripts/__tests__/ 下全部测试
+bun run test-wasm                 # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
+bun run build                     # hugo --minify（部署用；本地预览用 hugo server -D）
+bun run build-wasm                # 重建 wasm 产物 + 指纹（需 cargo；CI 不跑）
+bun run build-css                 # 重建 CSS 产物 uno.css + 指纹（CI 不跑）
+bun run validate-posts            # 校验 front matter
+bun run check-dead-links          # 检查外链死链（拆成「真死链 / 没能验证 / 已归档」三栏）
+bun run rename-posts-dry          # 预览文章改名
+bun run optimize-images-dry       # 预览图片转换（不写盘、不装 sharp）
+bun run optimize-images           # 把 assets/src/ 的原图转成 static/ 的发布图
+bun run format-markdown-check     # 检查 Markdown 格式（不写入）
+bun run format-markdown           # 写入式格式化（CI 推送后自动跑）
 ```
 
 ## CI 与本地检查（`bin/`）
 
-**设计原则：YAML 只做 YAML 该做的事** —— 触发条件、`permissions`、`environment`、第三方 action、工具链安装、`concurrency`；所有逻辑都写进 `bin/*.sh` 或 `scripts/*.ts`。改 CI 行为 = 改脚本，而本地跑同一条命令（`./bin/x.sh` 或 `deno task x`）就能复现 CI 的结果。
+**设计原则：YAML 只做 YAML 该做的事** —— 触发条件、`permissions`、`environment`、第三方 action、工具链安装、`concurrency`；所有逻辑都写进 `bin/*.sh` 或 `scripts/*.ts`。改 CI 行为 = 改脚本，而本地跑同一条命令（`./bin/x.sh` 或 `bun run x`）就能复现 CI 的结果。
 
 ```bash
 ./bin/preflight.sh                   # 只读：CI 会跑的那五道检查，本地跑一遍就知道 CI 会不会绿
@@ -76,31 +76,31 @@ deno task lint                    # deno lint scripts/（已 exclude no-sloppy-i
 ./bin/install-hooks.sh               # 装一次 pre-commit / pre-push hook（core.hooksPath=bin/hooks）
 ./bin/artifacts.sh check             # 图片 / wasm / CSS 产物是否齐全且新鲜
 ./bin/artifacts.sh check --rebuild   # 额外重编译逐字节比对：cargo 编 wasm；有 bun + node_modules 时也重编 CSS
-./bin/test.sh                        # shell 语法检查 + deno 单测
-deno task build                      # hugo --minify
+./bin/test.sh                        # shell 语法检查 + bun 单测
+bun run build                      # hugo --minify
 ./bin/build-css.sh                   # UnoCSS：bun install --frozen-lockfile → unocss → uno.css + 指纹（幂等）
-deno task check-dead-links           # 死链检查（本地默认严格、CI 只出 warning 不挡部署；--soft / --strict 可覆盖）
+bun run check-dead-links           # 死链检查（本地默认严格、CI 只出 warning 不挡部署；--soft / --strict 可覆盖）
 #   死链只算「确实打不开」的；403/429/451 与反爬域名（baike.baidu.com）下的任何响应都归「没能验证」，
 #   正文里已注明失效的链接写进 scripts/check-dead-links.ts 的 ARCHIVED_URLS（连请求都不发，有测试守着）
 ```
 
 - **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度（图片 / wasm / CSS）。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
-- **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `deno task optimize-images`）。
-- 改了 `wasm/**` 后跑 `deno task build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
-- 改了 `themes/self/` 里影响 CSS 的内容（模板里的类名、`uno.config.ts`）后跑 `deno task build-css`，**产物 `assets/uno.css` 与指纹 `assets/uno.css.sha256` 一起提交**（改 `app.css` / `custom.css` 不改变 `uno.css`，但指纹覆盖整个主题目录，仍要重跑一次让它重新 stamp）。
-- 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `deno task build` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
+- **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `bun run optimize-images`）。
+- 改了 `wasm/**` 后跑 `bun run build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
+- 改了 `themes/self/` 里影响 CSS 的内容（模板里的类名、`uno.config.ts`）后跑 `bun run build-css`，**产物 `assets/uno.css` 与指纹 `assets/uno.css.sha256` 一起提交**（改 `app.css` / `custom.css` 不改变 `uno.css`，但指纹覆盖整个主题目录，仍要重跑一次让它重新 stamp）。
+- 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `bun run build` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
 ## 编码与命名规范
 
-- TypeScript 脚本使用 2 空格缩进；依赖 Deno 任务运行，无 `tsc`、无 `node_modules`；只用 `node:` 内置 API 与 import map 里显式列出的 npm 包。
-- Markdown 由全局安装的 Prettier 3 格式化（`deno install -g -A npm:prettier@3.9.6`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `deno task format-markdown`。
+- TypeScript 脚本使用 2 空格缩进；由 `bun run` 直接执行，无 `tsc`、脚本零第三方依赖（只用 `node:` 内置 API）；仓库根的 `node_modules` 只装 prettier。
+- Markdown 由 Prettier 3 格式化（钉在根 `package.json` 的 devDependencies，`3.9.6`；先 `bun install`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `bun run format-markdown`。
 - 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 3–4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。hash 取自**正文**，所以改正文 / 标题都会触发 `rename-posts` 改名；脚本会自动把旧 URL 追加进该篇的 `aliases`（幂等），**别名不要手删**，否则旧链接 404。
 - Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。`description` 现在只喂 OG / Twitter 卡片与 schema（`og:description` / `twitter:description` / `itemprop=description`，来自 `_internal/*.html`），**不再**生成 `<meta name="description">`（那行已从 `head.html` 删除）。
-- 背景图 / 头像：**原图放 `assets/src/`，发布图放 `static/`**。背景 cutouts 是 `assets/src/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切），跑 `deno task optimize-images` 生成 `static/bg/*.avif`（640px q45，`--format webp` 可切 WebP）；头像是 `assets/src/avatar/avatar.jpg` → `static/avatar.webp`（192px，固定 WebP）。新增/删除图片会在待机屏保和 `/particles/` 自动生效（两处都靠 `readDir "static/bg"` 发现 `.avif` / `.webp`）。
+- 背景图 / 头像：**原图放 `assets/src/`，发布图放 `static/`**。背景 cutouts 是 `assets/src/bg/*.png`（PNG 已用 `@imgly/background-removal-node` 预切），跑 `bun run optimize-images` 生成 `static/bg/*.avif`（640px q45，`--format webp` 可切 WebP）；头像是 `assets/src/avatar/avatar.jpg` → `static/avatar.webp`（192px，固定 WebP）。新增/删除图片会在待机屏保和 `/particles/` 自动生效（两处都靠 `readDir "static/bg"` 发现 `.avif` / `.webp`）。
 - 文章内联图片：外链图床（Gitee / imgkr / idanmu）会烂掉，**原图丢了就换成 `static/images/image-lost.svg` 占位**，markdown 写成 `![alt](/images/image-lost.svg "原托管方 + 暂缺原因")`（`title` 由 `render-image.html` 渲染成图下小字）；新图建议放 `static/images/posts/<slug>/` 并提交进仓库。
-- **碰过 `assets/src/**` 就必须重跑 `deno task optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。
-- **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `deno task build-wasm` 并提交 `.wasm`；改完先 `deno task test-wasm` 过一遍单元测试（`src/tests.rs`，测试直接读写 `Engine` 私有字段，靠一把全局锁把并行的 `cargo test` 串起来）；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
-- **CSS 管线（UnoCSS）**：`themes/self/assets/uno.css` 是 `unocss` CLI 的产物（reset + 主题变量 + typography + 工具类），不要手改；改模板类名 / `uno.config.ts` 后跑 `deno task build-css` 并提交 `uno.css` + `uno.css.sha256`（幂等，可反复跑）。搜索建议：预设与扫描范围在 `themes/self/uno.config.ts`，主题自己的规则在 `themes/self/assets/app.css`（普通 CSS，无 `@apply`），站点自有样式全在 `themes/self/assets/custom.css`。
+- **碰过 `assets/src/**` 就必须重跑 `bun run optimize-images` 并提交产物**：CI 不跑图片转换（同 WASM），忘了就发布会陈旧/缺失的图。
+- **WASM 引擎**：Rust 裸导出（不用 wasm-bindgen），只导出 C-ABI 函数。改 `wasm/particles/src/lib.rs` 后必须重新 `bun run build-wasm` 并提交 `.wasm`；改完先 `bun run test-wasm` 过一遍单元测试（`src/tests.rs`，测试直接读写 `Engine` 私有字段，靠一把全局锁把并行的 `cargo test` 串起来）；搜索建议：`WebAssembly` 相关代码都在 `assets/js/pt-wasm.js`（共享加载器）里。
+- **CSS 管线（UnoCSS）**：`themes/self/assets/uno.css` 是 `unocss` CLI 的产物（reset + 主题变量 + typography + 工具类），不要手改；改模板类名 / `uno.config.ts` 后跑 `bun run build-css` 并提交 `uno.css` + `uno.css.sha256`（幂等，可反复跑）。搜索建议：预设与扫描范围在 `themes/self/uno.config.ts`，主题自己的规则在 `themes/self/assets/app.css`（普通 CSS，无 `@apply`），站点自有样式全在 `themes/self/assets/custom.css`。
 - **待机屏保（2026-10-20 重做）**：`assets/js/page-bg.js` 从页面加载起计时，**24 秒没有任何输入**就进入待机；22 秒时先预热 wasm（约 34KB）并解码一张图，24 秒到点再合成、`build()`、组装。
   - **范围**：固定定位的**视口层**（`position:fixed; inset:0; z-index:100`），不是整个滚动文档 —— 按文档高度铺 2px 网格会到几十万粒子 / 几十 MB framebuffer。`page-bg` 自身是半透明底色 + `backdrop-filter` 毛玻璃（暗色单独 tint），所以正文仍然透出来，粒子间隙看到的是原页面而不是第二张图。
   - **2px 网格的预算**：backing store 用 CSS px、**不乘 dpr**，总像素上限 1.5MP；1440×900 是 720×450 = 324,000 个格子，但图是透明底 cutout，只有人物覆盖的格子会变成粒子（实测 5.3–7.4 万颗 @1440×900，随图不同），5.2MB/帧、30fps ≈ 156MB/s（旧徽标 60fps 约 138MB/s，同一量级）。屏幕太大时 `blockCss = max(2, sqrt(视口面积 / 400000))` 自动放大，且 backing 缩放后 step 会取整（1920 约 2.3px，2560 约 3.0px，4K 约 4.6px）；`maxParticles` 180k 只是引擎安全阀。
@@ -116,7 +116,7 @@ deno task check-dead-links           # 死链检查（本地默认严格、CI �
 
 ## 测试指南
 
-- 框架：Deno 内置 `Deno.test`，测试位于 `scripts/__tests__/*.test.ts`。
+- 框架：`node:test`（由 `bun test` 运行），测试位于 `scripts/__tests__/*.test.ts`。
 - 断言风格参考 `node:test`；共享工具在 `expect.ts` / `temp-dir.ts`。
 - 新脚本须配套 `*.test.ts`；CI 通过 `.github/workflows/test-scripts.yml` 自动跑。
 
@@ -125,8 +125,8 @@ deno task check-dead-links           # 死链检查（本地默认严格、CI �
 - 提交信息遵循 Conventional Commits，可选作用域：`chore(rename):`、`feat(seo):`、`ci(deploy):`、`chore(format):`、`chore(taxonomies):`、`docs(changelog):` 等。
 - PR 目标分支为 `master`，描述需写清改动范围、关联任务，以及对 front matter / 工作流 / override 文件的潜在影响。
 - 推送前跑一遍 `./bin/preflight.sh`（只读，等价于 CI 的检查；装了 `./bin/install-hooks.sh` 后 push 会自动跑）；不要提交 `public/` 或临时文件。
-- **碰过 `wasm/**` 就必须重建**：推送前跑 `deno task build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/self/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
-- **碰过 CSS 源就必须重新生成**：改了任何模板里的 class 或 `themes/self/uno.config.ts`，推送前跑 `deno task build-css`，把 `themes/self/assets/uno.css` 与 `themes/self/assets/uno.css.sha256` 一起提交。CI 不装 bun，`./bin/artifacts.sh check` 是唯一能逮住陈旧的关卡（本地有 bun 时用 `--rebuild` 做最强校验）。
+- **碰过 `wasm/**` 就必须重建**：推送前跑 `bun run build-wasm`（= `bin/build-wasm.sh`），把更新后的 `themes/self/assets/wasm/particles.wasm` **和指纹 `particles.sha256`** 一起提交。CI **不**构建 WASM（部署流程故意不装 Rust），所以产物完全靠手动同步，忘了就发布会陈旧的引擎（`./bin/artifacts.sh check` 就是为了在本地逮住这件事）。
+- **碰过 CSS 源就必须重新生成**：改了任何模板里的 class 或 `themes/self/uno.config.ts`，推送前跑 `bun run build-css`，把 `themes/self/assets/uno.css` 与 `themes/self/assets/uno.css.sha256` 一起提交。CI 不跑 build-css，`./bin/artifacts.sh check` 是唯一能逮住陈旧的关卡（本地用 `--rebuild` 做最强校验）。
 - **推送前必须先检查远端是否有新提交**：`git fetch origin && git log HEAD..origin/master --oneline`；如果有新提交（例如 CI bot 的 `chore: auto-fix content` —— 它在 `deploy.yml` 里把改名的文章 / 格式化后的 Markdown 提交回来），必须先 rebase / merge 解决冲突再 push，避免推送时与远端历史分叉、需要 `--force` 才能推上去。`--force-with-lease` 仍是 rebase 后的合规选项，但**能避免就避免**。
 
 ## 操作需确认

@@ -15,14 +15,6 @@ BIN_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$BIN_DIR/.." && pwd)"
 export REPO_ROOT BIN_DIR
 
-# 仓库把 Deno 工具链 vendored 在 .tools/ 下（见 .gitignore），所以本机不装任何东西
-# 就能跑；CI 里没有 .tools/，由 denoland/setup-deno 提供全局 deno。
-# 注意 prettier 也在这个目录（.tools/deno/bin/prettier 是 deno 的 shim，本身需要 PATH 上有 deno）。
-if [ -d "$REPO_ROOT/.tools/deno/bin" ]; then
-  PATH="$REPO_ROOT/.tools/deno/bin:$PATH"
-  export PATH
-fi
-
 # ── 构建产物布局（bin/artifacts.sh / build-wasm.sh / build-css.sh 共用，改路径只改这一处）──
 WASM_SRC_DIR="wasm/particles"
 WASM_ARTIFACT="themes/self/assets/wasm/particles.wasm"
@@ -57,11 +49,11 @@ require_cmd() {
   exit 127
 }
 
-require_deno() {
-  require_cmd deno "本机应有 .tools/deno/bin/deno；CI 由 denoland/setup-deno 提供"
+require_bun() {
+  require_cmd bun "本机用 mise 装（或 brew install bun）；CI 由 oven-sh/setup-bun 提供"
 }
 
-# 所有命令都以仓库根为 cwd（deno task / hugo / git 都依赖它）
+# 所有命令都以仓库根为 cwd（bun run / hugo / git 都依赖它）
 cd "$REPO_ROOT"
 
 # ── 摘要 ──

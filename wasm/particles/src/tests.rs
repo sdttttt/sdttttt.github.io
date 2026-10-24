@@ -2,7 +2,7 @@
 //!
 //! `#[cfg(test)]` → 只在宿主上编译，**不进 wasm 产物**：
 //!
-//!     cd wasm/particles && cargo test     # 或仓库根的 `deno task test-wasm`
+//!     cd wasm/particles && cargo test     # 或仓库根的 `bun run test-wasm`
 //!
 //! 引擎挂在 `static mut ENGINE` 上（wasm 单线程所以安全），而 cargo test 默认
 //! 多线程跑测试 —— 所以每个测试都先抢一把全局锁，把它们串起来。测试里大量

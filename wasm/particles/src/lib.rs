@@ -1476,7 +1476,7 @@ pub extern "C" fn particle_size() -> i32 {
 //
 // 测试都在 `src/tests.rs` 里 —— `#[cfg(test)]` 只在宿主上编译，不进 wasm 产物。
 //
-//     cd wasm/particles && cargo test     # 或仓库根的 `deno task test-wasm`
+//     cd wasm/particles && cargo test     # 或仓库根的 `bun run test-wasm`
 //
 #[cfg(test)]
 mod tests;

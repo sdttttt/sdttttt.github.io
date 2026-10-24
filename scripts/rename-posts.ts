@@ -1,4 +1,4 @@
-#!/usr/bin/env deno
+#!/usr/bin/env bun
 /**
  * 将 content/posts/ 下的文章批量重命名为 YYYYMMDD-{slug}-{xxx}.md
  *
@@ -11,9 +11,9 @@
  *   保住旧链接（幂等，不会重复追加）
  *
  * 用法：
- *   deno run -A scripts/rename-posts.ts --dry-run --verbose   # 预览计划
- *   deno run -A scripts/rename-posts.ts --check               # 只读门禁（有待改文件即退出 1）
- *   deno task rename-posts                                     # 实际执行
+ *   bun scripts/rename-posts.ts --dry-run --verbose   # 预览计划
+ *   bun scripts/rename-posts.ts --check               # 只读门禁（有待改文件即退出 1）
+ *   bun run rename-posts                              # 实际执行
  *
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
@@ -417,7 +417,7 @@ async function main(): Promise<void> {
   }
 
   if (check) {
-    console.error(`✗ --check：有 ${plans.length} 篇文章的文件名不符合规范（跑 deno task rename-posts 修复）`);
+    console.error(`✗ --check：有 ${plans.length} 篇文章的文件名不符合规范（跑 bun run rename-posts 修复）`);
     process.exit(1);
   }
 }

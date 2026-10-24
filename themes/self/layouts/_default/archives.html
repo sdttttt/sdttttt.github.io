@@ -16,8 +16,9 @@
 
   Styling lives in assets/custom.css (`.arch*`) on purpose — assets/uno.css
   is a checked-in UnoCSS artifact generated from layouts/** (the site's CI
-  only installs Deno), so utilities that no template uses (grid, text-sm,
-  tabular-nums, …) are never generated and would silently do nothing here.
+  only installs the toolchain it runs, never regenerates this file), so
+  utilities that no template uses (grid, text-sm, tabular-nums, …) are
+  never generated and would silently do nothing here.
 
   Upstream nanxiaobei/hugo-paper has no archives.html, so this file has no
   counterpart and no sync burden.

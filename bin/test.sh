@@ -9,13 +9,13 @@
 # 本地是 macOS 自带的 3.2，CI 是 ubuntu 的 5.x。
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-require_deno
+require_bun
 
 shopt -s nullglob
 shells=("$BIN_DIR"/*.sh "$BIN_DIR"/hooks/*)
 shopt -u nullglob
 
 run_step "① shell 语法检查（${#shells[@]} 个文件）" shell_syntax_check "${shells[@]}"
-run_step "② deno 单元测试" deno task test
+run_step "② 单元测试（bun test）" bun run test
 
 report "测试通过"

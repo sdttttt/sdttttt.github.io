@@ -13,7 +13,7 @@ on:
     paths:
       - 'content/**'
       - 'scripts/check-dead-links.ts'
-      - 'deno.json'
+      - 'package.json'
       - '.github/workflows/check-dead-links.yml'
 
 jobs:
@@ -24,10 +24,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          deno-version: '2.9.5'
+          bun-version: '1.4.4'
 
       - name: Check dead links
-        run: deno task check-dead-links
+        run: bun run check-dead-links

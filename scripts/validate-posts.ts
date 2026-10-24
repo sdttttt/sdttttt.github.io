@@ -1,4 +1,4 @@
-#!/usr/bin/env deno
+#!/usr/bin/env bun
 /**
  * 校验文章 front matter
  *
@@ -8,7 +8,7 @@
  *   - slug（文件名）不重复
  *
  * 用法：
- *   deno task validate-posts
+ *   bun run validate-posts
  */
 
 import { readFile } from 'node:fs/promises';

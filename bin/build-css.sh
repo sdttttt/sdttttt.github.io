@@ -2,7 +2,7 @@
 #
 # 生成 UnoCSS 产物 → 写回主题 → 更新指纹文件。
 #
-#   ./bin/build-css.sh        等价于 deno task build-css
+#   ./bin/build-css.sh        等价于 bun run build-css
 #
 # 为什么需要它：`themes/self/assets/uno.css` 是 `unocss` CLI 扫 `layouts/**/*.html`
 # 生成的（reset + 主题变量 + typography + 工具类），Hugo 只做
@@ -18,11 +18,11 @@
 # 为什么 bun.lock 必须一起 vendor、且必须 --frozen-lockfile：生成结果对 unocss 与其传递
 # 依赖的版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本，同一份模板编出不同字节。
 #
-# 为什么还要指纹文件：CI 不装 bun（`themes/self/assets/uno.css.sha256`），
+# 为什么还要指纹文件：CI 只跑 `artifacts.sh check`、不跑 build-css（`themes/self/assets/uno.css.sha256`），
 # 靠它把「改了模板 / app.css 却没重新生成」变可见（同 wasm 的做法，见 bin/build-wasm.sh）。
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
-require_cmd bun "需要 bun（brew install bun）；CI 不装 bun，产物与指纹一起提交"
+require_cmd bun "需要 bun（mise 或 brew install bun）；产物与指纹一起提交"
 
 log "bun install --frozen-lockfile（在 ${CSS_THEME_DIR}/）"
 (cd "$REPO_ROOT/$CSS_THEME_DIR" && bun install --frozen-lockfile)

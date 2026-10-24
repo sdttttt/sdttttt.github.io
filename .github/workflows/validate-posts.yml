@@ -10,7 +10,7 @@ on:
     paths:
       - 'content/posts/**'
       - 'scripts/**'
-      - 'deno.json'
+      - 'package.json'
       - '.github/workflows/validate-posts.yml'
   pull_request:
     branches:
@@ -25,10 +25,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          deno-version: '2.9.5'
+          bun-version: '1.4.4'
 
       - name: Validate posts
-        run: deno task validate-posts
+        run: bun run validate-posts

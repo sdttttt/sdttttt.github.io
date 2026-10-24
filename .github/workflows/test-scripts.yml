@@ -9,7 +9,8 @@ on:
     paths:
       - 'scripts/**'
       - 'bin/**'
-      - 'deno.json'
+      - 'package.json'
+      - 'bun.lock'
       - '.github/workflows/test-scripts.yml'
   pull_request:
     branches:
@@ -18,7 +19,7 @@ on:
     paths:
       - 'scripts/**'
       - 'bin/**'
-      - 'deno.json'
+      - 'package.json'
 
 jobs:
   test:
@@ -28,11 +29,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          deno-version: '2.9.5'
+          bun-version: '1.4.4'
 
-      # shell 语法检查 + deno test
+      # shell 语法检查 + bun test
       - name: Run tests
         run: ./bin/test.sh

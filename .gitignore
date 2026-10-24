@@ -9,11 +9,12 @@ hugo_stats.json
 # OS
 .DS_Store
 
-# Local Deno toolchain (binary + module cache)
+# Local toolchain leftovers from the Deno era (no longer used; kept so an
+# existing checkout does not start tracking them)
 .tools/
 .npm-cache/
 
-# Scripts: Deno runs .ts directly, scripts/dist/ is a dead artifact
+# Scripts: Bun runs .ts directly, scripts/dist/ is a dead artifact
 # from an old Node.js-era snapshot. Never commit it.
 scripts/dist/
 

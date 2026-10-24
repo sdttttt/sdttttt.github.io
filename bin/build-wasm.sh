@@ -2,7 +2,7 @@
 #
 # 编译粒子引擎 → 同步到主题 assets/wasm/ → 更新指纹文件。
 #
-#   ./bin/build-wasm.sh        等价于 deno task build-wasm
+#   ./bin/build-wasm.sh        等价于 bun run build-wasm
 #
 # 需要 Rust 工具链（rustup target add wasm32-unknown-unknown）。CI 故意不装 Rust，
 # 所以这一步永远在本地跑，产物 + 指纹一起提交（见 AGENTS.md）。

@@ -1,14 +1,14 @@
-#!/usr/bin/env deno
+#!/usr/bin/env bun
 /**
  * 检查 Markdown 中的死链
  *
  * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
  *
  * 用法：
- *   deno task check-dead-links            本地：有死链时退出码 1
- *   deno task check-dead-links --soft     退出码恒 0，只报告
- *   deno task check-dead-links --strict   强制退出码 1（即使在 CI 里）
- *   deno run -A scripts/check-dead-links.ts --timeout 10000
+ *   bun run check-dead-links            本地：有死链时退出码 1
+ *   bun run check-dead-links --soft     退出码恒 0，只报告
+ *   bun run check-dead-links --strict   强制退出码 1（即使在 CI 里）
+ *   bun scripts/check-dead-links.ts --timeout 10000
  *
  * 退出码：0 = 通过（或 --soft）；1 = 有死链且处于严格模式；2 = 参数错。
  *
@@ -85,7 +85,7 @@ const BLOCKED_STATUSES = new Set([401, 403, 429, 451]);
  *
  * 触发这条的现场：`content/posts/20231209-Unix平台和Windows的文件分享问题-lzc.md`
  * 里 13 条百度百科链接，并发 6 个请求打过去时偶发返回 404，于是每次跑出来的
- * 「真死链」数量都不一样（3 条 / 2 条）。curl 与 deno 单独打都稳定 403。
+ * 「真死链」数量都不一样（3 条 / 2 条）。curl 与运行时 fetch 单独打都稳定 403。
  */
 const ANTI_CRAWL_HOSTS = new Set(['baike.baidu.com']);
 
@@ -299,11 +299,11 @@ async function checkAll(urls: string[], statuses: Map<string, LinkStatus>): Prom
 const USAGE = `死链检查：扫描 content/ 下的 Markdown，探测其中的外链。
 
 用法：
-  deno task check-dead-links             本地：有死链时退出码 1
-  deno task check-dead-links --soft      退出码恒 0，只报告
-  deno task check-dead-links --strict    强制退出码 1（即使在 CI 里）
-  deno task check-dead-links --dry-run   只列出要检查的链接，不发请求
-  deno task check-dead-links --timeout=10000
+  bun run check-dead-links             本地：有死链时退出码 1
+  bun run check-dead-links --soft      退出码恒 0，只报告
+  bun run check-dead-links --strict    强制退出码 1（即使在 CI 里）
+  bun run check-dead-links --dry-run   只列出要检查的链接，不发请求
+  bun run check-dead-links --timeout=10000
 
 退出码：0 = 通过；1 = 有死链且处于严格模式；2 = 参数错。`;
 
@@ -327,7 +327,7 @@ async function main(): Promise<void> {
     console.error(
       `未知参数：${unknown.map((key) => `--${key}`).join(' ')}（--help 看用法）`,
     );
-    Deno.exitCode = 2;
+    process.exitCode = 2;
     return;
   }
 
@@ -401,10 +401,10 @@ async function main(): Promise<void> {
   }
 
   // CI 留痕：::warning:: 注解进日志，完整报告进 job summary。本地不发注解。
-  const isCI = Boolean(Deno.env.get('GITHUB_ACTIONS'));
+  const isCI = Boolean(process.env.GITHUB_ACTIONS);
   const summary = buildSummary(dead.length > 0, blocked.length > 0, report.join('\n'));
   if (summary !== null) {
-    const summaryPath = Deno.env.get('GITHUB_STEP_SUMMARY');
+    const summaryPath = process.env.GITHUB_STEP_SUMMARY;
     if (summaryPath) {
       try {
         await appendFile(summaryPath, summary);
@@ -419,7 +419,7 @@ async function main(): Promise<void> {
     }
   }
 
-  Deno.exitCode = dead.length > 0 && resolveStrict(args, isCI) ? 1 : 0;
+  process.exitCode = dead.length > 0 && resolveStrict(args, isCI) ? 1 : 0;
 }
 
 if (import.meta.main) {

@@ -12,8 +12,8 @@ set -euo pipefail
 
 ROOT="$(git rev-parse --show-toplevel)"
 
-if [ ! -x "$ROOT/.tools/deno/bin/deno" ] && ! command -v deno >/dev/null 2>&1; then
-  echo "  ~~  跳过 preflight：找不到 deno（本机应有 .tools/deno/bin/deno）" >&2
+if ! command -v bun >/dev/null 2>&1; then
+  echo "  ~~  跳过 preflight：找不到 bun（mise 或 brew install bun）" >&2
   exit 0
 fi
 

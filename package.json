@@ -1,0 +1,24 @@
+{
+  "name": "sdttttt.github.io",
+  "private": true,
+  "description": "仓库工具链入口：脚本任务（scripts/*.ts）、Markdown 格式化（prettier）与构建。bin/*.sh 与 CI 都调用这里的任务，本地与 CI 因此跑同一份命令。",
+  "scripts": {
+    "test": "bun test scripts/__tests__",
+    "validate-posts": "bun scripts/validate-posts.ts",
+    "check-dead-links": "bun scripts/check-dead-links.ts",
+    "format-markdown": "prettier --write '**/*.md'",
+    "format-markdown-check": "prettier --check '**/*.md'",
+    "rename-posts": "bun scripts/rename-posts.ts",
+    "rename-posts-dry": "bun scripts/rename-posts.ts --dry-run",
+    "rename-posts-check": "bun scripts/rename-posts.ts --check",
+    "optimize-images": "bun scripts/optimize-images.ts",
+    "optimize-images-dry": "bun scripts/optimize-images.ts --dry-run",
+    "build-wasm": "./bin/build-wasm.sh",
+    "build-css": "./bin/build-css.sh",
+    "build": "hugo --minify",
+    "test-wasm": "cd wasm/particles && cargo test"
+  },
+  "devDependencies": {
+    "prettier": "3.9.6"
+  }
+}

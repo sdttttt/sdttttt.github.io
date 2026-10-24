@@ -30,7 +30,7 @@ theme = "self"
   # changelog entries would crowd the home feed.
   mainSections = ["posts"]
   # Avatar: local optimized image in static/ (served at /avatar.webp).
-  # Source: assets/src/avatar/avatar.jpg → `deno task optimize-images`.
+  # Source: assets/src/avatar/avatar.jpg → `bun run optimize-images`.
   avatar = "/avatar.webp"
   name = "SDTTTTT"
   # 留空占位，顶掉主题的默认文案。注意不能写成 bio = "" —— 主题里是

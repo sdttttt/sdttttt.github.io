@@ -29,15 +29,14 @@ jobs:
         with:
           fetch-depth: 0 # publish-autofix.sh 里的 git pull --rebase 需要完整历史
 
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          # 与本地 vendored 的 .tools/deno 对齐，见 AGENTS.md
-          deno-version: '2.9.5'
+          # 与本地一致；prettier 也钉在根 package.json（3.9.6），CI 与本地同一版本
+          bun-version: '1.4.4'
 
-      # 工具链安装：prettier 用版本钉死的 npm 包，本地 .tools/deno/bin/prettier 是同一版本
-      - name: Install Prettier
-        run: deno install -g -A npm:prettier@3.9.6
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
@@ -51,7 +50,7 @@ jobs:
         run: ./bin/preflight.sh --fix
 
       - name: Build
-        run: deno task build
+        run: bun run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

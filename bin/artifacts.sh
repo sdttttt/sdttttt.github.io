@@ -21,7 +21,7 @@
 #      有 Rust 工具链时可用 --rebuild 做最强校验（真编译出来逐字节比）。
 #   4. CSS 产物与它扫描的源码一致。`themes/self/assets/uno.css` 是 `unocss` CLI 的
 #      生成物（Hugo 只做 concat + minify，见 themes/self/layouts/partials/head.html），
-#      而 CI 不装 bun —— 同样靠 uno.css.sha256 把「改了模板 / uno.config.ts 却没重新
+#      而 CI 只跑 check、不跑 build-css —— 同样靠 uno.css.sha256 把「改了模板 / uno.config.ts 却没重新
 #      生成」变可见。扫描输入是整个 themes/self/ 目录（见 css_sources 的注释）。
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
@@ -59,17 +59,17 @@ check_images() {
     out="$BG_OUT_DIR/$base.avif"
     if [ ! -f "$out" ]; then
       fail "源图缺少发布产物：$src → $out 不存在"
-      fail "  跑 deno task optimize-images 并提交产物；若这张图不该发布，请移出 $BG_SRC_DIR/"
+      fail "  跑 bun run optimize-images 并提交产物；若这张图不该发布，请移出 $BG_SRC_DIR/"
       bad=1
       continue
     fi
     if [ "$src" -nt "$out" ]; then
-      warn "$src 比 $out 新 —— 产物可能是旧的（跑 deno task optimize-images）"
+      warn "$src 比 $out 新 —— 产物可能是旧的（跑 bun run optimize-images）"
     fi
   done
 
   if [ -f "$AVATAR_SRC" ] && [ ! -f "$AVATAR_OUT" ]; then
-    fail "缺少头像产物：${AVATAR_OUT}（跑 deno task optimize-images）"
+    fail "缺少头像产物：${AVATAR_OUT}（跑 bun run optimize-images）"
     bad=1
   fi
 
@@ -122,11 +122,11 @@ write_css_manifest() {
 check_css() {
   local bad=0
   if [ ! -f "$REPO_ROOT/$CSS_ARTIFACT" ]; then
-    fail "缺少 CSS 产物：${CSS_ARTIFACT}（跑 deno task build-css）"
+    fail "缺少 CSS 产物：${CSS_ARTIFACT}（跑 bun run build-css）"
     return 1
   fi
   if [ ! -f "$REPO_ROOT/$CSS_MANIFEST" ]; then
-    fail "缺少 CSS 指纹：${CSS_MANIFEST}（跑 deno task build-css 生成）"
+    fail "缺少 CSS 指纹：${CSS_MANIFEST}（跑 bun run build-css 生成）"
     return 1
   fi
 
@@ -137,7 +137,7 @@ check_css() {
     fail "CSS 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
     fail "  改了 themes/self/ 里影响 CSS 的内容（layouts/**、app.css、uno.config.ts …）"
-    fail "  就得跑 deno task build-css，把产物与指纹一起提交（CI 不装 bun，不会重新生成）"
+    fail "  就得跑 bun run build-css，把产物与指纹一起提交（CI 不跑 build-css，不会重新生成）"
     bad=1
   fi
 
@@ -145,7 +145,7 @@ check_css() {
     if ! have bun; then
       warn "跳过 CSS 重新生成校验（本机没有 bun）"
     elif [ ! -x "$REPO_ROOT/$CSS_THEME_DIR/node_modules/.bin/unocss" ]; then
-      warn "跳过 CSS 重新生成校验（themes/self/node_modules 不在；先跑 deno task build-css）"
+      warn "跳过 CSS 重新生成校验（themes/self/node_modules 不在；先跑 bun run build-css）"
     else
       log "unocss（校验用，输出到临时目录）"
       if (cd "$REPO_ROOT/$CSS_THEME_DIR" && ./node_modules/.bin/unocss 'layouts/**/*.html' -o "$TMP_TARGET/uno.css"); then
@@ -168,11 +168,11 @@ check_css() {
 check_wasm() {
   local bad=0
   if [ ! -f "$WASM_ARTIFACT" ]; then
-    fail "缺少 wasm 产物：${WASM_ARTIFACT}（跑 deno task build-wasm）"
+    fail "缺少 wasm 产物：${WASM_ARTIFACT}（跑 bun run build-wasm）"
     return 1
   fi
   if [ ! -f "$WASM_MANIFEST" ]; then
-    fail "缺少 wasm 指纹：${WASM_MANIFEST}（跑 deno task build-wasm 生成）"
+    fail "缺少 wasm 指纹：${WASM_MANIFEST}（跑 bun run build-wasm 生成）"
     return 1
   fi
 
@@ -182,7 +182,7 @@ check_wasm() {
   else
     fail "wasm 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
-    fail "  改了 wasm/particles/** 就必须跑 deno task build-wasm 并提交产物与指纹（CI 不构建 wasm）"
+    fail "  改了 wasm/particles/** 就必须跑 bun run build-wasm 并提交产物与指纹（CI 不构建 wasm）"
     bad=1
   fi
 

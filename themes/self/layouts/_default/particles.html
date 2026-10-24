@@ -6,7 +6,7 @@
   assets/js/particles.js（纯 Canvas 2D 引擎）作为降级，所以两条路径都保留。
 
   图片列表用和 partials/bg.html 相同的 readDir 规则自动发现（static/bg/ 下
-  由 `deno task optimize-images` 生成的 .avif / .webp，源图在 assets/src/bg/），
+  由 `bun run optimize-images` 生成的 .avif / .webp，源图在 assets/src/bg/），
   连同各资源 URL 一起通过 <script type="application/json"> 交给 JS。
 */}}
 

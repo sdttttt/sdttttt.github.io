@@ -41,25 +41,37 @@ function runShell(args: string[]): Promise<{ exit: number; stdout: string; stder
 }
 
 /**
- * 在指定工作目录、指定 PATH 下跑一个 deno 子进程。
+ * 在指定工作目录、指定 PATH 下跑一个脚本子进程（`bun <script> …`）。
  *
  * 为什么必须换成子进程：spawn 找不到可执行文件时是发 'error' 事件（异步），
  * 而 node:test 的 shim 会把这种 uncaught error 吞掉 —— 同进程里怎么写都测不出
  * 「进程直接崩掉」这个后果（实测：把 error 监听删掉，同进程测试照样全绿）。
  */
-async function runDenoScript(
+async function runScript(
+  script: string,
   args: string[],
   { cwd, path }: { cwd: string; path: string },
 ): Promise<{ code: number; stdout: string; stderr: string }> {
-  const { code, stdout, stderr } = await new Deno.Command(Deno.execPath(), {
-    args,
-    cwd,
-    env: { PATH: path },
-    stdout: 'piped',
-    stderr: 'piped',
-  }).output();
-  const decode = new TextDecoder();
-  return { code, stdout: decode.decode(stdout), stderr: decode.decode(stderr) };
+  return new Promise((resolve, reject) => {
+    const child = spawn(process.execPath, [script, ...args], {
+      cwd,
+      // 只改 PATH（模拟「环境里没有 git」），其余变量保留，否则 bun 自己会缺 HOME 之类
+      env: { ...process.env, PATH: path },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    let stdout = '';
+    let stderr = '';
+    child.stdout!.on('data', (chunk) => {
+      stdout += chunk;
+    });
+    child.stderr!.on('data', (chunk) => {
+      stderr += chunk;
+    });
+    child.on('error', reject);
+    child.on('close', (code) => {
+      resolve({ code: code ?? -1, stdout, stderr });
+    });
+  });
 }
 
 async function setupTempGitRepo(): Promise<{ workDir: string; restore: () => void }> {
@@ -184,7 +196,7 @@ body`;
  * 于是它变成 uncaught error 直接终止整个进程 —— 与 moveFile 注释里声明的
  * 「失败/非 git 仓库时降级为 fs.rename」正好相反，连 `--dry-run` 都到不了。
  *
- * 这里必须整条 CLI 跑子进程，见 runDenoScript 的注释。
+ * 这里必须整条 CLI 跑子进程，见 runScript 的注释。
  */
 describe('rename-posts CLI 端到端（PATH 里没有 git）', () => {
   test('降级为 fs.rename，进程不崩、aliases 照写', async () => {
@@ -197,10 +209,10 @@ describe('rename-posts CLI 端到端（PATH 里没有 git）', () => {
       );
 
       const script = fileURLToPath(new URL('../rename-posts.ts', import.meta.url));
-      const result = await runDenoScript(
-        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--execute'],
-        { cwd: workDir, path: '/nonexistent-bin' },
-      );
+      const result = await runScript(script, ['--execute'], {
+        cwd: workDir,
+        path: '/nonexistent-bin',
+      });
 
       // 旧代码在这里会打印 `error: Uncaught Error: spawn git ENOENT` 并以 1 退出
       expect(result.stderr).not.toContain('Uncaught');
@@ -236,10 +248,10 @@ describe('rename-posts CLI --check（只读门禁）', () => {
       );
 
       const script = fileURLToPath(new URL('../rename-posts.ts', import.meta.url));
-      const result = await runDenoScript(
-        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--check'],
-        { cwd: workDir, path: '/nonexistent-bin' },
-      );
+      const result = await runScript(script, ['--check'], {
+        cwd: workDir,
+        path: '/nonexistent-bin',
+      });
 
       expect(result.code).toBe(1);
       expect(result.stdout).toContain('--check：需要');
@@ -266,16 +278,10 @@ describe('rename-posts CLI --check（只读门禁）', () => {
       const script = fileURLToPath(new URL('../rename-posts.ts', import.meta.url));
       const env = { cwd: workDir, path: '/nonexistent-bin' };
 
-      const renamed = await runDenoScript(
-        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--execute'],
-        env,
-      );
+      const renamed = await runScript(script, ['--execute'], env);
       expect(renamed.code).toBe(0);
 
-      const checked = await runDenoScript(
-        ['run', '--unstable-sloppy-imports', '--no-lock', '-A', script, '--check'],
-        env,
-      );
+      const checked = await runScript(script, ['--check'], env);
       expect(checked.code).toBe(0);
       expect(checked.stdout).toContain('✓ 0 篇文章需要重命名');
       // 已规范化时不该刷一屏「已是新格式」，只给一行汇总

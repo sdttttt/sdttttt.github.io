@@ -1,15 +1,16 @@
-#!/usr/bin/env deno
+#!/usr/bin/env bun
 /**
  * 把 assets/src/ 下的原图编码成 static/ 下体积优化后的发布图。
  *
  * 用法：
- *   deno task optimize-images-dry              # 预览，不写盘、不装 sharp
- *   deno task optimize-images                  # 写入（默认 AVIF）
- *   deno task optimize-images --format webp    # 想要更好的老浏览器兼容时
- *   deno task optimize-images --force          # 忽略时间戳，全部重编码
+ *   bun run optimize-images-dry              # 预览，不写盘、不装 sharp
+ *   bun run optimize-images                  # 写入（默认 AVIF）
+ *   bun run optimize-images --format webp    # 想要更好的老浏览器兼容时
+ *   bun run optimize-images --force          # 忽略时间戳，全部重编码
  *
- * 依赖 npm:sharp（只在真正需要编码时才动态 import，所以 dry-run 与 CI 测试
- * 都不需要它）。首次运行需要网络拉取。
+ * 依赖 sharp（只在真正需要编码时才动态 import，所以 dry-run 与 CI 测试
+ * 都不需要它）。它刻意**不在** package.json 里，否则每次 CI 都要下 50MB：
+ * 第一次真正编码前先跑 `bun add --no-save sharp@0.33.5`（不改清单与锁文件）。
  *
  * 幂等：产物比源图新就跳过。产物路径由 scripts/lib/image-plan.ts 规划，
  * 加图只要把原图丢进 assets/src/bg/ 再跑一次。
@@ -126,16 +127,20 @@ export async function listPublishedImages(): Promise<string[]> {
 }
 
 /**
- * 动态 import sharp：dry-run 不需要它，也就不会触发 npm 下载。
+ * 动态 import sharp：dry-run 不需要它，也就不会触发下载。
  *
- * 用变量而不是字面量说明符，是为了让 Deno 的**类型检查**不要把它拉进依赖图 ——
- * 否则 CI 跑 `deno task test`（会 import 本文件的 buildPlans）时就得去下 50MB 的
- * sharp 二进制。配合 deno.json 里的 --no-lock，仓库保持零 npm 依赖。
+ * 用变量而不是字面量说明符，是为了让测试（会 import 本文件的 buildPlans）
+ * 不被静态解析拉进依赖 —— sharp 刻意不写进 package.json，CI 因此保持零
+ * 50MB 二进制；真正要编码时先 `bun add --no-save sharp@0.33.5`。
  */
-const SHARP_SPECIFIER = 'npm:sharp@0.33.5';
+const SHARP_SPECIFIER = 'sharp';
 
 async function encode(plan: ImagePlan): Promise<Buffer> {
-  const { default: sharp } = await import(SHARP_SPECIFIER);
+  const { default: sharp } = await import(SHARP_SPECIFIER).catch(() => {
+    throw new Error(
+      '缺少 sharp：先运行 `bun add --no-save sharp@0.33.5`（只装进 node_modules，不改 package.json / bun.lock）',
+    );
+  });
   const image = sharp(plan.source).resize({
     width: plan.width,
     // 原图本来就比目标宽度小的话不要放大

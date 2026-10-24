@@ -4,7 +4,7 @@
  * 支持：
  *   --flag          → boolean true
  *   --key value     → string
- *   --key=value     → string（`deno task x --format=webp` 不会被静默忽略）
+ *   --key=value     → string（`bun run x --format=webp` 不会被静默忽略）
  *
  * 只认 `--` 长选项；位置参数与 `-x` 短选项一律忽略（当前没有脚本用得到，
  * 所以不再收集 `_.`）。
