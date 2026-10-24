@@ -17,8 +17,9 @@ summaryLength = 100
 theme = "self"
 
 [params]
-  # Theme color preset: linen / wheat / gray / light
-  color = "linen"
+  # Theme color preset: ivory / linen / wheat / gray / light
+  # ivory (#f0eee6) 是 Anthropic 的纸面色，配合 uno.config.ts 里的 ink / clay。
+  color = "ivory"
   # Favicon: pi.dev mark (SVG, adapts to prefers-color-scheme).
   # appleTouchIcon defaults to apple-touch-icon.png, which we also replace.
   favicon = "favicon.svg"

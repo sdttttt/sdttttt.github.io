@@ -24,6 +24,22 @@ import presetTypography from '@unocss/preset-typography'
 
 export default {
   presets: [presetWind4(), presetTypography()],
+  /*
+   * Anthropic 的官方配色（2026-10-24）：
+   *   纸面 ivory #f0eee6 · 正文 ink #191919 · 强调 clay #d97757
+   *
+   * 覆盖 presetWind4 的 black / white，`text-black`、`dark:text-white`、
+   * `bg-black/[3%]` 这些工具类会一起换成暖色，不用逐个改模板；`clay` 供
+   * `text-clay` 这类强调用法。注意它和 `--bg`（hugo.toml 的 color 预设）
+   * 是两层：这里管文字 / 填充，`--bg` 管页面底色。
+   */
+  theme: {
+    colors: {
+      black: '#191919',
+      white: '#f0eee6',
+      clay: '#d97757',
+    },
+  },
   content: {
     filesystem: ['layouts/**/*.html'],
   },

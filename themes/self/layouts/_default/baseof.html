@@ -22,8 +22,8 @@
 {{- $.Scratch.Delete "bg_color" -}}<!---->
 {{- $.Scratch.Delete "avatar_url" -}}
 
-<!-- bg_color -->
-{{- $color_map := dict "linen" "#faf8f1" "wheat" "#f8f5d7" "gray" "#fbfbfb" "light" "#fff" -}}<!---->
+<!-- bg_color（hugo.toml 的 params.color 选预设；ivory = Anthropic 的纸面） -->
+{{- $color_map := dict "linen" "#faf8f1" "wheat" "#f8f5d7" "gray" "#fbfbfb" "light" "#fff" "ivory" "#f0eee6" -}}<!---->
 {{- $.Scratch.Set "bg_color" (index $color_map (site.Params.color | default (print "linen"))) -}}<!---->
 {{- $bg_color := $.Scratch.Get "bg_color" -}}
 

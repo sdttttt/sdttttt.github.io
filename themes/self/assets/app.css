@@ -19,8 +19,9 @@
  * `rounded-md` / `font-semibold`，产物里就不会有 --radius-md / --fontWeight-semibold，
  * `var()` 于是失效（字重退回 400、圆角退回 0）。这里的取值与 UnoCSS 的尺度一一对应：
  * spacing 0.25rem、text-sm 0.875rem、text-lg 1.125rem、radius 0.375 / 0.75rem、
- * 黑 #000、白 #fff。唯一保留的变量是 --un-prose-pre-bg，它由 typography 预设在
- * `.prose` 上定义，不参与按需发射。
+ * 墨 #191919、纸 #f0eee6、陶土橙 #d97757（Anthropic 的官方配色，与 uno.config.ts
+ * 的 theme.colors 保持一致）。唯一保留的变量是 --un-prose-pre-bg，它由 typography
+ * 预设在 `.prose` 上定义，不参与按需发射。
  */
 
 /* 主栏宽度：原来 Tailwind 的 `@theme { --w }`，现在只是一个普通变量。 */
@@ -28,14 +29,21 @@
   --w: calc(680px + 32px * 2);
 }
 
-/* 暗色底：body::before 是铺满视口的黑纸，z-index: -1 垫在正文下方。
+/* 选中高亮用陶土橙的浅色；原生默认的蓝色和整站的暖色不搭。 */
+::selection {
+  background-color: color-mix(in srgb, #d97757 30%, transparent);
+}
+
+/* 暗色底：body::before 是铺满视口的墨色纸，z-index: -1 垫在正文下方。
+   用不透明的 #191919（而不是半透明黑压在象牙白上）：压在 #f0eee6 上的
+   半透明层会得到 #2a2a29 这种偏灰的底色，和 Anthropic 的暗色面不同。
    伪元素必须显式写 content，否则 display / position 都不成立。 */
 .dark body::before {
   content: "";
   position: fixed;
   inset: 0;
   z-index: -1;
-  background-color: color-mix(in srgb, #000 85%, transparent);
+  background-color: #191919;
 }
 
 /* 标题统一 600：typography 预设给 .prose h1 800 / h2 700，这里用 (0,1,1) 压回去。 */
@@ -55,11 +63,11 @@ pre {
 article {
   font-size: 1.125rem;
   line-height: 1.8;
-  color: #000;
+  color: #191919;
 }
 
 .dark article {
-  color: #fff;
+  color: #f0eee6;
 }
 
 article code {
@@ -109,7 +117,7 @@ article .highlight > div table tr:first-of-type pre code span {
   margin-right: 0 !important;
   padding: 0 !important;
   text-align: right;
-  color: rgba(255, 255, 255, 0.4);
+  color: rgba(240, 238, 230, 0.45);
 }
 
 article .highlight > div table tr:last-of-type {
@@ -120,9 +128,10 @@ article .highlight > div table tr:last-of-type {
   padding: 0.75rem 1.25rem;
   border-radius: 0.75rem;
   font-size: 0.95em;
-  color: #fff;
+  /* 墨色字压在陶土橙上（对比度 ≈ 5.6:1）；纸白压橙只有 2.7:1，不达标 */
+  color: #191919;
   text-decoration: none;
-  background-color: #000;
+  background-color: #d97757;
   transition-duration: 100ms;
 }
 
@@ -130,21 +139,12 @@ article .highlight > div table tr:last-of-type {
   scale: 95%;
 }
 
-.dark .btn {
-  color: #000;
-  background-color: #fff;
-}
-
 .link {
   transition-duration: 200ms;
 }
 
 .link:hover {
-  color: #000;
-}
-
-.dark .link:hover {
-  color: #fff;
+  color: #d97757;
 }
 
 .not-ready * {
@@ -153,6 +153,17 @@ article .highlight > div table tr:last-of-type {
 
 .prose {
   overflow-wrap: break-word;
+}
+
+/* 正文链接的下划线用陶土橙（而不是和文字同色），悬停时加深 ——
+   这是整站最克制的一处强调色，正文本身仍是墨色。 */
+.prose a {
+  text-decoration-color: color-mix(in srgb, #d97757 55%, transparent);
+  text-underline-offset: 0.18em;
+}
+
+.prose a:hover {
+  text-decoration-color: #d97757;
 }
 
 .prose kbd:has(kbd) {
@@ -166,7 +177,7 @@ article .highlight > div table tr:last-of-type {
   display: block;
   width: 1.25rem;
   height: 2px;
-  background-color: #000;
+  background-color: #191919;
   transition-duration: 200ms;
 }
 
@@ -194,7 +205,7 @@ article .highlight > div table tr:last-of-type {
   position: absolute;
   inset: 0;
   z-index: -1;
-  background-color: color-mix(in srgb, #000 85%, transparent);
+  background-color: #191919;
 }
 
 @media (min-width: 64rem) {
