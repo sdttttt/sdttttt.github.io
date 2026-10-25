@@ -9,6 +9,10 @@ hugo_stats.json
 # OS
 .DS_Store
 
+# Claude Code 的本机配置（settings.local.json / launch.json 等只服务于
+# 本地会话，不属于仓库内容）
+.claude/
+
 # Local toolchain leftovers from the Deno era (no longer used; kept so an
 # existing checkout does not start tracking them)
 .tools/
