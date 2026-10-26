@@ -5,7 +5,7 @@
  * 搬走的是 index 里的旧内容，commit 拿到「新路径 + 旧内容」。
  */
 
-import { describe, test, beforeEach, afterEach } from 'node:test';
+import { describe, test, beforeEach, afterEach, expect } from 'vitest';
 import {
   mkdtempSync,
   rmSync,
@@ -19,8 +19,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
-import { executePlan, type RenamePlan } from '../rename-posts.js';
-import { expect } from './expect.js';
+import { executePlan, type RenamePlan } from '../rename-posts.ts';
 
 function runShell(args: string[]): Promise<{ exit: number; stdout: string; stderr: string }> {
   return new Promise((resolve, reject) => {
@@ -41,10 +40,10 @@ function runShell(args: string[]): Promise<{ exit: number; stdout: string; stder
 }
 
 /**
- * 在指定工作目录、指定 PATH 下跑一个脚本子进程（`bun <script> …`）。
+ * 在指定工作目录、指定 PATH 下跑一个脚本子进程（`node <script> …`）。
  *
  * 为什么必须换成子进程：spawn 找不到可执行文件时是发 'error' 事件（异步），
- * 而 node:test 的 shim 会把这种 uncaught error 吞掉 —— 同进程里怎么写都测不出
+ * 而测试进程会把这种 uncaught error 吞掉 —— 同进程里怎么写都测不出
  * 「进程直接崩掉」这个后果（实测：把 error 监听删掉，同进程测试照样全绿）。
  */
 async function runScript(
@@ -55,7 +54,7 @@ async function runScript(
   return new Promise((resolve, reject) => {
     const child = spawn(process.execPath, [script, ...args], {
       cwd,
-      // 只改 PATH（模拟「环境里没有 git」），其余变量保留，否则 bun 自己会缺 HOME 之类
+      // 只改 PATH（模拟「环境里没有 git」），其余变量保留，否则 node 自己会缺 HOME 之类
       env: { ...process.env, PATH: path },
       stdio: ['ignore', 'pipe', 'pipe'],
     });

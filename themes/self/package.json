@@ -8,8 +8,8 @@
     "build:css": "unocss 'layouts/**/*.html' -o ./assets/uno.css"
   },
   "devDependencies": {
-    "@unocss/preset-typography": "^66.11.0",
-    "@unocss/preset-wind4": "^66.11.0",
-    "unocss": "^66.11.0"
+    "@unocss/preset-typography": "66.11.0",
+    "@unocss/preset-wind4": "66.11.0",
+    "unocss": "66.11.0"
   }
 }

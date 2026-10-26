@@ -10,7 +10,7 @@ on:
       - 'scripts/**'
       - 'bin/**'
       - 'package.json'
-      - 'bun.lock'
+      - 'pnpm-lock.yaml'
       - '.github/workflows/test-scripts.yml'
   pull_request:
     branches:
@@ -20,6 +20,7 @@ on:
       - 'scripts/**'
       - 'bin/**'
       - 'package.json'
+      - 'pnpm-lock.yaml'
 
 jobs:
   test:
@@ -29,11 +30,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          bun-version: '1.4.4'
+          version: '11.22.0'
 
-      # shell 语法检查 + bun test
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # shell 语法检查 + vitest
       - name: Run tests
         run: ./bin/test.sh

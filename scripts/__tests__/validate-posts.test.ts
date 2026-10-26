@@ -1,7 +1,6 @@
-import { describe, test } from 'node:test';
-import { validate } from '../validate-posts.js';
-import { expect } from './expect.js';
-import { inTempDir } from './temp-dir.js';
+import { describe, test, expect } from 'vitest';
+import { validate } from '../validate-posts.ts';
+import { inTempDir } from './temp-dir.ts';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 // 注：原先这里有一组 isValidDate 用例。日期判据已统一到 lib/frontmatter.ts 的

@@ -1,6 +1,5 @@
-import { describe, test } from 'node:test';
-import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyymmdd } from '../lib/frontmatter.js';
-import { expect } from './expect.js';
+import { describe, test, expect } from 'vitest';
+import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyymmdd } from '../lib/frontmatter.ts';
 
 describe('parseFrontMatter', () => {
   test('空字符串返回空对象', () => {

@@ -1,4 +1,4 @@
-import { describe, test, mock, afterEach } from 'node:test';
+import { describe, test, vi, afterEach, expect } from 'vitest';
 import {
   extractLinksOutsideCodeBlocks,
   partitionByStatus,
@@ -11,16 +11,15 @@ import {
   walkMarkdown,
   resolveStrict,
   buildSummary,
-} from '../check-dead-links.js';
-import { expect } from './expect.js';
-import { inTempDir } from './temp-dir.js';
+} from '../check-dead-links.ts';
+import { inTempDir } from './temp-dir.ts';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 
 const ORIGINAL_FETCH = globalThis.fetch;
 
 afterEach(() => {
   globalThis.fetch = ORIGINAL_FETCH;
-  mock.restoreAll();
+  vi.restoreAllMocks();
 });
 
 describe('extractLinksOutsideCodeBlocks', () => {
@@ -94,14 +93,14 @@ describe('shouldSkip', () => {
 
 describe('checkUrl', () => {
   test('200 返回 ok', async () => {
-    globalThis.fetch = mock.fn(() => Promise.resolve(new Response(null, { status: 200, statusText: 'OK' }))) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 200, statusText: 'OK' }))) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(true);
     expect(result.status).toBe(200);
   });
 
   test('405 触发 GET 二次请求', async () => {
-    globalThis.fetch = mock.fn((() => {
+    globalThis.fetch = vi.fn((() => {
       let call = 0;
       return () => {
         call++;
@@ -118,14 +117,14 @@ describe('checkUrl', () => {
   });
 
   test('404 返回失败', async () => {
-    globalThis.fetch = mock.fn(() => Promise.resolve(new Response(null, { status: 404 }))) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(() => Promise.resolve(new Response(null, { status: 404 }))) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(false);
     expect(result.status).toBe(404);
   });
 
   test('超时返回 timeout', async () => {
-    globalThis.fetch = mock.fn((_url: string, init: RequestInit) => {
+    globalThis.fetch = vi.fn((_url: string, init: RequestInit) => {
       return new Promise((_resolve, reject) => {
         init.signal?.addEventListener('abort', () => {
           reject(new DOMException('The operation was aborted.', 'AbortError'));
@@ -138,7 +137,7 @@ describe('checkUrl', () => {
   });
 
   test('网络错误返回 error 状态', async () => {
-    globalThis.fetch = mock.fn(() => Promise.reject(new Error('network down'))) as unknown as typeof fetch;
+    globalThis.fetch = vi.fn(() => Promise.reject(new Error('network down'))) as unknown as typeof fetch;
     const result = await checkUrl('https://example.com');
     expect(result.ok).toBe(false);
     expect(result.status).toContain('network down');

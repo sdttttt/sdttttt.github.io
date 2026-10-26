@@ -29,14 +29,21 @@ jobs:
         with:
           fetch-depth: 0 # publish-autofix.sh 里的 git pull --rebase 需要完整历史
 
-      - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
         with:
-          # 与本地一致；prettier 也钉在根 package.json（3.9.6），CI 与本地同一版本
-          bun-version: '1.4.4'
+          # 与本地一致；package.json 的 packageManager 也钉着这个版本
+          version: '11.22.0'
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          # 24 起 .ts 脚本靠原生类型剥离直接运行（scripts/*.ts 不做编译）
+          node-version: '24'
+          cache: pnpm
 
       - name: Install dependencies
-        run: bun install --frozen-lockfile
+        run: pnpm install --frozen-lockfile
 
       - name: Setup Hugo
         uses: peaceiris/actions-hugo@v3
@@ -50,7 +57,7 @@ jobs:
         run: ./bin/preflight.sh --fix
 
       - name: Build
-        run: bun run build
+        run: pnpm run build
 
       - name: Setup Pages
         uses: actions/configure-pages@v6

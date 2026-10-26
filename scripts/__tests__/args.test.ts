@@ -1,6 +1,5 @@
-import { describe, test } from 'node:test';
-import { parseArgs, getString, getBoolean, getNumber } from '../lib/args.js';
-import { expect } from './expect.js';
+import { describe, test, expect } from 'vitest';
+import { parseArgs, getString, getBoolean, getNumber } from '../lib/args.ts';
 
 describe('parseArgs', () => {
   test('空参数返回空对象', () => {

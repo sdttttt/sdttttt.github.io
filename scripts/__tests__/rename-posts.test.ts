@@ -1,4 +1,4 @@
-import { describe, test, afterEach, beforeEach } from 'node:test';
+import { describe, test, afterEach, beforeEach, expect } from 'vitest';
 import { mkdtempSync, rmSync, writeFileSync, mkdirSync, readFileSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -14,9 +14,8 @@ import {
   addAlias,
   executePlan,
   type RenamePlan,
-} from '../rename-posts.js';
-import { toYyyymmdd, parseFrontMatter } from '../lib/frontmatter.js';
-import { expect } from './expect.js';
+} from '../rename-posts.ts';
+import { toYyyymmdd, parseFrontMatter } from '../lib/frontmatter.ts';
 
 // ─────────────────────────────────────────────────────────────
 // 纯函数

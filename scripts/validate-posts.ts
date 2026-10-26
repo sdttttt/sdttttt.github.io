@@ -1,4 +1,4 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * 校验文章 front matter
  *
@@ -8,13 +8,13 @@
  *   - slug（文件名）不重复
  *
  * 用法：
- *   bun run validate-posts
+ *   pnpm run validate-posts
  */
 
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { checkTitleAndDate, parseFrontMatter } from './lib/frontmatter.js';
-import { listPostFiles, POSTS_DIR } from './lib/paths.js';
+import { checkTitleAndDate, parseFrontMatter } from './lib/frontmatter.ts';
+import { listPostFiles, POSTS_DIR } from './lib/paths.ts';
 
 interface Issue {
   file: string;

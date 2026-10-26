@@ -1,14 +1,14 @@
-#!/usr/bin/env bun
+#!/usr/bin/env node
 /**
  * 检查 Markdown 中的死链
  *
  * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
  *
  * 用法：
- *   bun run check-dead-links            本地：有死链时退出码 1
- *   bun run check-dead-links --soft     退出码恒 0，只报告
- *   bun run check-dead-links --strict   强制退出码 1（即使在 CI 里）
- *   bun scripts/check-dead-links.ts --timeout 10000
+ *   pnpm run check-dead-links            本地：有死链时退出码 1
+ *   pnpm run check-dead-links --soft     退出码恒 0，只报告
+ *   pnpm run check-dead-links --strict   强制退出码 1（即使在 CI 里）
+ *   node scripts/check-dead-links.ts --timeout 10000
  *
  * 退出码：0 = 通过（或 --soft）；1 = 有死链且处于严格模式；2 = 参数错。
  *
@@ -19,8 +19,8 @@
 
 import { appendFile, readdir, readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { parseArgs, getNumber, getBoolean, type ParsedArgs } from './lib/args.js';
-import { CONTENT_DIR } from './lib/paths.js';
+import { parseArgs, getNumber, getBoolean, type ParsedArgs } from './lib/args.ts';
+import { CONTENT_DIR } from './lib/paths.ts';
 
 const LINK_REGEX = /https?:\/\/[^\s\)\]\>\"\'\`]+/g;
 const FENCE_REGEX = /^(`{3,}|~{3,})/;
@@ -299,11 +299,11 @@ async function checkAll(urls: string[], statuses: Map<string, LinkStatus>): Prom
 const USAGE = `死链检查：扫描 content/ 下的 Markdown，探测其中的外链。
 
 用法：
-  bun run check-dead-links             本地：有死链时退出码 1
-  bun run check-dead-links --soft      退出码恒 0，只报告
-  bun run check-dead-links --strict    强制退出码 1（即使在 CI 里）
-  bun run check-dead-links --dry-run   只列出要检查的链接，不发请求
-  bun run check-dead-links --timeout=10000
+  pnpm run check-dead-links             本地：有死链时退出码 1
+  pnpm run check-dead-links --soft      退出码恒 0，只报告
+  pnpm run check-dead-links --strict    强制退出码 1（即使在 CI 里）
+  pnpm run check-dead-links --dry-run   只列出要检查的链接，不发请求
+  pnpm run check-dead-links --timeout=10000
 
 退出码：0 = 通过；1 = 有死链且处于严格模式；2 = 参数错。`;
 

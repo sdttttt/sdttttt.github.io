@@ -16,7 +16,7 @@
 #                  改名时脚本会把旧 URL 追加进该篇的 aliases（幂等）
 #   ② Markdown     prettier（钉死根 package.json 的 3.9.6，本地与 CI 共用）
 #   ③ front matter 必填字段与 slug 冲突
-#   ④ 单元测试     bun test
+#   ④ 单元测试     vitest
 #   ⑤ 构建产物     图片产物是否齐全 + wasm 产物是否与源码一致（bin/artifacts.sh）
 #
 # 为什么 --check 是默认：CI 里修复是必须的（它要把改动提交回来），但人手动跑这个
@@ -38,17 +38,19 @@ for arg in "$@"; do
   esac
 done
 
-require_bun
+require_node
+require_pnpm
+require_node_modules
 
 if [ "$MODE" = fix ]; then
-  run_step "① 文章文件名（修复）" bun run rename-posts
-  run_step "② Markdown 格式（修复）" bun run format-markdown
+  run_step "① 文章文件名（修复）" pnpm run rename-posts
+  run_step "② Markdown 格式（修复）" pnpm run format-markdown
 else
-  run_step "① 文章文件名" bun run rename-posts-check
-  run_step "② Markdown 格式" bun run format-markdown-check
+  run_step "① 文章文件名" pnpm run rename-posts-check
+  run_step "② Markdown 格式" pnpm run format-markdown-check
 fi
-run_step "③ front matter 校验" bun run validate-posts
-run_step "④ 单元测试" bun run test
+run_step "③ front matter 校验" pnpm run validate-posts
+run_step "④ 单元测试" pnpm run test
 run_step "⑤ 构建产物新鲜度" "$BIN_DIR/artifacts.sh" check
 
 if [ "$CHECK_FAILED" -ne 0 ]; then

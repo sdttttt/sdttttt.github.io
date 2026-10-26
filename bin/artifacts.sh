@@ -5,7 +5,7 @@
 # 用法：
 #   ./bin/artifacts.sh check              校验（默认）
 #   ./bin/artifacts.sh check --rebuild    额外重编译一次并逐字节比对（最严，需要几秒；
-#                                         cargo 编 wasm，有 bun + node_modules 时也重编 CSS）
+#                                         cargo 编 wasm，有 pnpm + node_modules 时也重编 CSS）
 #   ./bin/artifacts.sh stamp-wasm         重新记录 wasm 指纹（bin/build-wasm.sh 会调它）
 #   ./bin/artifacts.sh stamp-css          重新记录 CSS 指纹（bin/build-css.sh 会调它）
 #   ./bin/artifacts.sh stamp              等价于 stamp-wasm（旧名，保留）
@@ -59,17 +59,17 @@ check_images() {
     out="$BG_OUT_DIR/$base.avif"
     if [ ! -f "$out" ]; then
       fail "源图缺少发布产物：$src → $out 不存在"
-      fail "  跑 bun run optimize-images 并提交产物；若这张图不该发布，请移出 $BG_SRC_DIR/"
+      fail "  跑 pnpm run optimize-images 并提交产物；若这张图不该发布，请移出 $BG_SRC_DIR/"
       bad=1
       continue
     fi
     if [ "$src" -nt "$out" ]; then
-      warn "$src 比 $out 新 —— 产物可能是旧的（跑 bun run optimize-images）"
+      warn "$src 比 $out 新 —— 产物可能是旧的（跑 pnpm run optimize-images）"
     fi
   done
 
   if [ -f "$AVATAR_SRC" ] && [ ! -f "$AVATAR_OUT" ]; then
-    fail "缺少头像产物：${AVATAR_OUT}（跑 bun run optimize-images）"
+    fail "缺少头像产物：${AVATAR_OUT}（跑 pnpm run optimize-images）"
     bad=1
   fi
 
@@ -97,7 +97,7 @@ check_images() {
 # assets/wasm/*.wasm（二进制，UnoCSS 的扫描器本来就不看二进制 —— 列上它只会让每次
 # `build-wasm` 白搭一次 CSS 重新生成）。
 # 为什么用「整个目录」而不是列几个文件：UnoCSS 的扫描范围（layouts/**）虽然窄，但
-# 产物还取决于 uno.config.ts / package.json / bun.lock 等一串文件 ——
+# 产物还取决于 uno.config.ts / package.json / pnpm-lock.yaml 等一串文件 ——
 # 与其维护一份「哪些文件参与生成」的清单（漏一个就等于放行陈旧产物），不如把整个
 # 主题目录当输入：多算几个文件只是严格一点，不会漏。
 # 代价是 README 之类的非输入文件改动也会让指纹失配（重跑一次 build-css 即可，幂等），
@@ -122,11 +122,11 @@ write_css_manifest() {
 check_css() {
   local bad=0
   if [ ! -f "$REPO_ROOT/$CSS_ARTIFACT" ]; then
-    fail "缺少 CSS 产物：${CSS_ARTIFACT}（跑 bun run build-css）"
+    fail "缺少 CSS 产物：${CSS_ARTIFACT}（跑 pnpm run build-css）"
     return 1
   fi
   if [ ! -f "$REPO_ROOT/$CSS_MANIFEST" ]; then
-    fail "缺少 CSS 指纹：${CSS_MANIFEST}（跑 bun run build-css 生成）"
+    fail "缺少 CSS 指纹：${CSS_MANIFEST}（跑 pnpm run build-css 生成）"
     return 1
   fi
 
@@ -137,15 +137,15 @@ check_css() {
     fail "CSS 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
     fail "  改了 themes/self/ 里影响 CSS 的内容（layouts/**、app.css、uno.config.ts …）"
-    fail "  就得跑 bun run build-css，把产物与指纹一起提交（CI 不跑 build-css，不会重新生成）"
+    fail "  就得跑 pnpm run build-css，把产物与指纹一起提交（CI 不跑 build-css，不会重新生成）"
     bad=1
   fi
 
   if [ "$REBUILD" = 1 ]; then
-    if ! have bun; then
-      warn "跳过 CSS 重新生成校验（本机没有 bun）"
+    if ! have pnpm; then
+      warn "跳过 CSS 重新生成校验（本机没有 pnpm）"
     elif [ ! -x "$REPO_ROOT/$CSS_THEME_DIR/node_modules/.bin/unocss" ]; then
-      warn "跳过 CSS 重新生成校验（themes/self/node_modules 不在；先跑 bun run build-css）"
+      warn "跳过 CSS 重新生成校验（themes/self/node_modules 不在；先跑 pnpm run build-css）"
     else
       log "unocss（校验用，输出到临时目录）"
       if (cd "$REPO_ROOT/$CSS_THEME_DIR" && ./node_modules/.bin/unocss 'layouts/**/*.html' -o "$TMP_TARGET/uno.css"); then
@@ -168,11 +168,11 @@ check_css() {
 check_wasm() {
   local bad=0
   if [ ! -f "$WASM_ARTIFACT" ]; then
-    fail "缺少 wasm 产物：${WASM_ARTIFACT}（跑 bun run build-wasm）"
+    fail "缺少 wasm 产物：${WASM_ARTIFACT}（跑 pnpm run build-wasm）"
     return 1
   fi
   if [ ! -f "$WASM_MANIFEST" ]; then
-    fail "缺少 wasm 指纹：${WASM_MANIFEST}（跑 bun run build-wasm 生成）"
+    fail "缺少 wasm 指纹：${WASM_MANIFEST}（跑 pnpm run build-wasm 生成）"
     return 1
   fi
 
@@ -182,7 +182,7 @@ check_wasm() {
   else
     fail "wasm 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
-    fail "  改了 wasm/particles/** 就必须跑 bun run build-wasm 并提交产物与指纹（CI 不构建 wasm）"
+    fail "  改了 wasm/particles/** 就必须跑 pnpm run build-wasm 并提交产物与指纹（CI 不构建 wasm）"
     bad=1
   fi
 

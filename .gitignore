@@ -18,8 +18,8 @@ hugo_stats.json
 .tools/
 .npm-cache/
 
-# Scripts: Bun runs .ts directly, scripts/dist/ is a dead artifact
-# from an old Node.js-era snapshot. Never commit it.
+# Scripts: Node runs .ts directly (native type stripping), so scripts/dist/ is a
+# dead artifact from an old compile-to-JS snapshot. Never commit it.
 scripts/dist/
 
 # Rust/WASM build artifacts (the built particles.wasm is committed under

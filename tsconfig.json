@@ -1,0 +1,21 @@
+{
+  // 只服务于编辑器和 vitest 的类型解析：仓库不用 tsc 编译（Node 直接剥类型跑 .ts），
+  // 所以这里没有 outDir / build 配置，也没有把 tsc 接进 CI。
+  "compilerOptions": {
+    "target": "es2023",
+    "lib": ["es2023"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "types": ["node"],
+    // 相对导入写的是一律带 .ts 后缀的真文件名（Node 不做 .js → .ts 映射）
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    // 只允许 Node 能直接剥掉的类型语法（enum / namespace / 参数属性都不行）
+    "erasableSyntaxOnly": true,
+    "verbatimModuleSyntax": true,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "skipLibCheck": true
+  },
+  "include": ["scripts/**/*.ts", "vitest.config.ts"]
+}

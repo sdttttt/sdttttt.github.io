@@ -1,5 +1,5 @@
-import { describe, test } from 'node:test';
-import { buildPlans, formatSizeDelta, listPublishedImages } from '../optimize-images.js';
+import { describe, test, expect } from 'vitest';
+import { buildPlans, formatSizeDelta, listPublishedImages } from '../optimize-images.ts';
 import {
   AVATAR_OUTPUT,
   BG_QUALITY,
@@ -7,9 +7,8 @@ import {
   BG_WIDTH,
   planImage,
   SOURCE_EXTENSIONS,
-} from '../lib/image-plan.js';
-import { expect } from './expect.js';
-import { inTempDir } from './temp-dir.js';
+} from '../lib/image-plan.ts';
+import { inTempDir } from './temp-dir.ts';
 import { mkdirSync, writeFileSync } from 'node:fs';
 
 describe('planImage', () => {
