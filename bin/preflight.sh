@@ -11,13 +11,14 @@
 #
 # 退出码：0 通过 / 1 有检查未通过 / 2 参数错 / 127 缺工具
 #
-# 五个步骤（即原来散在 deploy.yml 里的那几步）：
+# 六个步骤（即原来散在 deploy.yml 里的那几步）：
 #   ① 文章文件名   YYYYMMDD-slug-hash。hash 取自正文，所以任何正文改动都会改 URL，
 #                  改名时脚本会把旧 URL 追加进该篇的 aliases（幂等）
 #   ② Markdown     prettier（钉死根 package.json 的 3.9.6，本地与 CI 共用）
 #   ③ front matter 必填字段与 slug 冲突
-#   ④ 单元测试     vitest
-#   ⑤ 构建产物     图片产物是否齐全 + wasm 产物是否与源码一致（bin/artifacts.sh）
+#   ④ 类型检查     tsc --noEmit（TypeScript 7 原生编译器，全项目约 0.3s）
+#   ⑤ 单元测试     vitest
+#   ⑥ 构建产物     图片产物是否齐全 + wasm 产物是否与源码一致（bin/artifacts.sh）
 #
 # 为什么 --check 是默认：CI 里修复是必须的（它要把改动提交回来），但人手动跑这个
 # 脚本时，静默改掉自己的工作区很吓人；所以 CI 明确写 --fix。
@@ -50,8 +51,9 @@ else
   run_step "② Markdown 格式" pnpm run format-markdown-check
 fi
 run_step "③ front matter 校验" pnpm run validate-posts
-run_step "④ 单元测试" pnpm run test
-run_step "⑤ 构建产物新鲜度" "$BIN_DIR/artifacts.sh" check
+run_step "④ 类型检查" pnpm run typecheck
+run_step "⑤ 单元测试" pnpm run test
+run_step "⑥ 构建产物新鲜度" "$BIN_DIR/artifacts.sh" check
 
 if [ "$CHECK_FAILED" -ne 0 ]; then
   fail "preflight 未通过（${MODE}）：先修掉上面标 XX 的问题"

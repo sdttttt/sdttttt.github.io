@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# 单元测试（vitest）+ shell 脚本语法检查（CI 的 test-scripts.yml 与本地都调它）。
+# 类型检查（tsc）+ 单元测试（vitest）+ shell 脚本语法检查（CI 的 test-scripts.yml 与本地都调它）。
 #
 #   ./bin/test.sh
 #
@@ -18,6 +18,7 @@ shells=("$BIN_DIR"/*.sh "$BIN_DIR"/hooks/*)
 shopt -u nullglob
 
 run_step "① shell 语法检查（${#shells[@]} 个文件）" shell_syntax_check "${shells[@]}"
-run_step "② 单元测试（vitest）" pnpm run test
+run_step "② 类型检查（tsc --noEmit）" pnpm run typecheck
+run_step "③ 单元测试（vitest）" pnpm run test
 
 report "测试通过"

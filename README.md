@@ -25,6 +25,7 @@ hugo --minify       # 生产构建到 public/
 
 pnpm install                      # 装根依赖（prettier + vitest）
 pnpm run test                     # 跑测试（vitest）
+pnpm run typecheck                # 类型检查（tsc --noEmit）
 pnpm run validate-posts           # 校验 front matter
 pnpm run rename-posts-dry         # 预览文章改名
 pnpm run format-markdown-check    # 检查 Markdown 格式

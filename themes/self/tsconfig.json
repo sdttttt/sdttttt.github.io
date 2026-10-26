@@ -1,0 +1,25 @@
+{
+  // 只负责把 assets/ts/*.ts 编译成 assets/js/*.js。
+  // 这些文件是经典脚本（不是模块）：没有 import/export，TypeScript 会把它们
+  // 当成全局脚本，编译产物由 <script> 原样加载。module 用 preserve（不做任何
+  // 模块改写）—— 一旦哪天误加了 import，产物会在浏览器里直接报错，而不是
+  // 被悄悄包装成 CommonJS。
+  "compilerOptions": {
+    "target": "es2019",
+    "module": "preserve",
+    "lib": ["es2019", "dom", "dom.iterable"],
+    "rootDir": "assets/ts",
+    "outDir": "assets/js",
+    "strict": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "forceConsistentCasingInFileNames": true,
+    "skipLibCheck": true,
+    // 产物要提交进仓库：报错时不要留下半份 js，免得本地跑通了 CI 却是旧代码
+    "noEmitOnError": true,
+    "newLine": "lf",
+    // 注释是这套脚本的主要文档（每个文件头部讲清了为什么），必须保留
+    "removeComments": false
+  },
+  "include": ["assets/ts/**/*.ts"]
+}

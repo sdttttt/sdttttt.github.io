@@ -9,6 +9,7 @@
   "description": "仓库工具链入口：脚本任务（scripts/*.ts，由 Node 原生类型剥离直接运行）、Markdown 格式化（prettier）与单测（vitest）。bin/*.sh 与 CI 都调用这里的任务，本地与 CI 因此跑同一份命令。",
   "scripts": {
     "test": "vitest run",
+    "typecheck": "tsc --noEmit && tsc -p themes/self/tsconfig.json --noEmit",
     "validate-posts": "node scripts/validate-posts.ts",
     "check-dead-links": "node scripts/check-dead-links.ts",
     "format-markdown": "prettier --write '**/*.md'",
@@ -20,12 +21,14 @@
     "optimize-images-dry": "node scripts/optimize-images.ts --dry-run",
     "build-wasm": "./bin/build-wasm.sh",
     "build-css": "./bin/build-css.sh",
-    "build": "hugo --minify",
+    "build:js": "tsc -p themes/self/tsconfig.json",
+    "build": "pnpm run build:js && hugo --minify",
     "test-wasm": "cd wasm/particles && cargo test"
   },
   "devDependencies": {
     "@types/node": "24.19.2",
     "prettier": "3.9.6",
+    "typescript": "7.0.2",
     "vitest": "5.0.5"
   }
 }

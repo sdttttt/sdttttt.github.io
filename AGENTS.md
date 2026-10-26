@@ -20,7 +20,8 @@
   - `layouts/_default/search.html` + `layouts/index.json` + `assets/js/search.js` — `/search/` 站内搜索：构建期产出 `/searchindex.json`（`hugo.toml` 的 `[outputFormats.JSON]`，`notAlternative = true`），前端第一次敲字才懒加载索引做加权过滤
   - `layouts/_default/_markup/render-image.html` — markdown 图片渲染钩子：全站图片补 `loading="lazy"` / `decoding="async"`；占位图 `/images/image-lost.svg` 的 `title` 渲染成图下一行小字（`<span class="img-lost__note">`，不用 `figure/figcaption` —— 钩子里的 `.IsBlock` 在 Hugo 0.161.1 里**恒为 false**，且图片嵌在 `<p>` 内）
   - `layouts/robots.txt` — 覆写 Hugo 内置 robots.txt，补上 `Sitemap:` 行
-  - `assets/js/` — `pt-wasm.js`（共享 wasm 加载器：只缓存编译好的 Module，每个消费方各自实例化，内存互不干扰）/ `home-title.js`（首页 hero：宋体字形 → 粒子、交叉淡入、30Hz 行波；每次加载生成随机种子交给 `seed_on()`，所以点阵落点每次打开都不同；缩放 / 深色切换重建时复用同一把种子，隐藏 / 离屏 / 屏保时暂停）/ `page-bg.js`（待机屏保：24s 空闲、22s 预热、30Hz 组装、持续漂浮、指针散开场、wake 层）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）
+  - `assets/ts/` — **六个浏览器脚本的 TypeScript 源码**（`pt-wasm.ts` / `home-title.ts` / `page-bg.ts` / `particles-wasm.ts` / `particles.ts` / `search.ts` + `globals.d.ts` 里的 wasm 导出、页面配置、loader 类型）。它们是**经典脚本不是模块**：每个文件是一个 IIFE，最多往全局挂一个 `window.ptWasm`，所以 `tsconfig.json` 里 `module: "preserve"`、`target: es2019`、`strict` 全开。`pnpm run build:js`（= `tsc -p themes/self/tsconfig.json`）编译到 `assets/js/`，**两边都提交**；`noEmitOnError` 保证类型报错时不会留下半份产物。`var` 是从 JS 原样保留的（这次是翻译不是重写，不想让编译产物在结构上漂移）
+  - `assets/js/` — 上面六个 ts 编译出来的产物（Hugo 的 `resources.Get "js/…"` 只认这里）：`pt-wasm.js`（共享 wasm 加载器：只缓存编译好的 Module，每个消费方各自实例化，内存互不干扰）/ `home-title.js`（首页 hero：宋体字形 → 粒子、交叉淡入、30Hz 行波；每次加载生成随机种子交给 `seed_on()`，所以点阵落点每次打开都不同；缩放 / 深色切换重建时复用同一把种子，隐藏 / 离屏 / 屏保时暂停）/ `page-bg.js`（待机屏保：24s 空闲、22s 预热、30Hz 组装、持续漂浮、指针散开场、wake 层）/ `particles-wasm.js`（粒子页主引擎）/ `particles.js`（粒子页的纯 Canvas 2D 降级引擎）/ `search.js`（站内搜索）
   - `assets/wasm/particles.wasm` — 构建产物（提交进仓库，CI 不需要 Rust）
   - `uno.config.ts` + `assets/uno.css` + `assets/app.css` + `package.json` + `pnpm-lock.yaml` — **UnoCSS 管线**（2026-10-23 从 Tailwind v4 迁来，2026-10-24 去掉 PostCSS）：`uno.config.ts` 放预设（`presetWind4` + `presetTypography`）与扫描范围，`unocss` CLI 据此把 reset / 主题变量 / typography / 工具类生成到 `assets/uno.css`（**提交进仓库**；Hugo 只做 concat + minify + fingerprint，见 `layouts/partials/head.html`）。`app.css` 是主题自己的规则（普通 CSS，**没有 `@apply`**），`custom.css` 是站点自有样式，两者由 head.html 跟在 `uno.css` 后面 concat。改样式 / 类名后跑 `pnpm run build-css`（= `bin/build-css.sh`：`pnpm install --frozen-lockfile` → `unocss 'layouts/**/*.html' -o assets/uno.css` → 更新 `assets/uno.css.sha256`），**别手改 `uno.css`**。`pnpm-lock.yaml` 必须一起 vendor 并用 `--frozen-lockfile`：产物对 unocss 与其传递依赖的版本敏感，不钉死 lockfile 会重新解析出更新的 patch 版本、同一份模板生成不同字节
   - ⚠️ **`app.css` 里不要引用主题变量**：UnoCSS 的主题变量按需发射，模板没用过的 token（如 `--radius-md`、`--fontWeight-semibold`）压根不在产物里，`var()` 会静默失效（实测字重退回 400、圆角退回 0）。所以 `app.css` 写的是字面量，取值与 UnoCSS 尺度一一对应：spacing 0.25rem、`text-sm` 0.875rem、`text-lg` 1.125rem、radius 0.375 / 0.75rem、黑 `#000`、白 `#fff`；唯一例外是 `--un-prose-pre-bg`（typography 预设在 `.prose` 上定义）
@@ -38,7 +39,7 @@
   - `hooks/pre-commit`（`preflight --fix --re-stage`）与 `hooks/pre-push`（`preflight --check`），用 `./bin/install-hooks.sh` 装成 `core.hooksPath`（因此 hooks 是版本化文件，跟着仓库走）
 - `scripts/` — Node + TypeScript 维护脚本：根目录 `*.ts` 为入口，`lib/` 放共用工具（args / frontmatter / image-plan / paths），`__tests__/` 放测试。相对导入一律写带 `.ts` 后缀的真文件名（Node 不会把 `.js` 映射到 `.ts`），也不能用 enum / namespace / 参数属性这类剥不掉的语法。
 - `hugo.toml` — Hugo 配置（`theme = "self"`）。**RSS 全站关闭**：`[outputs]` 把 `home` 写成 `["HTML", "JSON"]`、并把 `section` / `taxonomy` / `term` 单独钉成 `["HTML"]`（只改 `home` 关不干净 —— Hugo 对这三类页面有自带的 RSS 默认值，`/tags/*/index.xml` 就是这么来的）。
-- `package.json` + `pnpm-lock.yaml` — **根任务入口**（2026-10-24 从 `deno.json` 迁来，2026-10-26 从 Bun 迁到 Node + pnpm）：`scripts` 里是全部 `pnpm run x` 任务（与 `bin/*.sh`、CI 共用同一份定义），`devDependencies` 是钉死版本的 `prettier`（3.9.6）、`vitest`（5.0.5）与 `@types/node`。CI 用 `pnpm/action-setup` 装 **pnpm 11.22.0**、`actions/setup-node` 装 **Node 24**，与本地一致；`pnpm-lock.yaml` 必须 vendor 并 `--frozen-lockfile` 安装。`vitest.config.ts` 只做两件事：限定测试目录、把 pool 钉成 `forks`（测试里会 `process.chdir()`，worker 线程下会抛错）。
+- `package.json` + `pnpm-lock.yaml` — **根任务入口**（2026-10-24 从 `deno.json` 迁来，2026-10-26 从 Bun 迁到 Node + pnpm）：`scripts` 里是全部 `pnpm run x` 任务（与 `bin/*.sh`、CI 共用同一份定义），`devDependencies` 是钉死版本的 `prettier`（3.9.6）、`vitest`（5.0.5）、`typescript`（7.0.2）与 `@types/node`。CI 用 `pnpm/action-setup` 装 **pnpm 11.22.0**、`actions/setup-node` 装 **Node 24**，与本地一致；`pnpm-lock.yaml` 必须 vendor 并 `--frozen-lockfile` 安装。`vitest.config.ts` 只做两件事：限定测试目录、把 pool 钉成 `forks`（测试里会 `process.chdir()`，worker 线程下会抛错）。
 
 首次克隆不需要 submodule：`git clone`。
 
@@ -56,8 +57,10 @@ hugo --minify                     # 生产构建到 public/
 
 pnpm install                      # 装根依赖（prettier / vitest / @types/node）
 pnpm run test                      # 跑 scripts/__tests__/ 下全部测试
+pnpm run typecheck                 # tsc --noEmit（已接进 preflight 与 test.sh）
 pnpm run test-wasm                 # 跑 wasm/particles 的 Rust 单元测试（需 cargo）
-pnpm run build                     # hugo --minify（部署用；本地预览用 hugo server -D）
+pnpm run build                     # tsc（主题 TS → JS）+ hugo --minify（部署用；本地预览用 hugo server -D）
+pnpm run build:js                  # 只编主题脚本：assets/ts/*.ts → assets/js/*.js
 pnpm run build-wasm                # 重建 wasm 产物 + 指纹（需 cargo；CI 不跑）
 pnpm run build-css                 # 重建 CSS 产物 uno.css + 指纹（CI 不跑）
 pnpm run validate-posts            # 校验 front matter
@@ -77,25 +80,26 @@ pnpm run format-markdown           # 写入式格式化（CI 推送后自动跑�
 ./bin/preflight.sh                   # 只读：CI 会跑的那五道检查，本地跑一遍就知道 CI 会不会绿
 ./bin/preflight.sh --fix             # 就地修（文件名 + Markdown 格式），CI 里用这个
 ./bin/install-hooks.sh               # 装一次 pre-commit / pre-push hook（core.hooksPath=bin/hooks）
-./bin/artifacts.sh check             # 图片 / wasm / CSS 产物是否齐全且新鲜
+./bin/artifacts.sh check             # 图片 / wasm / CSS / JS 产物是否齐全且新鲜
 ./bin/artifacts.sh check --rebuild   # 额外重编译逐字节比对：cargo 编 wasm；有 pnpm + node_modules 时也重编 CSS
-./bin/test.sh                        # shell 语法检查 + vitest 单测
-pnpm run build                      # hugo --minify
+./bin/test.sh                        # shell 语法检查 + tsc 类型检查 + vitest 单测
+pnpm run build                      # tsc 编主题脚本 + hugo --minify
 ./bin/build-css.sh                   # UnoCSS：pnpm install --frozen-lockfile → unocss → uno.css + 指纹（幂等）
 pnpm run check-dead-links           # 死链检查（本地默认严格、CI 只出 warning 不挡部署；--soft / --strict 可覆盖）
 #   死链只算「确实打不开」的；403/429/451 与反爬域名（baike.baidu.com）下的任何响应都归「没能验证」，
 #   正文里已注明失效的链接写进 scripts/check-dead-links.ts 的 ARCHIVED_URLS（连请求都不发，有测试守着）
 ```
 
-- **`preflight.sh` 的五步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 单测 ⑤ 构建产物新鲜度（图片 / wasm / CSS）。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
+- **`preflight.sh` 的六步**：① 文章文件名（`rename-posts --check`）② Markdown 格式（prettier）③ front matter 校验 ④ 类型检查（`tsc --noEmit`，两个项目：`scripts/**` 与 `themes/self/assets/ts/**`）⑤ 单测（vitest）⑥ 构建产物新鲜度（图片 / wasm / CSS / JS）。任一步失败都会汇总到最后一行，退出码非零即「CI 会红」。
 - **产物新鲜度靠指纹，不靠 mtime**：`themes/self/assets/wasm/particles.sha256` 记的是「产物 + 各源文件」的 sha256（sha256sum 格式，故意不用 JSON）。CI **不装 Rust**，所以它靠这份指纹发现「改了 `wasm/**` 却忘了重建」；本地有 cargo 时用 `--rebuild` 做最强校验（重编译 + `cmp`）。图片产物缺了则直接硬失败（提示跑 `pnpm run optimize-images`）。
 - 改了 `wasm/**` 后跑 `pnpm run build-wasm`（= `bin/build-wasm.sh`：构建 + 复制产物 + 更新指纹），**产物与指纹一起提交**。
 - 改了 `themes/self/` 里影响 CSS 的内容（模板里的类名、`uno.config.ts`）后跑 `pnpm run build-css`，**产物 `assets/uno.css` 与指纹 `assets/uno.css.sha256` 一起提交**（改 `app.css` / `custom.css` 不改变 `uno.css`，但指纹覆盖整个主题目录，仍要重跑一次让它重新 stamp）。
+- 改了 `themes/self/assets/ts/**` 后跑 `pnpm run build:js`，**`assets/js/*.js` 与 ts 源码一起提交**；指纹覆盖整个主题目录，所以顺带也要 `pnpm run build-css` 重新 stamp。`./bin/artifacts.sh check` 会把 ts 重新编译到临时目录逐字节比对，忘了 build:js 会直接失败。
 - 四个 workflow 都只剩这一层壳：`deploy.yml`（`preflight --fix` → `pnpm run build` → 上传 Pages → `publish-autofix.sh` 把修复提交回仓库）、`test-scripts.yml`、`validate-posts.yml`、`check-dead-links.yml`。
 
 ## 编码与命名规范
 
-- TypeScript 脚本使用 2 空格缩进；由 `pnpm run` 调起、`node` 直接执行（Node 原生剥类型），无 `tsc`、脚本零第三方依赖（只用 `node:` 内置 API）；仓库根的 `node_modules` 只装 prettier / vitest / @types/node。`tsconfig.json` 只服务编辑器与 vitest（`noEmit` + `allowImportingTsExtensions` + `erasableSyntaxOnly`），不进 CI。
+- TypeScript 脚本使用 2 空格缩进；由 `pnpm run` 调起、`node` 直接执行（Node 原生剥类型），脚本零第三方依赖（只用 `node:` 内置 API）；仓库根的 `node_modules` 只装 prettier / vitest / typescript / @types/node。类型检查由 `pnpm run typecheck`（`tsc --noEmit`）负责，已接进 `bin/test.sh` 与 `bin/preflight.sh` 的 ④；`tsconfig.json` 同时服务编辑器（`noEmit` + `allowImportingTsExtensions` + `erasableSyntaxOnly` + `noUncheckedIndexedAccess`），TypeScript 7 是 Go 原生编译器，全项目不到 0.3s。
 - Markdown 由 Prettier 3 格式化（钉在根 `package.json` 的 devDependencies，`3.9.6`；先 `pnpm install`），仓库无本地 Prettier 配置，沿用默认；`deploy.yml` 推送后会自动调用 `pnpm run format-markdown`。
 - 文章文件名：`YYYYMMDD-标题-xxxx.md`（末尾 3–4 位 hash 短码），例如 `20260817-文章的变化-dqo.md`。hash 取自**正文**，所以改正文 / 标题都会触发 `rename-posts` 改名；脚本会自动把旧 URL 追加进该篇的 `aliases`（幂等），**别名不要手删**，否则旧链接 404。
 - Front matter 必填：`title`、`date`、`description`；无封面字段（cover 系统已删）。`description` 现在只喂 OG / Twitter 卡片与 schema（`og:description` / `twitter:description` / `itemprop=description`，来自 `_internal/*.html`），**不再**生成 `<meta name="description">`（那行已从 `head.html` 删除）。

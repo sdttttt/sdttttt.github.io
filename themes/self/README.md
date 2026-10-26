@@ -33,6 +33,7 @@ Files either come from upstream, or they are ours. The ones below are ours — e
 | `layouts/partials/footer.html`               | copied                   | removes upstream's "powered by hugo" + "hugo-paper" links                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | `layouts/partials/bg.html`                   | new                      | the idle screensaver: full-viewport WASM particle canvas; after 10 s without input it assembles a random avif/webp cutout on a 2 px grid as 1 px particles, floats continuously, pushes particles away from the pointer and springs them back when it leaves, and exits on click                                                                                                                                                                                                                               |
 | `layouts/partials/home-title.html`           | new                      | the home hero: the real site title in the DOM (SEO / screen readers / no-JS) plus an aria-hidden particle canvas, its JSON config and two deferred scripts; list.html calls it only on the home page's first paginator page                                                                                                                                                                                                                                                                                    |
+| `assets/ts/**`                               | new                      | TypeScript sources for the six browser scripts below (plus `globals.d.ts` with the wasm/config/loader types); `pnpm run build:js` compiles them to `assets/js/`                                                                                                                                                                                                                                                                                                                                                |
 | `assets/js/home-title.js`                    | new                      | renders the title in the Songti stack into an offscreen mask, builds a WASM particle field over it (target-position jitter, mixed 1–3px block sizes, and an independent per-dot micro-wobble on top of the wave, all drawn from a per-load random seed so every visit lands differently), and cross-fades the two (no layout shift); then runs a rightward 30 Hz ripple, pausing when hidden / off-screen / under the screensaver, and rebuilding on resize or dark-mode switches (without replaying the fade) |
 | `layouts/robots.txt`                         | new                      | overrides Hugo's built-in `robots.txt` to add the `Sitemap:` line                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `assets/custom.css`                          | extended                 | the screensaver's `.page-bg` rules, the home hero's Songti stack + particle cross-fade, all `.arch*` / `.search*` rules and site-wide tweaks (the `!important`s on heading `font-size` date from Tailwind v4's `:not(#\#)` bumpers and are harmless now that UnoCSS emits none — see the comment in the file)                                                                                                                                                                                                  |
@@ -60,6 +61,20 @@ Migrated from Tailwind v4 on 2026-10-23, then moved off PostCSS on 2026-10-24. T
 ```bash
 pnpm run build-css   # = bin/build-css.sh: pnpm install --frozen-lockfile, then unocss, then refresh the fingerprint
 ```
+
+### The JS pipeline (TypeScript)
+
+The six browser scripts are written in TypeScript under `assets/ts/` and compiled to `assets/js/`; **both sides are committed**, because Hugo's `resources.Get "js/…"` reads the generated files and a fresh clone must run without a build step.
+
+```bash
+pnpm run build:js    # = tsc -p themes/self/tsconfig.json (also runs as part of pnpm run build)
+pnpm run typecheck   # checks scripts/** and themes/self/assets/ts/** --noEmit
+```
+
+- They are **classic scripts**, not modules: each file is an IIFE that publishes at most one global (`window.ptWasm`), so `tsconfig.json` sets `module: "preserve"` and a stray `import` would break the page rather than be silently wrapped.
+- `strict` is on, but `var` is kept verbatim from the JavaScript originals: this migration was a translation, not a rewrite, so the compiled output stays structurally identical to what shipped before.
+- `noEmitOnError` is on, so a type error never leaves a half-written `assets/js/` behind.
+- Editing `assets/ts/**` means running `pnpm run build:js` **and** `pnpm run build-css` (the CSS fingerprint covers the whole theme directory); `./bin/artifacts.sh check` recompiles the sources and compares them byte for byte, so a forgotten `build:js` fails CI instead of shipping stale JS.
 
 Details that are easy to lose:
 

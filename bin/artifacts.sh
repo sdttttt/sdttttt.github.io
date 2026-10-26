@@ -10,7 +10,7 @@
 #   ./bin/artifacts.sh stamp-css          重新记录 CSS 指纹（bin/build-css.sh 会调它）
 #   ./bin/artifacts.sh stamp              等价于 stamp-wasm（旧名，保留）
 #
-# 检查四件事：
+# 检查五件事：
 #   1. 每张 assets/src/bg/ 下的原图都有对应的 static/bg/*.avif 产物。
 #      缺了就是真会出事：CI 不跑图片转换（见 AGENTS.md），发布出去的就是缺图。
 #   2. static/ 里没有「源图已删」的孤儿产物 —— 左下角徽标靠 readDir static/bg 发现背景，
@@ -23,12 +23,18 @@
 #      生成物（Hugo 只做 concat + minify，见 themes/self/layouts/partials/head.html），
 #      而 CI 只跑 check、不跑 build-css —— 同样靠 uno.css.sha256 把「改了模板 / uno.config.ts 却没重新
 #      生成」变可见。扫描输入是整个 themes/self/ 目录（见 css_sources 的注释）。
+#   5. JS 产物与 TS 源码一致。`themes/self/assets/js/*.js` 是 `tsc` 从
+#      `assets/ts/*.ts` 编译出来的（两边都提交进仓库）。这里把源码重新编译到临时
+#      目录再逐字节比对 —— tsc 很快（约 0.3s），所以不像 CSS 那样「只在 --rebuild 时比」。
 source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/lib.sh"
 
 BG_SRC_DIR="assets/src/bg"
 BG_OUT_DIR="static/bg"
 AVATAR_SRC="assets/src/avatar/avatar.jpg"
 AVATAR_OUT="static/avatar.webp"
+JS_SRC_DIR="themes/self/assets/ts"
+JS_OUT_DIR="themes/self/assets/js"
+JS_TSCONFIG="themes/self/tsconfig.json"
 
 TMP_MANIFEST="$(mktemp)"
 TMP_DIFF="$(mktemp)"
@@ -136,7 +142,7 @@ check_css() {
   else
     fail "CSS 产物与源码不一致（- 记录 / + 现在）："
     cat "$TMP_DIFF" >&2
-    fail "  改了 themes/self/ 里影响 CSS 的内容（layouts/**、app.css、uno.config.ts …）"
+    fail "  改了 themes/self/ 里的任何文件（layouts/**、assets/**、uno.config.ts、本 README …）"
     fail "  就得跑 pnpm run build-css，把产物与指纹一起提交（CI 不跑 build-css，不会重新生成）"
     bad=1
   fi
@@ -160,6 +166,35 @@ check_css() {
         bad=1
       fi
     fi
+  fi
+
+  return "$bad"
+}
+
+check_js() {
+  local bad=0
+  if ! have pnpm; then
+    warn "跳过 JS 产物校验（本机没有 pnpm）"
+    return 0
+  fi
+  if [ ! -x "$REPO_ROOT/node_modules/.bin/tsc" ]; then
+    warn "跳过 JS 产物校验（typescript 未安装；先在仓库根跑 pnpm install）"
+    return 0
+  fi
+
+  mkdir -p "$TMP_TARGET/js"
+  if (cd "$REPO_ROOT" && ./node_modules/.bin/tsc -p "$JS_TSCONFIG" --outDir "$TMP_TARGET/js"); then
+    if diff -r -q "$TMP_TARGET/js" "$REPO_ROOT/$JS_OUT_DIR" >"$TMP_DIFF" 2>&1; then
+      ok "JS 产物与 TS 源码一致（$(ls "$REPO_ROOT/$JS_OUT_DIR"/*.js | wc -l | tr -d ' ') 个文件）"
+    else
+      fail "JS 产物与 TS 源码不一致（- 重编译 / + 仓库里提交的）："
+      cat "$TMP_DIFF" >&2
+      fail "  改了 ${JS_SRC_DIR}/** 就得跑 pnpm run build:js，把编译出的 ${JS_OUT_DIR}/*.js 一起提交"
+      bad=1
+    fi
+  else
+    fail "tsc 编译失败（${JS_TSCONFIG}）"
+    bad=1
   fi
 
   return "$bad"
@@ -243,5 +278,7 @@ log "② wasm 产物"
 if check_wasm; then ok "wasm 产物新鲜"; else fail "wasm 产物不新鲜"; BAD=1; fi
 log "③ CSS 产物"
 if check_css; then ok "CSS 产物新鲜"; else fail "CSS 产物不新鲜"; BAD=1; fi
+log "④ JS 产物"
+if check_js; then ok "JS 产物新鲜"; else fail "JS 产物不新鲜"; BAD=1; fi
 if [ "$BAD" -ne 0 ]; then exit 1; fi
 ok "构建产物检查通过"
