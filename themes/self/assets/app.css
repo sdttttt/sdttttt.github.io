@@ -128,11 +128,16 @@ article .highlight > div table tr:last-of-type {
   padding: 0.75rem 1.25rem;
   border-radius: 0.75rem;
   font-size: 0.95em;
-  /* 墨色字压在陶土橙上（对比度 ≈ 5.6:1）；纸白压橙只有 2.7:1，不达标 */
-  color: #191919;
+  /* 亮色：墨底纸字（对比 ≈ 13:1）；暗色覆写成灰底（亮色 15% 叠在墨底上），
+     纸字对灰底仍有 ≈ 9:1。2026-11-17 前是陶土橙底。 */
+  color: #f0eee6;
   text-decoration: none;
-  background-color: #d97757;
+  background-color: #191919;
   transition-duration: 100ms;
+}
+
+.dark .btn {
+  background-color: rgba(240, 238, 230, 0.15);
 }
 
 .btn:active {
