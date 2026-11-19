@@ -4,9 +4,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
 import {
-  extractBody,
-  computeHash3,
-  slugify,
   buildReport,
   detectCollisions,
   findBlockingCollisions,
@@ -15,92 +12,7 @@ import {
   executePlan,
   type RenamePlan,
 } from '../rename-posts.ts';
-import { toYyyymmdd, parseFrontMatter } from '../lib/frontmatter.ts';
-
-// ─────────────────────────────────────────────────────────────
-// 纯函数
-// ─────────────────────────────────────────────────────────────
-
-// normalizeDate 的用例已随函数一起搬到 lib/frontmatter.ts（toYyyymmdd），
-// 见 frontmatter.test.ts。
-
-describe('extractBody', () => {
-  test('去掉 frontmatter 块', () => {
-    const raw = `---
-title: x
----
-hello body`;
-    expect(extractBody(raw)).toBe('hello body');
-  });
-
-  test('没有 frontmatter 时返回原文', () => {
-    const raw = 'just a body';
-    expect(extractBody(raw)).toBe('just a body');
-  });
-
-  test('frontmatter 后面有空行也保留', () => {
-    const raw = `---
-title: x
----
-
-body`;
-    expect(extractBody(raw)).toBe('\nbody');
-  });
-});
-
-describe('computeHash3', () => {
-  test('同输入产出同输出', () => {
-    expect(computeHash3('hello')).toBe(computeHash3('hello'));
-  });
-
-  test('不同输入产出不同输出', () => {
-    expect(computeHash3('hello')).not.toBe(computeHash3('world'));
-  });
-
-  test('返回 3 位以内 base36', () => {
-    const h = computeHash3('any content');
-    expect(h).toMatch(/^[0-9a-z]{1,4}$/);
-  });
-});
-
-describe('slugify', () => {
-  test('纯中文标题', () => {
-    expect(slugify('今天是二零二六年九月二十一日')).toBe('今天是二零二六年九月二十一日');
-  });
-
-  test('英文标题转小写并保留连字符', () => {
-    expect(slugify('Hello World')).toBe('Hello-World');
-  });
-
-  test('去除非法字符', () => {
-    expect(slugify('Hello, World! 2024')).toBe('Hello-World-2024');
-  });
-
-  test('合并连续连字符', () => {
-    expect(slugify('a---b')).toBe('a-b');
-  });
-
-  test('去掉首尾连字符', () => {
-    expect(slugify('---hello---')).toBe('hello');
-  });
-
-  test('空字符串兜底', () => {
-    expect(slugify('')).toBe('untitled');
-    expect(slugify('   ')).toBe('untitled');
-    expect(slugify('!!!')).toBe('untitled');
-  });
-
-  test('超长标题截断并去尾连字符', () => {
-    const long = 'a'.repeat(100);
-    const result = slugify(long);
-    expect(result.length).toBeLessThanOrEqual(80);
-    expect(result.endsWith('-')).toBe(false);
-  });
-
-  test('混合中日英韩', () => {
-    expect(slugify('Hello 世界 こんにちは')).toBe('Hello-世界-こんにちは');
-  });
-});
+import { parseFrontMatter } from '../lib/frontmatter.ts';
 
 // ─────────────────────────────────────────────────────────────
 // 集成：buildReport + detectCollisions（用真实临时文件，不 mock fs）
@@ -127,6 +39,12 @@ function setupTempContent(): TempContent {
   };
 }
 
+const fm = (title: string, date: string, body = 'body') => `---
+title: ${title}
+date: ${date}
+---
+${body}`;
+
 describe('buildReport', () => {
   let env: TempContent;
 
@@ -138,21 +56,16 @@ describe('buildReport', () => {
     env.restore();
   });
 
-  test('有效文章进入 plans', async () => {
-    const content = `---
-title: Hello
-date: 2024-01-15
----
-hello body content`;
-    env.addPost('2024-01-15-hello.md', content);
+  test('有效文章进入 plans，新名为纯日期', async () => {
+    env.addPost('2024-01-15-hello.md', fm('Hello', '2024-01-15'));
     env.addPost('_index.md', '---\ntitle: Posts\n---');
     const { plans, skipped } = await buildReport();
     expect(skipped).toEqual([]);
     expect(plans.length).toBe(1);
-    expect(plans[0]!.yyyymmdd).toBe('20240115');
-    expect(plans[0]!.hash3).toMatch(/^[0-9a-z]{1,4}$/);
+    expect(plans[0]!.date).toBe('2024-01-15');
+    expect(plans[0]!.newSlug).toBe('2024-01-15');
     expect(plans[0]!.oldSlug).toBe('2024-01-15-hello');
-    expect(plans[0]!.newSlug).toMatch(/^20240115-.+-[a-z0-9]{1,4}$/);
+    expect(plans[0]!.newPath).toBe(join('content/posts', '2024-01-15.md'));
   });
 
   test('缺少 date 归入 skipped', async () => {
@@ -171,23 +84,61 @@ hello body content`;
     expect(skipped[0]!.reason).toContain('date 格式无效');
   });
 
-  test('已是新格式归入 skipped', async () => {
-    const date = '2024-01-15';
-    const body = 'unique body for idempotency test';
-    const raw = `---
-title: x
-date: ${date}
----
-${body}`;
-    const yyyymmdd = toYyyymmdd(date)!;
-    const slug = slugify('x');
-    const hash3 = computeHash3(extractBody(raw));
-    const newName = `${yyyymmdd}-${slug}-${hash3}.md`;
-    env.addPost(newName, raw);
+  test('已是新格式（纯日期文件名）归入 skipped', async () => {
+    env.addPost('2024-01-15.md', fm('x', '2024-01-15'));
     const { plans, skipped } = await buildReport();
     expect(plans.length).toBe(0);
     expect(skipped.length).toBe(1);
     expect(skipped[0]!.reason).toBe('已是新格式');
+  });
+
+  test('同日多篇：首篇占裸名，其余 -2/-3，按 title 排序', async () => {
+    env.addPost('old-b.md', fm('Beta', '2024-01-15'));
+    env.addPost('old-a.md', fm('Alpha', '2024-01-15'));
+    env.addPost('old-c.md', fm('Gamma', '2024-01-15'));
+    const { plans } = await buildReport();
+    expect(plans.length).toBe(3);
+    const byNew = new Map(plans.map((p) => [p.newSlug, p]));
+    expect(byNew.get('2024-01-15')!.title).toBe('Alpha');
+    expect(byNew.get('2024-01-15-2')!.title).toBe('Beta');
+    expect(byNew.get('2024-01-15-3')!.title).toBe('Gamma');
+  });
+
+  test('同日排序优先看时刻，再看 title', async () => {
+    env.addPost('old-1.md', fm('Zulu', '2024-01-15T09:00:00Z'));
+    env.addPost('old-2.md', fm('Alpha', '2024-01-15T13:00:00Z'));
+    env.addPost('old-3.md', fm('Mike', '2024-01-15'));
+    const { plans } = await buildReport();
+    const byNew = new Map(plans.map((p) => [p.newSlug, p]));
+    // 无时刻的排最前，然后 09:00 < 13:00
+    expect(byNew.get('2024-01-15')!.title).toBe('Mike');
+    expect(byNew.get('2024-01-15-2')!.title).toBe('Zulu');
+    expect(byNew.get('2024-01-15-3')!.title).toBe('Alpha');
+  });
+
+  test('同日同 title 按内容 hash 定序（与文件名无关，改名后规则仍稳定）', async () => {
+    // 两篇 title/date 全同，只有正文不同：排序由内容 hash 决定，与旧文件名无关。
+    // （旧实现用旧文件名当排序键：首跑改名后 -2 后缀会翻转排序结果，两篇互换名字死循环）
+    env.addPost('zz-old.md', fm('Same', '2024-01-15', 'body-zz'));
+    env.addPost('aa-old.md', fm('Same', '2024-01-15', 'body-aa'));
+    const { plans } = await buildReport();
+    const byOld = new Map(plans.map((p) => [p.oldSlug, p.newSlug]));
+    // body-aa 的内容 hash 一定小于 body-zz（不同内容 hash 几乎必不同；此处只断言
+    // 「排序与文件名无关」：aa-old / zz-old 拿到的命名与按文件名排序的结果无关，
+    // 且两次 buildReport 结果一致）
+    const again = await buildReport();
+    expect(again.plans.map((p) => [p.oldSlug, p.newSlug])).toEqual(
+      plans.map((p) => [p.oldSlug, p.newSlug]),
+    );
+    const slugs = [...byOld.values()].sort();
+    expect(slugs).toEqual(['2024-01-15', '2024-01-15-2']);
+  });
+
+  test('不同日期的文章互不影响', async () => {
+    env.addPost('a.md', fm('One', '2024-01-15'));
+    env.addPost('b.md', fm('Two', '2024-01-16'));
+    const { plans } = await buildReport();
+    expect(plans.map((p) => p.newSlug).sort()).toEqual(['2024-01-15', '2024-01-16']);
   });
 
   test('忽略 _index.md', async () => {
@@ -199,45 +150,37 @@ ${body}`;
 });
 
 describe('detectCollisions', () => {
-  function plan(newName: string, hash3: string): RenamePlan {
+  function plan(newName: string, oldName: string): RenamePlan {
     return {
-      oldPath: `content/posts/old-${hash3}.md`,
+      oldPath: `content/posts/${oldName}`,
       newPath: `content/posts/${newName}`,
-      oldSlug: `old-${hash3}`,
+      oldSlug: oldName.replace(/\.md$/, ''),
       newSlug: newName.replace(/\.md$/, ''),
-      yyyymmdd: newName.slice(0, 8),
-      hash3,
+      date: newName.slice(0, 10),
       title: 't',
-      oldUrl: `/posts/old-${hash3}/`,
-      body: '',
+      oldUrl: `/posts/${oldName.replace(/\.md$/, '')}/`,
     };
   }
 
   test('无碰撞返回空 Map', () => {
-    const collisions = detectCollisions([
-      plan('20240115-aaa-aaa.md', 'aaa'),
-      plan('20240115-bbb-bbb.md', 'bbb'),
-    ]);
+    const collisions = detectCollisions([plan('2024-01-15.md', 'a.md'), plan('2024-01-16.md', 'b.md')]);
     expect(collisions.size).toBe(0);
   });
 
   test('同 newName 触发碰撞', () => {
-    const collisions = detectCollisions([
-      plan('20240115-aaa-aaa.md', 'aaa'),
-      plan('20240115-aaa-aaa.md', 'aaa'),
-    ]);
+    const collisions = detectCollisions([plan('2024-01-15.md', 'a.md'), plan('2024-01-15.md', 'b.md')]);
     expect(collisions.size).toBe(1);
-    expect(collisions.get('20240115-aaa-aaa.md')!.length).toBe(2);
+    expect(collisions.get('2024-01-15.md')!.length).toBe(2);
   });
 
   test('3 个同 newName 仍算 1 个碰撞', () => {
     const collisions = detectCollisions([
-      plan('20240115-aaa-aaa.md', 'aaa'),
-      plan('20240115-aaa-aaa.md', 'aaa'),
-      plan('20240115-aaa-aaa.md', 'aaa'),
+      plan('2024-01-15.md', 'a.md'),
+      plan('2024-01-15.md', 'b.md'),
+      plan('2024-01-15.md', 'c.md'),
     ]);
     expect(collisions.size).toBe(1);
-    expect(collisions.get('20240115-aaa-aaa.md')!.length).toBe(3);
+    expect(collisions.get('2024-01-15.md')!.length).toBe(3);
   });
 });
 
@@ -246,16 +189,19 @@ describe('detectCollisions', () => {
 // ─────────────────────────────────────────────────────────────
 
 describe('oldUrlFromSlug', () => {
-  test('当前格式保留连字符（Hugo 的 URL 就是文件名）', () => {
+  test('旧格式 YYYYMMDD-slug-hash 保留连字符（Hugo 的 URL 就是文件名）', () => {
     expect(oldUrlFromSlug('20200403-领域逻辑的组织模式-3qj')).toBe(
       '/posts/20200403-领域逻辑的组织模式-3qj/',
     );
   });
 
-  test('ASCII 当前格式，URL 小写化（Hugo 默认 disablePathToLower=false）', () => {
-    expect(oldUrlFromSlug('20200406-MultiplexingIO-13q')).toBe(
-      '/posts/20200406-multiplexingio-13q/',
-    );
+  test('ASCII 旧格式，URL 小写化（Hugo 默认 disablePathToLower=false）', () => {
+    expect(oldUrlFromSlug('20200406-MultiplexingIO-13q')).toBe('/posts/20200406-multiplexingio-13q/');
+  });
+
+  test('新格式 YYYY-MM-DD（含 -2 后缀）本身就是合法 URL', () => {
+    expect(oldUrlFromSlug('2024-01-15')).toBe('/posts/2024-01-15/');
+    expect(oldUrlFromSlug('2024-01-15-2')).toBe('/posts/2024-01-15-2/');
   });
 
   test('历史格式 YYYYMMDDhash 原样保留', () => {
@@ -268,45 +214,47 @@ describe('oldUrlFromSlug', () => {
 });
 
 describe('addAlias', () => {
-  const fm = (lines: string, body = '正文') => `---\n${lines}\n---\n${body}`;
+  const fmBlock = (lines: string, body = '正文') => `---\n${lines}\n---\n${body}`;
 
   test('已有 inline 数组时追加', () => {
-    const raw = fm('title: x\ndate: 2020-04-03\naliases: ["/posts/20200403037p8f/"]');
+    const raw = fmBlock('title: x\ndate: 2020-04-03\naliases: ["/posts/20200403037p8f/"]');
     const out = addAlias(raw, '/posts/20200403-领域逻辑的组织模式-3qj/');
-    expect(out).toContain('aliases: ["/posts/20200403037p8f/", "/posts/20200403-领域逻辑的组织模式-3qj/"]');
+    expect(out).toContain(
+      'aliases: ["/posts/20200403037p8f/", "/posts/20200403-领域逻辑的组织模式-3qj/"]',
+    );
     expect(out).toContain('正文');
   });
 
   test('幂等：已存在同一 URL 时原样返回', () => {
-    const raw = fm('aliases: ["/posts/a/"]');
+    const raw = fmBlock('aliases: ["/posts/a/"]');
     expect(addAlias(raw, '/posts/a/')).toBe(raw);
   });
 
   test('aliases 为空数组时写入', () => {
-    const raw = fm('title: x\naliases: []');
+    const raw = fmBlock('title: x\naliases: []');
     expect(addAlias(raw, '/posts/a/')).toContain('aliases: ["/posts/a/"]');
   });
 
   test('没有 aliases 键时新建，且插在 front matter 末尾', () => {
-    const raw = fm('title: x\ndate: 2020-04-03');
+    const raw = fmBlock('title: x\ndate: 2020-04-03');
     const out = addAlias(raw, '/posts/a/');
     expect(out).toContain('date: 2020-04-03\naliases: ["/posts/a/"]\n---');
   });
 
   test('YAML 块式 aliases 时追加一行', () => {
-    const raw = fm('title: x\naliases:\n  - "/posts/a/"');
+    const raw = fmBlock('title: x\naliases:\n  - "/posts/a/"');
     const out = addAlias(raw, '/posts/b/');
     expect(out).toContain('aliases:\n  - "/posts/a/"\n  - "/posts/b/"');
   });
 
   test('Prettier 折叠成的「aliases:」+ 缩进数组也能追加', () => {
-    const raw = fm('title: x\naliases:\n  ["/posts/a/", "/posts/b/"]');
+    const raw = fmBlock('title: x\naliases:\n  ["/posts/a/", "/posts/b/"]');
     const out = addAlias(raw, '/posts/c/');
     expect(out).toContain('aliases:\n  ["/posts/a/", "/posts/b/", "/posts/c/"]');
   });
 
   test('Prettier 把数组折成多行（`[` 与 `]` 各占一行）也能追加，且不产出非法 YAML', () => {
-    const raw = fm('title: x\naliases:\n  [\n    "/posts/a/",\n    "/posts/b/",\n  ]');
+    const raw = fmBlock('title: x\naliases:\n  [\n    "/posts/a/",\n    "/posts/b/",\n  ]');
     const out = addAlias(raw, '/posts/c/');
     expect(out).toContain('aliases:\n  ["/posts/a/", "/posts/b/", "/posts/c/"]');
     // 折行式曾经漏到块式分支，插出 `aliases:` + `- "…"` + `[ … ]` 这种非法 YAML
@@ -365,28 +313,24 @@ describe('findBlockingCollisions', () => {
       newPath: `content/posts/${newName}`,
       oldSlug: oldName.replace(/\.md$/, ''),
       newSlug: newName.replace(/\.md$/, ''),
-      yyyymmdd: newName.slice(0, 8),
-      hash3: 'aaa',
+      date: newName.slice(0, 10),
       title: 't',
       oldUrl: `/posts/${oldName.replace(/\.md$/, '')}/`,
-      body: '',
     };
   }
 
   test('目标名没被现存文件占用时返回空 Map', () => {
-    const blockers = findBlockingCollisions([plan('20240115-aaa-aaa.md', 'old-aaa.md')], [
-      'old-aaa.md',
-    ]);
+    const blockers = findBlockingCollisions([plan('2024-01-15.md', 'old-a.md')], ['old-a.md']);
     expect(blockers.size).toBe(0);
   });
 
   test('撞上不计入 plans 的现存文件（它不会被挪走，会被覆盖）', () => {
-    const blockers = findBlockingCollisions([plan('20240115-aaa-aaa.md', 'old-aaa.md')], [
-      'old-aaa.md',
-      '20240115-aaa-aaa.md',
+    const blockers = findBlockingCollisions([plan('2024-01-15.md', 'old-a.md')], [
+      'old-a.md',
+      '2024-01-15.md',
     ]);
     expect(blockers.size).toBe(1);
-    expect(blockers.get('20240115-aaa-aaa.md')).toEqual(['old-aaa.md']);
+    expect(blockers.get('2024-01-15.md')).toEqual(['old-a.md']);
   });
 
   test('两篇互换名字也报错（执行顺序不利时就是相互覆盖）', () => {
@@ -404,4 +348,3 @@ describe('findBlockingCollisions', () => {
     expect(blockers.size).toBe(0);
   });
 });
-

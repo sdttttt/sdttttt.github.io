@@ -13,7 +13,7 @@ hugo --minify       # 生产构建到 public/
 
 ## 写文章
 
-在 `content/posts/` 新建 `YYYYMMDD-标题-xxxx.md`（`title` / `date` / `description` 必填），推送 `master` 即自动校验、格式化并部署。改了文章正文后文件名会跟着变（hash 取自正文），跑 `bun run rename-posts` 就地改名并把旧 URL 写进 `aliases`；装了 hook 后提交时自动做这件事。
+在 `content/posts/` 新建 `YYYY-MM-DD.md`（`title` / `date` / `description` 必填），推送 `master` 即自动校验、格式化并部署。文件名只有日期（同一天多篇会自动加 `-2`、`-3` 后缀）；改了 front matter 的日期后跑 `bun run rename-posts` 就地改名并把旧 URL 写进 `aliases`；装了 hook 后提交时自动做这件事。
 
 ## 常用命令
 

@@ -132,6 +132,26 @@ export function toYyyymmdd(value: unknown): string | null {
 }
 
 /**
+ * 同 toYyyymmdd，但产出带连字符的 `YYYY-MM-DD`（文件名用，与 changelog 同款）。
+ * 校验逻辑共用同一份（不接受 toYyyymmdd 之外的新格式）。
+ */
+export function toYyyyMmDd(value: unknown): string | null {
+  const yyyymmdd = toYyyymmdd(value);
+  return yyyymmdd ? `${yyyymmdd.slice(0, 4)}-${yyyymmdd.slice(4, 6)}-${yyyymmdd.slice(6, 8)}` : null;
+}
+
+/**
+ * date 字段里「当天时刻」的原始字符串（`T13:00:00Z` 部分；纯日期返回 ''）。
+ *
+ * rename-posts 用它给同一天的多篇文章排序定名（YYYY-MM-DD-2、-3…）；
+ * 直接比较原始字符串即可（ISO 时刻字典序 = 时间序）。
+ */
+export function timePart(value: unknown): string {
+  if (typeof value !== 'string') return '';
+  return value.length > 10 && value[10] === 'T' ? value.slice(11) : '';
+}
+
+/**
  * title / date 的问题清单（空数组 = 没问题）。
  *
  * validate-posts 与 rename-posts 共用同一份判据 **与同一套措辞**：两边各写一份时

@@ -123,11 +123,9 @@ hello body content`;
       newPath: `content/posts/${newSlug}.md`,
       oldSlug,
       newSlug,
-      yyyymmdd: '20200101',
-      hash3: 'zzz',
+      date: '2020-01-01',
       title: 'Hello',
       oldUrl: `/posts/20200101hello/`,
-      body: 'hello body content',
     };
 
     await executePlan(plan);
@@ -170,11 +168,9 @@ body`;
       newPath: `content/posts/${newSlug}.md`,
       oldSlug,
       newSlug,
-      yyyymmdd: '20200202',
-      hash3: 'xxx',
+      date: '2020-02-02',
       title: 'No Change',
       oldUrl: `/posts/20200202nofmchange/`,
-      body: 'body',
     };
 
     await executePlan(plan);

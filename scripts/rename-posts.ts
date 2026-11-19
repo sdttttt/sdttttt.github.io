@@ -1,19 +1,19 @@
 #!/usr/bin/env bun
 /**
- * 将 content/posts/ 下的文章批量重命名为 YYYYMMDD-{slug}-{xxx}.md
+ * 将 content/posts/ 下的文章批量重命名为 YYYY-MM-DD.md
  *
- * - 日期取自 frontmatter `date` 字段
- * - slug 由 frontmatter `title` 自动 slugify（保留中文 unicode）
- * - hash 是 body 内容的 SHA-256 前 2 字节（16 bit → base36，3–4 位）
- *   用于兜底去重，绝大多数情况下文件名长度 = `YYYYMMDD-slug-XXX`
- * - 因为 hash 取自正文，**任何正文改动都会让文件名（也就是 URL）变化**，所以
- *   每次改名都会把旧 URL 追加进该篇 front matter 的 `aliases`，由 Hugo 生成跳转页
+ * - 日期取自 frontmatter `date` 字段（真实日历校验，与 validate-posts 共用判据）
+ * - 文件名只有日期，**不含标题与 hash**：标题在 front matter 里，URL 里本来也不可见
+ * - 同一天多篇时按（时刻 → title → 内容 hash）排序：首篇占 YYYY-MM-DD.md，
+ *   其余依次 YYYY-MM-DD-2.md、-3…（最多一天 16 篇也够用）；排序键全部取自内容、
+ *   与当前文件名无关，保证一次改名后规则稳定、不会互换名字
+ * - 改名会把旧 URL 追加进该篇 front matter 的 `aliases`，由 Hugo 生成跳转页
  *   保住旧链接（幂等，不会重复追加）
  *
  * 用法：
- *   node scripts/rename-posts.ts --dry-run --verbose   # 预览计划
- *   node scripts/rename-posts.ts --check               # 只读门禁（有待改文件即退出 1）
- *   bun run rename-posts                              # 实际执行
+ *   bun run rename-posts-dry                # 预览计划
+ *   bun run rename-posts-check              # 只读门禁（有待改文件即退出 1）
+ *   bun run rename-posts                    # 实际执行
  *
  * 注意：脚本会尝试使用 `git mv` 以保留 git 重命名历史，若不在 git 仓库则降级为 rename。
  */
@@ -22,7 +22,7 @@ import { readFile, rename, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import { basename, join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyymmdd } from './lib/frontmatter.ts';
+import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyyMmDd, timePart } from './lib/frontmatter.ts';
 import { parseArgs, getBoolean } from './lib/args.ts';
 import { listPostFiles, POSTS_DIR } from './lib/paths.ts';
 
@@ -35,66 +35,6 @@ const check = getBoolean(args, 'check');
 const verbose = getBoolean(args, 'verbose');
 
 // ─────────────────────────────────────────────────────────────
-// 纯函数
-// ─────────────────────────────────────────────────────────────
-
-/**
- * 去掉开头的 frontmatter 块，返回剩余正文。
- * 没有 frontmatter 时返回原文。
- *
- * 块以 `\n---` 结尾（不含尾部换行），后面紧跟的换行是 frontmatter 与
- * 正文之间的分隔符，一并跳掉，避免正文开头出现多余的空行。
- */
-export function extractBody(raw: string): string {
-  const block = extractFrontMatterBlock(raw);
-  if (!block) return raw;
-  let body = raw.slice(block.length);
-  if (body.startsWith('\n')) body = body.slice(1);
-  return body;
-}
-
-/**
- * body 内容 → base36 hash（16 bit）。
- * SHA-256 前 2 字节 → 16-bit unsigned int → base36，`padStart(3)` 保证至少 3 位；
- * 46656 以上会到 4 位，所以文件名后缀是 **3 或 4 位**（实测 169 篇 3 位、56 篇 4 位）。
- *
- * 作为 `YYYYMMDD-slug-XXX.md` 末尾的去重后缀。
- * 16 bit 在 220+ 篇文章规模下冲突概率 ~0.1%，可接受。
- */
-export function computeHash3(body: string): string {
-  const buf = createHash('sha256').update(body).digest();
-  // 取前 2 字节作为 16-bit unsigned int（大端）
-  const n = ((buf[0]! << 8) | buf[1]!) >>> 0;
-  return n.toString(36).padStart(3, '0');
-}
-
-/**
- * 把 title 转成 URL/文件名安全的 slug。
- *
- * 规则：
- * - 保留中文字符（CJK unicode），Hugo 原生支持 unicode 段
- * - ASCII 部分：保留字母/数字/连字符，其余替换为 `-`
- * - 合并连续连字符
- * - 去掉首尾连字符
- * - 长度上限 80 字符（避免文件名/URL 过长）
- * - 空字符串兜底返回 `'untitled'`
- */
-export function slugify(title: string): string {
-  const MAX = 80;
-  let s = title.trim();
-  // 替换所有非保留字符为连字符
-  // 保留：CJK 字符（U+4E00-U+9FFF, U+3400-U+4DBF, U+3040-U+30FF, U+AC00-U+D7AF）+ 拉丁字母数字 + 连字符
-  s = s.replace(/[^\u4E00-\u9FFF\u3400-\u4DBF\u3040-\u30FF\uAC00-\uD7AFa-zA-Z0-9-]+/g, '-');
-  // 合并连续连字符
-  s = s.replace(/-+/g, '-');
-  // 去掉首尾连字符
-  s = s.replace(/^-+|-+$/g, '');
-  // 长度上限（按字符数而非字节数；中文每个算 1 字符）
-  if (s.length > MAX) s = s.slice(0, MAX).replace(/-+$/, '');
-  return s || 'untitled';
-}
-
-// ─────────────────────────────────────────────────────────────
 // 计划 / 跳过 / 报告
 // ─────────────────────────────────────────────────────────────
 
@@ -103,11 +43,10 @@ export interface RenamePlan {
   newPath: string;
   oldSlug: string;
   newSlug: string;
-  yyyymmdd: string;
-  hash3: string;
+  /** `YYYY-MM-DD`（同日多篇时 newSlug 带 -2/-3 后缀） */
+  date: string;
   title: string;
   oldUrl: string; // 例如 "/posts/2026081705hog4/" 用于写入 aliases
-  body: string; // 用于 verbose 输出
 }
 
 export interface SkipEntry {
@@ -197,6 +136,18 @@ export async function buildReport(): Promise<Report> {
   const plans: RenamePlan[] = [];
   const skipped: SkipEntry[] = [];
 
+  // 先扫一遍：合法文章收集日期/时刻/标题，非法的进 skipped
+  interface ValidPost {
+    file: string;
+    oldPath: string;
+    date: string; // YYYY-MM-DD
+    time: string; // 当天时刻（可能为空）
+    title: string;
+    /** 内容 hash：time/title 都相同时的最终排序键，与文件名无关（见下） */
+    key: string;
+  }
+  const valid: ValidPost[] = [];
+
   for (const f of files) {
     const oldPath = join(POSTS_DIR, f);
     const raw = await readFile(oldPath, 'utf8');
@@ -209,32 +160,57 @@ export async function buildReport(): Promise<Report> {
       continue;
     }
 
-    const yyyymmdd = toYyyymmdd(meta.date)!;
-    const title = String(meta.title);
-    const body = extractBody(raw);
-    const slug = slugify(title);
-    const hash3 = computeHash3(body);
-    const newSlug = `${yyyymmdd}-${slug}-${hash3}`;
-    const newName = `${newSlug}.md`;
-    const newPath = join(POSTS_DIR, newName);
-
-    if (newName === f) {
-      skipped.push({ file: f, reason: '已是新格式' });
-      continue;
-    }
-
-    const oldSlug = basename(f, '.md');
-
-    plans.push({
+    valid.push({
+      file: f,
       oldPath,
-      newPath,
-      oldSlug,
-      newSlug,
-      yyyymmdd,
-      hash3,
-      title,
-      oldUrl: oldUrlFromSlug(oldSlug),
-      body,
+      date: toYyyyMmDd(meta.date)!,
+      time: timePart(meta.date),
+      title: String(meta.title),
+      key: createHash('sha256').update(raw).digest('hex').slice(0, 16),
+    });
+  }
+
+  // 按日期分组，组内按（时刻 → title → 内容 hash → 旧文件名）排序后编号：
+  // 首篇占 YYYY-MM-DD.md，其余 YYYY-MM-DD-2.md、-3…
+  // 排序键全部由内容决定、与「当前文件名」无关 —— 用文件名当排序键会让
+  // 后缀改变排序结果，首跑改名后规则翻转、两篇互换名字无限循环
+  // （2021-01-14 两篇 Composition Api 实测踩过，findBlockingCollisions 挡住没丢数据）。
+  const byDate = new Map<string, ValidPost[]>();
+  for (const p of valid) {
+    const list = byDate.get(p.date) ?? [];
+    list.push(p);
+    byDate.set(p.date, list);
+  }
+
+  for (const [date, group] of byDate) {
+    group.sort(
+      (a, b) =>
+        (a.time < b.time ? -1 : a.time > b.time ? 1 : 0) ||
+        a.title.localeCompare(b.title, 'zh') ||
+        (a.key < b.key ? -1 : a.key > b.key ? 1 : 0) ||
+        a.file.localeCompare(b.file),
+    );
+
+    group.forEach((p, i) => {
+      const newSlug = i === 0 ? date : `${date}-${i + 1}`;
+      const newName = `${newSlug}.md`;
+      const newPath = join(POSTS_DIR, newName);
+
+      if (newName === p.file) {
+        skipped.push({ file: p.file, reason: '已是新格式' });
+        return;
+      }
+
+      const oldSlug = basename(p.file, '.md');
+      plans.push({
+        oldPath: p.oldPath,
+        newPath,
+        oldSlug,
+        newSlug,
+        date,
+        title: p.title,
+        oldUrl: oldUrlFromSlug(oldSlug),
+      });
     });
   }
 
@@ -349,7 +325,6 @@ function printPlan(p: RenamePlan): void {
   console.log(`    → ${basename(p.newPath)}`);
   if (verbose) {
     console.log(`    title: ${p.title}`);
-    console.log(`    hash:  ${p.hash3} (body ${p.body.length} chars)`);
     console.log(`    alias: ${p.oldUrl}`);
   }
 }
@@ -389,11 +364,11 @@ async function main(): Promise<void> {
   // 碰撞检测（plans 之间同名）
   const collisions = detectCollisions(plans);
   if (collisions.size > 0) {
-    console.error(`✗ 检测到 ${collisions.size} 个哈希冲突，无法继续：`);
+    console.error(`✗ 检测到 ${collisions.size} 个目标名冲突，无法继续：`);
     for (const [name, list] of collisions) {
       console.error(`  ${name}:`);
       for (const p of list) {
-        console.error(`    - ${basename(p.oldPath)} (hash ${p.hash3})`);
+        console.error(`    - ${basename(p.oldPath)} (date ${p.date})`);
       }
     }
     process.exit(1);

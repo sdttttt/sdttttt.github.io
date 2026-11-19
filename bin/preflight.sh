@@ -12,8 +12,9 @@
 # 退出码：0 通过 / 1 有检查未通过 / 2 参数错 / 127 缺工具
 #
 # 六个步骤（即原来散在 deploy.yml 里的那几步）：
-#   ① 文章文件名   YYYYMMDD-slug-hash。hash 取自正文，所以任何正文改动都会改 URL，
-#                  改名时脚本会把旧 URL 追加进该篇的 aliases（幂等）
+#   ① 文章文件名   YYYY-MM-DD.md（同日多篇加 -2/-3 后缀）。文件名只由 front matter
+#                  的 date 决定，改日期才触发改名；改名时脚本把旧 URL 追加进
+#                  该篇的 aliases（幂等）
 #   ② Markdown     prettier（钉死根 package.json 的 3.9.6，本地与 CI 共用）
 #   ③ front matter 必填字段与 slug 冲突
 #   ④ 类型检查     tsc --noEmit（TypeScript 7 原生编译器，全项目约 0.3s）

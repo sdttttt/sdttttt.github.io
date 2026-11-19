@@ -1,5 +1,5 @@
 import { describe, test, expect } from 'vitest';
-import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyymmdd } from '../lib/frontmatter.ts';
+import { parseFrontMatter, extractFrontMatterBlock, checkTitleAndDate, toYyyymmdd, toYyyyMmDd, timePart } from '../lib/frontmatter.ts';
 
 describe('parseFrontMatter', () => {
   test('空字符串返回空对象', () => {
@@ -142,6 +142,42 @@ describe('toYyyymmdd', () => {
 
   test('闰年 2 月 29 日有效', () => {
     expect(toYyyymmdd('2024-02-29')).toBe('20240229');
+  });
+});
+
+describe('toYyyyMmDd', () => {
+  test('裸日期带连字符', () => {
+    expect(toYyyyMmDd('2025-05-04')).toBe('2025-05-04');
+  });
+
+  test('ISO datetime 取日期部分', () => {
+    expect(toYyyyMmDd('2020-05-09T13:00:00Z')).toBe('2020-05-09');
+  });
+
+  test('一位月日自动补零', () => {
+    expect(toYyyyMmDd('2024-1-5')).toBe('2024-01-05');
+  });
+
+  test('非法日期与 toYyyymmdd 一致地返回 null', () => {
+    expect(toYyyyMmDd('2026-02-31')).toBe(null);
+    expect(toYyyyMmDd('hello')).toBe(null);
+    expect(toYyyyMmDd(null)).toBe(null);
+  });
+});
+
+describe('timePart', () => {
+  test('纯日期返回空串', () => {
+    expect(timePart('2025-05-04')).toBe('');
+    expect(timePart('"2022-11-08"')).toBe('');
+  });
+
+  test('ISO datetime 返回时刻部分', () => {
+    expect(timePart('2020-05-09T13:00:00Z')).toBe('13:00:00Z');
+  });
+
+  test('非字符串返回空串', () => {
+    expect(timePart(null)).toBe('');
+    expect(timePart(undefined)).toBe('');
   });
 });
 
