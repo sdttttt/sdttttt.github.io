@@ -49,29 +49,26 @@ require_cmd() {
   exit 127
 }
 
-require_node() {
-  require_cmd node "本机用 mise / nvm 装 Node 24+；CI 由 actions/setup-node 提供"
-  local major
-  major="$(node -p 'process.versions.node.split(".")[0]' 2>/dev/null || echo 0)"
-  if [ "${major:-0}" -lt 24 ]; then
-    fail "需要 Node 24 及以上（当前 $(node -v)）：scripts/*.ts 靠 Node 原生类型剥离直接执行"
+require_bun() {
+  require_cmd bun "本机用 curl -fsSL https://bun.sh/install | bash 安装；CI 由 oven-sh/setup-bun 提供"
+  local major minor
+  major="$(bun -v 2>/dev/null | cut -d. -f1 || echo 0)"
+  minor="$(bun -v 2>/dev/null | cut -d. -f2 || echo 0)"
+  if [ "${major:-0}" -lt 1 ] || { [ "${major:-0}" -eq 1 ] && [ "${minor:-0}" -lt 4 ]; }; then
+    fail "需要 Bun 1.4 及以上（当前 $(bun -v)）：scripts/*.ts 靠 Bun 原生跑 TypeScript"
     exit 127
   fi
 }
 
-require_pnpm() {
-  require_cmd pnpm "本机用 corepack enable（或 npm i -g pnpm）；CI 由 pnpm/action-setup 提供"
-}
-
-# 依赖（vitest / prettier）来自 pnpm install；preflight 的第 ②④ 步都要用
+# 依赖（vitest / prettier）来自 bun install；preflight 的第 ②④ 步都要用
 require_node_modules() {
   if [ ! -d "$REPO_ROOT/node_modules/vitest" ] || [ ! -d "$REPO_ROOT/node_modules/prettier" ]; then
-    fail "依赖未安装：先在仓库根跑 pnpm install"
+    fail "依赖未安装：先在仓库根跑 bun install"
     exit 127
   fi
 }
 
-# 所有命令都以仓库根为 cwd（pnpm run / hugo / git 都依赖它）
+# 所有命令都以仓库根为 cwd（bun run / hugo / git 都依赖它）
 cd "$REPO_ROOT"
 
 # ── 摘要 ──

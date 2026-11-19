@@ -1,13 +1,13 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * 检查 Markdown 中的死链
  *
  * 扫描 content/ 下的 .md 文件，提取 http/https 外链，通过 HEAD 请求检查可用性。
  *
  * 用法：
- *   pnpm run check-dead-links            本地：有死链时退出码 1
- *   pnpm run check-dead-links --soft     退出码恒 0，只报告
- *   pnpm run check-dead-links --strict   强制退出码 1（即使在 CI 里）
+ *   bun run check-dead-links            本地：有死链时退出码 1
+ *   bun run check-dead-links --soft     退出码恒 0，只报告
+ *   bun run check-dead-links --strict   强制退出码 1（即使在 CI 里）
  *   node scripts/check-dead-links.ts --timeout 10000
  *
  * 退出码：0 = 通过（或 --soft）；1 = 有死链且处于严格模式；2 = 参数错。
@@ -299,11 +299,11 @@ async function checkAll(urls: string[], statuses: Map<string, LinkStatus>): Prom
 const USAGE = `死链检查：扫描 content/ 下的 Markdown，探测其中的外链。
 
 用法：
-  pnpm run check-dead-links             本地：有死链时退出码 1
-  pnpm run check-dead-links --soft      退出码恒 0，只报告
-  pnpm run check-dead-links --strict    强制退出码 1（即使在 CI 里）
-  pnpm run check-dead-links --dry-run   只列出要检查的链接，不发请求
-  pnpm run check-dead-links --timeout=10000
+  bun run check-dead-links             本地：有死链时退出码 1
+  bun run check-dead-links --soft      退出码恒 0，只报告
+  bun run check-dead-links --strict    强制退出码 1（即使在 CI 里）
+  bun run check-dead-links --dry-run   只列出要检查的链接，不发请求
+  bun run check-dead-links --timeout=10000
 
 退出码：0 = 通过；1 = 有死链且处于严格模式；2 = 参数错。`;
 

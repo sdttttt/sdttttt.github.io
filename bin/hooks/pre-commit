@@ -11,13 +11,13 @@ set -euo pipefail
 ROOT="$(git rev-parse --show-toplevel)"
 
 # 本机没有工具链时不要拦住提交：这只是个便利设施，不是门禁
-if ! command -v node >/dev/null 2>&1 || ! command -v pnpm >/dev/null 2>&1; then
-  echo "  ~~  跳过 preflight：找不到 node / pnpm（mise 或 nvm + corepack enable）" >&2
+if ! command -v bun >/dev/null 2>&1; then
+  echo "  ~~  跳过 preflight：找不到 bun（https://bun.sh）" >&2
   exit 0
 fi
 
 if [ ! -d "$ROOT/node_modules/vitest" ]; then
-  echo "  ~~  跳过 preflight：依赖未安装（先在仓库根跑 pnpm install）" >&2
+  echo "  ~~  跳过 preflight：依赖未安装（先在仓库根跑 bun install）" >&2
   exit 0
 fi
 

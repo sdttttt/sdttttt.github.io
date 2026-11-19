@@ -39,20 +39,19 @@ for arg in "$@"; do
   esac
 done
 
-require_node
-require_pnpm
+require_bun
 require_node_modules
 
 if [ "$MODE" = fix ]; then
-  run_step "① 文章文件名（修复）" pnpm run rename-posts
-  run_step "② Markdown 格式（修复）" pnpm run format-markdown
+  run_step "① 文章文件名（修复）" bun run rename-posts
+  run_step "② Markdown 格式（修复）" bun run format-markdown
 else
-  run_step "① 文章文件名" pnpm run rename-posts-check
-  run_step "② Markdown 格式" pnpm run format-markdown-check
+  run_step "① 文章文件名" bun run rename-posts-check
+  run_step "② Markdown 格式" bun run format-markdown-check
 fi
-run_step "③ front matter 校验" pnpm run validate-posts
-run_step "④ 类型检查" pnpm run typecheck
-run_step "⑤ 单元测试" pnpm run test
+run_step "③ front matter 校验" bun run validate-posts
+run_step "④ 类型检查" bun run typecheck
+run_step "⑤ 单元测试" bun run test
 run_step "⑥ 构建产物新鲜度" "$BIN_DIR/artifacts.sh" check
 
 if [ "$CHECK_FAILED" -ne 0 ]; then

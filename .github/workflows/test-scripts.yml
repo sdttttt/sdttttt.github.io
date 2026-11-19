@@ -10,7 +10,7 @@ on:
       - 'scripts/**'
       - 'bin/**'
       - 'package.json'
-      - 'pnpm-lock.yaml'
+      - 'bun.lock'
       - '.github/workflows/test-scripts.yml'
   pull_request:
     branches:
@@ -20,7 +20,7 @@ on:
       - 'scripts/**'
       - 'bin/**'
       - 'package.json'
-      - 'pnpm-lock.yaml'
+      - 'bun.lock'
 
 jobs:
   test:
@@ -30,19 +30,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: '11.22.0'
-
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-          cache: pnpm
+          # 与本地一致；package.json 的 packageManager 也钉着这个版本
+          bun-version: '1.4.4'
 
       - name: Install dependencies
-        run: pnpm install --frozen-lockfile
+        run: bun install --frozen-lockfile
 
       # shell 语法检查 + vitest
       - name: Run tests

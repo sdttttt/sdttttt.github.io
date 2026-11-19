@@ -1,17 +1,17 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 /**
  * 把 assets/src/ 下的原图编码成 static/ 下体积优化后的发布图。
  *
  * 用法：
- *   pnpm run optimize-images-dry              # 预览，不写盘、不装 sharp
- *   pnpm run optimize-images                  # 写入（默认 AVIF）
- *   pnpm run optimize-images --format webp    # 想要更好的老浏览器兼容时
- *   pnpm run optimize-images --force          # 忽略时间戳，全部重编码
+ *   bun run optimize-images-dry              # 预览，不写盘、不装 sharp
+ *   bun run optimize-images                  # 写入（默认 AVIF）
+ *   bun run optimize-images --format webp    # 想要更好的老浏览器兼容时
+ *   bun run optimize-images --force          # 忽略时间戳，全部重编码
  *
  * 依赖 sharp（只在真正需要编码时才动态 import，所以 dry-run 与 CI 测试
  * 都不需要它）。它刻意**不在** package.json 里，否则每次 CI 都要下 50MB：
- * 第一次真正编码前先跑 `pnpm add -D sharp@0.33.5`（pnpm 没有 `--no-save`，
- * 它会临时写进 package.json / pnpm-lock.yaml；编码完 `pnpm remove sharp` 还原即可，
+ * 第一次真正编码前先跑 `bun add -D sharp@0.33.5`（bun add 同样会写进
+ * package.json / bun.lock；编码完 `bun remove sharp` 还原即可，
  * 这两处改动别提交）。
  *
  * 幂等：产物比源图新就跳过。产物路径由 scripts/lib/image-plan.ts 规划，
@@ -133,14 +133,14 @@ export async function listPublishedImages(): Promise<string[]> {
  *
  * 用变量而不是字面量说明符，是为了让测试（会 import 本文件的 buildPlans）
  * 不被静态解析拉进依赖 —— sharp 刻意不写进 package.json，CI 因此保持零
- * 50MB 二进制；真正要编码时先 `pnpm add -D sharp@0.33.5`，用完 `pnpm remove sharp`。
+ * 50MB 二进制；真正要编码时先 `bun add -D sharp@0.33.5`，用完 `bun remove sharp`。
  */
 const SHARP_SPECIFIER = 'sharp';
 
 async function encode(plan: ImagePlan): Promise<Buffer> {
   const { default: sharp } = await import(SHARP_SPECIFIER).catch(() => {
     throw new Error(
-      '缺少 sharp：先运行 `pnpm add -D sharp@0.33.5`（装完记得 `pnpm remove sharp`，别把这项依赖提交进去）',
+      '缺少 sharp：先运行 `bun add -D sharp@0.33.5`（装完记得 `bun remove sharp`，别把这项依赖提交进去）',
     );
   });
   const image = sharp(plan.source).resize({

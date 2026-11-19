@@ -25,16 +25,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
         with:
-          version: '11.22.0'
+          # 与本地一致；package.json 的 packageManager 也钉着这个版本
+          bun-version: '1.4.4'
 
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '24'
-
-      # validate-posts 只依赖 node: 内置模块，不需要 pnpm install
+      # validate-posts 只依赖 node: 内置模块，不需要 bun install
       - name: Validate posts
-        run: pnpm run validate-posts
+        run: bun run validate-posts
